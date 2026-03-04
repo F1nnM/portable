@@ -1,0 +1,18 @@
+# Sandbox ghost files
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.gitmodules
+.claude/
+.mcp.json
+.ripgreprc
+.idea
+.vscode
+HEAD
+config
+hooks
+objects
+refs
