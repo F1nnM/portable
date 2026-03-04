@@ -6,93 +6,166 @@
 
 **Architecture:** Nuxt full-stack main app handles auth, project management, and proxies traffic to per-project K8s pods. Each pod runs a Hono server with the Claude Agent SDK, a dev server, and serves the editor SPA.
 
-**Tech Stack:** Nuxt 3, Drizzle ORM, Hono, Claude Agent SDK, CodeMirror 6, `@kubernetes/client-node`, Octokit, Arctic, Helm
+**Tech Stack:** Nuxt 3, Drizzle ORM, Hono, Claude Agent SDK, CodeMirror 6, `@kubernetes/client-node`, Octokit, Arctic, Helm, k3d, Tilt, mise
 
 **Design Doc:** `docs/plans/2026-03-04-portable-design.md`
 
 ---
 
-## Phase 1: Project Scaffolding & Foundation
+## Phase 1: Dev Environment & Project Foundation
 
-### Task 1: Initialize Nuxt app and monorepo structure
+### Task 1: mise config and monorepo structure
 
-Set up the repository as a monorepo with two packages:
+Set up the repository structure and mise for tool management.
 
 ```
+.mise.toml              # Node.js LTS, pnpm, kubectl, helm, k3d, tilt
+pnpm-workspace.yaml
+package.json            # Root workspace
 packages/
-  app/              # Nuxt main app
-  pod-server/       # Hono server for inside pods
+  app/                  # Nuxt main app
+  pod-server/           # Hono server for inside pods
+  editor/               # Vue SPA for editor UI
 scaffolds/
-  nuxt-postgres/    # First scaffold
+  nuxt-postgres/
 deploy/
   helm/
-    portable/       # Helm chart
+    portable/
 docs/
-  plans/            # Already exists
+  plans/
 ```
 
-Initialize `packages/app` as a Nuxt 3 app. Initialize `packages/pod-server` as a plain TypeScript project with Hono. Use a pnpm workspace for the monorepo.
+Initialize `packages/app` as a Nuxt 3 app. Initialize `packages/pod-server` as a plain TypeScript project with Hono. Initialize `packages/editor` as a Vue 3 + Vite SPA.
 
 **Files:**
+- Create: `.mise.toml`
 - Create: `pnpm-workspace.yaml`
 - Create: `package.json` (root workspace)
+- Create: `.gitignore`
 - Create: `packages/app/` (Nuxt init)
-- Create: `packages/pod-server/package.json`
-- Create: `packages/pod-server/tsconfig.json`
-- Create: `packages/pod-server/src/index.ts` (minimal Hono server with `/health`)
+- Create: `packages/pod-server/package.json`, `tsconfig.json`, `src/index.ts` (minimal Hono with `/health`)
+- Create: `packages/editor/package.json`, `vite.config.ts`, `index.html`, `src/main.ts`, `src/App.vue` (minimal)
 
 **Commit after this task.**
 
-### Task 2: Database schema and Drizzle setup
+### Task 2: Dockerfiles for both containers
 
-Install Drizzle ORM with `postgres.js` driver in the Nuxt app. Define the schema for `users`, `projects`, and `sessions` tables per the design doc. Set up migration tooling.
+Create Dockerfiles early so Tilt can build and deploy them from the start.
+
+**Main app** (`packages/app/Dockerfile`): Multi-stage — install deps, build Nuxt, slim runtime.
+
+**Pod server** (`packages/pod-server/Dockerfile`): Based on Node.js LTS, installs git and common dev tools, copies pod-server build + editor SPA dist, sets entrypoint.
+
+**Files:**
+- Create: `packages/app/Dockerfile`
+- Create: `packages/app/.dockerignore`
+- Create: `packages/pod-server/Dockerfile`
+- Create: `packages/pod-server/.dockerignore`
+
+**Commit after this task.**
+
+### Task 3: Helm chart (base)
+
+Create the Helm chart with enough to deploy the main app and Postgres locally. This will be extended as we add features. Start with:
+- Main app Deployment + Service + Ingress (wildcard)
+- Postgres StatefulSet + Service + PVC
+- ServiceAccount + RBAC
+- Secrets + ConfigMap
+- Values with sensible dev defaults
+
+**Files:**
+- Create: `deploy/helm/portable/Chart.yaml`
+- Create: `deploy/helm/portable/values.yaml`
+- Create: `deploy/helm/portable/templates/_helpers.tpl`
+- Create: `deploy/helm/portable/templates/deployment.yaml`
+- Create: `deploy/helm/portable/templates/service.yaml`
+- Create: `deploy/helm/portable/templates/ingress.yaml`
+- Create: `deploy/helm/portable/templates/postgres.yaml`
+- Create: `deploy/helm/portable/templates/rbac.yaml`
+- Create: `deploy/helm/portable/templates/secret.yaml`
+- Create: `deploy/helm/portable/templates/configmap.yaml`
+
+**Commit after this task.**
+
+### Task 4: Tiltfile and local dev setup
+
+Create the Tiltfile that:
+- Builds main app and pod-server images using k3d's local registry
+- Deploys via the Helm chart with dev overrides
+- Uses `live_update` to sync code changes into running containers without full rebuilds
+- Port-forwards the main app for local access
+
+Create a dev setup script and documentation.
+
+**Local dev domain:** `portable.127.0.0.1.nip.io` (wildcard DNS via nip.io, zero config).
+
+**Dev workflow:**
+```
+mise install          # Install tools
+k3d cluster create portable --registry-create portable-registry
+tilt up               # Builds, deploys, watches for changes
+# Open http://portable.127.0.0.1.nip.io
+```
+
+**Files:**
+- Create: `Tiltfile`
+- Create: `deploy/dev-values.yaml` (Helm value overrides for local dev: nip.io domain, dev image tags, etc.)
+- Create: `scripts/dev-setup.sh` (creates k3d cluster if needed)
+- Create: `docs/development.md`
+
+**Commit after this task.**
+
+---
+
+## Phase 2: Database & Auth
+
+### Task 5: Database schema and Drizzle setup
+
+Install Drizzle ORM with `postgres.js` driver in the Nuxt app. Define the schema for `users`, `projects`, and `sessions` tables per the design doc. Set up migration tooling. Auto-migrate on server start via Nitro plugin.
 
 **Files:**
 - Create: `packages/app/server/db/schema.ts`
 - Create: `packages/app/server/utils/db.ts`
+- Create: `packages/app/server/plugins/migrate.ts`
 - Create: `packages/app/drizzle.config.ts`
 - Modify: `packages/app/package.json` (add deps, migration scripts)
 - Modify: `packages/app/nuxt.config.ts` (runtimeConfig for DATABASE_URL)
 
 **Commit after this task.**
 
-### Task 3: Credential encryption utility
+### Task 6: Credential encryption utility
 
 Implement AES-256-GCM encryption/decryption using `node:crypto` for storing Anthropic credentials.
 
 **Files:**
-- Create: `packages/app/server/utils/crypto.ts` (encrypt/decrypt functions)
+- Create: `packages/app/server/utils/crypto.ts`
 - Modify: `packages/app/nuxt.config.ts` (runtimeConfig for ENCRYPTION_KEY)
 
 **Commit after this task.**
 
----
+### Task 7: GitHub OAuth flow
 
-## Phase 2: Authentication
-
-### Task 4: GitHub OAuth flow
-
-Implement GitHub OAuth using Arctic (standalone, no Lucia). Set up login, callback, and logout server routes. Create auth middleware that attaches the user to the event context. Store the GitHub access token encrypted in the user record (we need it later for repo operations).
+Implement GitHub OAuth using Arctic (standalone). Login, callback, logout routes. Auth middleware that attaches user to event context. Store GitHub access token encrypted (needed for repo operations).
 
 **Files:**
 - Create: `packages/app/server/utils/auth.ts` (Arctic GitHub instance)
-- Create: `packages/app/server/routes/auth/github/index.get.ts` (redirect to GitHub)
-- Create: `packages/app/server/routes/auth/github/callback.get.ts` (handle callback, upsert user, create session)
+- Create: `packages/app/server/routes/auth/github/index.get.ts`
+- Create: `packages/app/server/routes/auth/github/callback.get.ts`
 - Create: `packages/app/server/routes/auth/logout.post.ts`
-- Create: `packages/app/server/middleware/auth.ts` (validate session cookie, attach user)
+- Create: `packages/app/server/middleware/auth.ts`
 - Modify: `packages/app/nuxt.config.ts` (runtimeConfig for github.clientId, clientSecret, redirectUri)
 
 **Commit after this task.**
 
-### Task 5: Auth-guarded pages and basic layout
+### Task 8: Auth-guarded pages and basic layout
 
-Create the basic Nuxt page layout: login page (public), dashboard (protected), settings (protected), new project (protected). Use middleware to redirect unauthenticated users to login. Mobile-first responsive layout. Use the frontend-design skill for the UI.
+Login page (public), dashboard/settings/new (protected). Client-side auth middleware. Mobile-first layout. Use the frontend-design skill.
 
 **Files:**
-- Create: `packages/app/middleware/auth.global.ts` (client-side auth guard)
-- Create: `packages/app/server/api/auth/me.get.ts` (returns current user)
+- Create: `packages/app/middleware/auth.global.ts`
+- Create: `packages/app/server/api/auth/me.get.ts`
 - Create: `packages/app/pages/login.vue`
-- Create: `packages/app/pages/index.vue` (dashboard, placeholder)
+- Create: `packages/app/pages/index.vue` (dashboard placeholder)
 - Create: `packages/app/pages/settings.vue` (placeholder)
 - Create: `packages/app/pages/new.vue` (placeholder)
 - Create: `packages/app/layouts/default.vue`
@@ -101,39 +174,39 @@ Create the basic Nuxt page layout: login page (public), dashboard (protected), s
 
 ---
 
-## Phase 3: Settings & Project Management API
+## Phase 3: Project Management
 
-### Task 6: Anthropic credential management
+### Task 9: Anthropic credential management
 
-Settings page where users can enter their Anthropic API key or Claude Code OAuth token. Server route to save it encrypted. Server route to check if a credential exists (without returning the value).
+Settings page where users enter their API key or Claude Code OAuth token. Save encrypted. Check existence endpoint.
 
 **Files:**
-- Create: `packages/app/server/api/settings/credential.put.ts` (save encrypted credential)
-- Create: `packages/app/server/api/settings/credential.get.ts` (returns { hasCredential: boolean })
-- Modify: `packages/app/pages/settings.vue` (form with input, save button, instructions)
+- Create: `packages/app/server/api/settings/credential.put.ts`
+- Create: `packages/app/server/api/settings/credential.get.ts`
+- Modify: `packages/app/pages/settings.vue`
 
 **Commit after this task.**
 
-### Task 7: Project CRUD API
+### Task 10: Project CRUD API
 
-Server routes for creating, listing, renaming, deleting, starting, and stopping projects. No actual K8s or GitHub integration yet — just database operations and status management. The K8s and GitHub parts will be wired in later tasks.
+Server routes for creating, listing, renaming, deleting projects. Database operations only — K8s and GitHub integration wired in later.
 
 **Files:**
-- Create: `packages/app/server/api/projects/index.get.ts` (list user's projects)
-- Create: `packages/app/server/api/projects/index.post.ts` (create project)
-- Create: `packages/app/server/api/projects/[slug]/index.patch.ts` (rename)
-- Create: `packages/app/server/api/projects/[slug]/index.delete.ts` (delete)
+- Create: `packages/app/server/api/projects/index.get.ts`
+- Create: `packages/app/server/api/projects/index.post.ts`
+- Create: `packages/app/server/api/projects/[slug]/index.patch.ts`
+- Create: `packages/app/server/api/projects/[slug]/index.delete.ts`
 - Create: `packages/app/server/api/projects/[slug]/start.post.ts` (placeholder)
 - Create: `packages/app/server/api/projects/[slug]/stop.post.ts` (placeholder)
 
 **Commit after this task.**
 
-### Task 8: Dashboard UI
+### Task 11: Dashboard UI
 
-Implement the dashboard page with project cards. Each card shows project name, status (running/stopped), and has start/stop toggle, rename, and delete actions. "New Project" button navigates to `/new`. Use the frontend-design skill.
+Project cards with name, status, start/stop toggle, rename/delete actions. "New Project" button. Use the frontend-design skill.
 
 **Files:**
-- Modify: `packages/app/pages/index.vue` (full dashboard implementation)
+- Modify: `packages/app/pages/index.vue`
 - Create: `packages/app/components/ProjectCard.vue`
 
 **Commit after this task.**
@@ -142,16 +215,16 @@ Implement the dashboard page with project cards. Each card shows project name, s
 
 ## Phase 4: Scaffold System & GitHub Integration
 
-### Task 9: Create the nuxt-postgres scaffold
+### Task 12: Create the nuxt-postgres scaffold
 
-Create the first scaffold. This is a minimal Nuxt 3 app with Postgres (via Drizzle), ready to run. Include a `CLAUDE.md` that tells Claude Code about the project setup.
+Minimal Nuxt 3 app with Postgres (Drizzle), ready to run. Includes `CLAUDE.md` for Claude Code.
 
 **Files:**
 - Create: `scaffolds/nuxt-postgres/package.json`
 - Create: `scaffolds/nuxt-postgres/nuxt.config.ts`
 - Create: `scaffolds/nuxt-postgres/tsconfig.json`
 - Create: `scaffolds/nuxt-postgres/app.vue`
-- Create: `scaffolds/nuxt-postgres/server/db/schema.ts` (example table)
+- Create: `scaffolds/nuxt-postgres/server/db/schema.ts`
 - Create: `scaffolds/nuxt-postgres/server/utils/db.ts`
 - Create: `scaffolds/nuxt-postgres/drizzle.config.ts`
 - Create: `scaffolds/nuxt-postgres/CLAUDE.md`
@@ -159,23 +232,23 @@ Create the first scaffold. This is a minimal Nuxt 3 app with Postgres (via Drizz
 
 **Commit after this task.**
 
-### Task 10: GitHub repo creation and scaffold push
+### Task 13: GitHub repo creation and scaffold push
 
-Implement the GitHub integration: create a new repo for the user, push the scaffold files as the initial commit. Use Octokit with the user's stored GitHub access token (from OAuth). The scaffold is selected by name and all files from that `scaffolds/<name>/` folder are pushed.
+Create GitHub repos via Octokit, push scaffold files as initial commit using the Git Data API. List available scaffolds by reading `scaffolds/` directory.
 
 **Files:**
-- Create: `packages/app/server/utils/github.ts` (createRepo, pushScaffold functions using Octokit + Git Data API)
-- Create: `packages/app/server/api/scaffolds/index.get.ts` (list available scaffolds by reading `scaffolds/` directory)
-- Modify: `packages/app/server/api/projects/index.post.ts` (wire in GitHub repo creation + scaffold push)
+- Create: `packages/app/server/utils/github.ts`
+- Create: `packages/app/server/api/scaffolds/index.get.ts`
+- Modify: `packages/app/server/api/projects/index.post.ts` (wire in GitHub)
 
 **Commit after this task.**
 
-### Task 11: New project page UI
+### Task 14: New project page UI
 
-Implement the create project page: scaffold picker (reads from API), project name input, create button. On success, navigates to dashboard. Use the frontend-design skill.
+Scaffold picker, project name input, create button. On success, navigates to dashboard. Use the frontend-design skill.
 
 **Files:**
-- Modify: `packages/app/pages/new.vue` (full implementation)
+- Modify: `packages/app/pages/new.vue`
 
 **Commit after this task.**
 
@@ -183,26 +256,26 @@ Implement the create project page: scaffold picker (reads from API), project nam
 
 ## Phase 5: Kubernetes Integration
 
-### Task 12: K8s client setup and pod management
+### Task 15: K8s client and pod management
 
-Implement the K8s integration: create/delete pods with PVC mounts, create/delete headless services, watch pod status until ready. The pod spec includes env vars for DB connection, Anthropic credential, and GitHub token.
+K8s integration: create/delete pods with PVC mounts and env vars, create/delete headless services, watch pod status until ready, create/delete PVCs.
 
 **Files:**
-- Create: `packages/app/server/utils/k8s.ts` (KubeConfig setup, createProjectPod, createProjectService, deleteProjectPod, deleteProjectService, waitForPodReady, createPVC, deletePVC)
+- Create: `packages/app/server/utils/k8s.ts`
 - Modify: `packages/app/nuxt.config.ts` (runtimeConfig for k8s namespace, pod image, resource limits)
 
 **Commit after this task.**
 
-### Task 13: Wire K8s into project lifecycle
+### Task 16: Wire K8s into project lifecycle
 
-Connect the K8s utilities to the project API routes. Start creates pod + service + PVC, stores pod IP. Stop deletes pod + service. Delete also removes PVC. Create project now also creates the per-project Postgres database.
+Connect K8s to project API routes. Start creates pod + service + PVC. Stop deletes pod + service. Delete removes PVC. Create project also creates per-project Postgres database.
 
 **Files:**
-- Create: `packages/app/server/utils/project-db.ts` (createProjectDatabase, dropProjectDatabase — uses raw SQL to CREATE/DROP DATABASE)
-- Modify: `packages/app/server/api/projects/index.post.ts` (wire in PVC creation + pod start + DB creation)
-- Modify: `packages/app/server/api/projects/[slug]/start.post.ts` (create pod + service, wait for ready, store IP)
-- Modify: `packages/app/server/api/projects/[slug]/stop.post.ts` (delete pod + service)
-- Modify: `packages/app/server/api/projects/[slug]/index.delete.ts` (stop + delete PVC + drop DB)
+- Create: `packages/app/server/utils/project-db.ts` (CREATE/DROP DATABASE via raw SQL)
+- Modify: `packages/app/server/api/projects/index.post.ts`
+- Modify: `packages/app/server/api/projects/[slug]/start.post.ts`
+- Modify: `packages/app/server/api/projects/[slug]/stop.post.ts`
+- Modify: `packages/app/server/api/projects/[slug]/index.delete.ts`
 
 **Commit after this task.**
 
@@ -210,14 +283,14 @@ Connect the K8s utilities to the project API routes. Start creates pod + service
 
 ## Phase 6: Reverse Proxy
 
-### Task 14: Subdomain-based auth proxy
+### Task 17: Subdomain-based auth proxy
 
-Implement the Nitro server middleware that intercepts requests to `<project>.domain` and `preview.<project>.domain` subdomains. Parse the Host header, validate the session cookie, look up the pod, and proxy the request. Use `h3.proxyRequest` for HTTP. Use `httpxy` for WebSocket upgrade requests (hooked into the Node.js server's `upgrade` event via a Nitro plugin).
+Nitro server middleware: parse Host header for project slug and proxy type (`<project>.domain` vs `preview.<project>.domain`), validate session cookie, proxy via `h3.proxyRequest` (HTTP). Nitro plugin for WebSocket upgrade proxy via `httpxy`.
 
 **Files:**
-- Create: `packages/app/server/middleware/proxy.ts` (parse subdomain, auth check, HTTP proxy)
-- Create: `packages/app/server/plugins/ws-proxy.ts` (WebSocket upgrade proxy via httpxy)
-- Create: `packages/app/server/utils/proxy.ts` (parseSubdomain helper, resolveTarget helper)
+- Create: `packages/app/server/utils/proxy.ts` (parseSubdomain, resolveTarget helpers)
+- Create: `packages/app/server/middleware/proxy.ts`
+- Create: `packages/app/server/plugins/ws-proxy.ts`
 
 **Commit after this task.**
 
@@ -225,47 +298,35 @@ Implement the Nitro server middleware that intercepts requests to `<project>.dom
 
 ## Phase 7: Pod Server
 
-### Task 15: Hono server with file API
+### Task 18: Hono server with file API
 
-Build out the pod server: static SPA serving, file tree endpoint (using fdir), file read/write endpoints, health check, and reverse proxy to the dev server on port 3000.
+Pod server: static SPA serving, file tree endpoint (fdir), file read/write, health check.
 
 **Files:**
-- Modify: `packages/pod-server/src/index.ts` (full Hono server setup)
-- Create: `packages/pod-server/src/routes/files.ts` (file tree, read, write)
+- Modify: `packages/pod-server/src/index.ts`
+- Create: `packages/pod-server/src/routes/files.ts`
 - Create: `packages/pod-server/src/routes/health.ts`
 
 **Commit after this task.**
 
-### Task 16: Agent SDK WebSocket bridge
+### Task 19: Agent SDK WebSocket bridge
 
-Implement the WebSocket endpoint that bridges browser messages to the Claude Agent SDK. Use the V1 `query()` function with an async generator pattern for multi-turn conversation. Forward SDK streaming events to the browser as JSON.
+WebSocket endpoint bridging browser to Claude Agent SDK. V1 `query()` with async generator pattern for multi-turn conversation. Forward SDK streaming events as JSON.
 
 **Files:**
-- Create: `packages/pod-server/src/routes/ws.ts` (WebSocket handler, async generator message bridge, SDK session management)
+- Create: `packages/pod-server/src/routes/ws.ts`
 
-Reference projects for patterns:
-- `claude-agent-server` by dzhng (async generator pattern)
-- `claude-agent-kit` by JimLiu (session management)
+Reference: `claude-agent-server` by dzhng (async generator pattern), `claude-agent-kit` by JimLiu (session management).
 
 **Commit after this task.**
 
-### Task 17: Pod startup script
+### Task 20: Pod startup script and dev server supervisor
 
-Create the entrypoint script that runs the startup sequence: git clone (if needed), npm install, start dev server with auto-restart, start the Hono server.
-
-**Files:**
-- Create: `packages/pod-server/src/dev-server.ts` (child_process.spawn wrapper with auto-restart)
-- Create: `packages/pod-server/scripts/entrypoint.sh` (orchestrates startup)
-
-**Commit after this task.**
-
-### Task 18: Pod container image
-
-Create the Dockerfile for the pod container. Based on Node.js LTS, installs git and common dev tools, copies the pod-server build, sets the entrypoint.
+Entrypoint: git clone (if needed), npm install, start dev server with auto-restart (child_process.spawn with restart logic), start Hono server.
 
 **Files:**
-- Create: `packages/pod-server/Dockerfile`
-- Create: `packages/pod-server/.dockerignore`
+- Create: `packages/pod-server/src/dev-server.ts`
+- Create: `packages/pod-server/scripts/entrypoint.sh`
 
 **Commit after this task.**
 
@@ -273,52 +334,47 @@ Create the Dockerfile for the pod container. Based on Node.js LTS, installs git 
 
 ## Phase 8: Editor SPA (Mobile-First UI)
 
-### Task 19: Editor SPA scaffolding
+### Task 21: Editor SPA scaffolding and navigation
 
-Initialize a Vue 3 SPA inside `packages/editor`. This is the mobile-first UI served from inside the pod. Set up Vue Router, bottom tab navigation (Chat, Files, Preview), and the VS Code dark theme. Use the frontend-design skill.
+Vue 3 SPA with bottom tab navigation (Chat, Files, Preview). VS Code dark theme. Mobile-optimized layout. Use the frontend-design skill.
 
 **Files:**
-- Create: `packages/editor/package.json`
-- Create: `packages/editor/vite.config.ts`
-- Create: `packages/editor/src/main.ts`
-- Create: `packages/editor/src/App.vue` (bottom nav bar, router-view)
-- Create: `packages/editor/src/router.ts` (chat, files, preview routes)
+- Modify: `packages/editor/src/main.ts`
+- Modify: `packages/editor/src/App.vue` (bottom nav bar, router-view)
+- Create: `packages/editor/src/router.ts`
 - Create: `packages/editor/src/views/ChatView.vue` (placeholder)
 - Create: `packages/editor/src/views/FilesView.vue` (placeholder)
 - Create: `packages/editor/src/views/PreviewView.vue` (placeholder)
-- Create: `packages/editor/index.html`
-
-The built SPA will be copied into the pod-server's static directory during the Docker build.
 
 **Commit after this task.**
 
-### Task 20: Chat view
+### Task 22: Chat view
 
-Implement the chat interface. WebSocket connection to `/ws`. Streaming message display with markdown rendering. User input at the bottom, optimized for mobile keyboard. Show tool usage inline (file edits, bash commands). VS Code dark theme. Use the frontend-design skill.
+WebSocket chat interface. Streaming messages with markdown rendering. Mobile keyboard-optimized input. Tool usage shown inline. Use the frontend-design skill.
 
 **Files:**
 - Modify: `packages/editor/src/views/ChatView.vue`
-- Create: `packages/editor/src/composables/useWebSocket.ts` (WebSocket connection, reconnect, message parsing)
-- Create: `packages/editor/src/components/ChatMessage.vue` (renders assistant/user/tool messages)
-- Create: `packages/editor/src/components/ChatInput.vue` (mobile-optimized text input)
+- Create: `packages/editor/src/composables/useWebSocket.ts`
+- Create: `packages/editor/src/components/ChatMessage.vue`
+- Create: `packages/editor/src/components/ChatInput.vue`
 
 **Commit after this task.**
 
-### Task 21: Files view
+### Task 23: Files view
 
-Implement the file browser. File tree on initial view (fetched from `/api/files`), tap to open a file in CodeMirror 6 (full screen, back button to return to tree). CodeMirror configured as read-only by default with an edit toggle. VS Code dark theme. Use the frontend-design skill.
+File tree, tap to open file in CodeMirror 6 (full screen, back button). Read-only by default with edit toggle. VS Code dark theme. Use the frontend-design skill.
 
 **Files:**
 - Modify: `packages/editor/src/views/FilesView.vue`
-- Create: `packages/editor/src/components/FileTree.vue` (recursive tree, VS Code-style)
-- Create: `packages/editor/src/components/CodeViewer.vue` (CodeMirror 6 setup, read/edit toggle)
-- Create: `packages/editor/src/composables/useFiles.ts` (fetch tree, fetch file content, save file)
+- Create: `packages/editor/src/components/FileTree.vue`
+- Create: `packages/editor/src/components/CodeViewer.vue`
+- Create: `packages/editor/src/composables/useFiles.ts`
 
 **Commit after this task.**
 
-### Task 22: Preview view
+### Task 24: Preview view
 
-Implement the preview tab. Full-screen iframe pointing to `preview.<project>.portable.example.com`. Detect the current project subdomain and construct the preview URL.
+Full-screen iframe to `preview.<project>.portable.example.com`. Detect project subdomain and construct preview URL.
 
 **Files:**
 - Modify: `packages/editor/src/views/PreviewView.vue`
@@ -327,47 +383,21 @@ Implement the preview tab. Full-screen iframe pointing to `preview.<project>.por
 
 ---
 
-## Phase 9: Helm Chart
+## Phase 9: Helm Chart Completion
 
-### Task 23: Helm chart
+### Task 25: Finalize Helm chart
 
-Create the Helm chart for deploying the main app, Postgres, RBAC, and supporting resources. Include configurable values for domain, GitHub OAuth, Postgres, cert-manager, and pod resource limits.
-
-**Files:**
-- Create: `deploy/helm/portable/Chart.yaml`
-- Create: `deploy/helm/portable/values.yaml`
-- Create: `deploy/helm/portable/templates/deployment.yaml` (main app)
-- Create: `deploy/helm/portable/templates/service.yaml`
-- Create: `deploy/helm/portable/templates/ingress.yaml` (wildcard)
-- Create: `deploy/helm/portable/templates/postgres.yaml` (StatefulSet + Service + PVC)
-- Create: `deploy/helm/portable/templates/rbac.yaml` (ServiceAccount + Role + RoleBinding)
-- Create: `deploy/helm/portable/templates/configmap.yaml` (pod resource defaults)
-- Create: `deploy/helm/portable/templates/secret.yaml` (GitHub OAuth, encryption key, DB password)
-- Create: `deploy/helm/portable/templates/_helpers.tpl`
-
-**Commit after this task.**
-
----
-
-## Phase 10: Main App Container & Integration Testing
-
-### Task 24: Main app Dockerfile
-
-Create the Dockerfile for the main Nuxt app. Multi-stage build: install deps, build Nuxt, copy output to slim runtime image.
+Extend the base Helm chart from Task 3 with:
+- cert-manager Certificate resources (optional, wildcard TLS)
+- Pod resource limit ConfigMap
+- Documentation in `values.yaml` for all configurable options
+- NOTES.txt with post-install instructions
 
 **Files:**
-- Create: `packages/app/Dockerfile`
-- Create: `packages/app/.dockerignore`
-
-**Commit after this task.**
-
-### Task 25: End-to-end smoke test
-
-Write a basic integration test or test script that verifies the full flow locally (requires a running K8s cluster like minikube/kind). Document how to set up the local dev environment.
-
-**Files:**
-- Create: `docs/development.md` (local dev setup: minikube/kind, env vars, running both packages)
-- Create: `scripts/dev-setup.sh` (automated local dev environment setup)
+- Modify: `deploy/helm/portable/values.yaml` (full documentation)
+- Create: `deploy/helm/portable/templates/certificate.yaml` (optional cert-manager)
+- Create: `deploy/helm/portable/templates/NOTES.txt`
+- Modify other templates as needed for completeness
 
 **Commit after this task.**
 
@@ -376,11 +406,23 @@ Write a basic integration test or test script that verifies the full flow locall
 ## Execution Order & Dependencies
 
 ```
-Phase 1 (foundation) → Phase 2 (auth) → Phase 3 (settings & CRUD)
-                                          ↓
-Phase 4 (scaffolds & GitHub) → Phase 5 (K8s) → Phase 6 (proxy)
-                                                    ↓
-Phase 7 (pod server) → Phase 8 (editor SPA) → Phase 9 (Helm) → Phase 10 (containers)
+Phase 1 (dev env, foundation, Dockerfiles, Helm base, Tilt)
+  ↓
+Phase 2 (DB, encryption, auth, pages)
+  ↓
+Phase 3 (settings, project CRUD, dashboard UI)
+  ↓
+Phase 4 (scaffold, GitHub integration, new project UI)
+  ↓
+Phase 5 (K8s client, wire into lifecycle)
+  ↓
+Phase 6 (subdomain proxy)
+  ↓
+Phase 7 (pod server: files, Agent SDK, startup)
+  ↓
+Phase 8 (editor SPA: chat, files, preview)
+  ↓
+Phase 9 (Helm finalization)
 ```
 
-Phases are sequential. Tasks within a phase can sometimes be parallelized (noted where applicable).
+Phases are sequential. Within each phase, tasks are ordered by dependency.

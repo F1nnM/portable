@@ -236,3 +236,24 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 - Wildcard DNS: `*.portable.example.com` → cluster
 - cert-manager (if using automated TLS)
 - DNS-01 solver credentials (for wildcard certs)
+
+## Local Development
+
+**Tool management:** mise (`.mise.toml` in repo root)
+- Node.js LTS, pnpm, kubectl, helm, k3d, tilt
+
+**Local K8s:** k3d with a local container registry.
+
+**Live development:** Tilt watches code, rebuilds containers, syncs changes via `live_update`.
+
+**Local domain:** `portable.127.0.0.1.nip.io` — wildcard DNS via nip.io (zero config, resolves to 127.0.0.1). Project subdomains like `myproject.127.0.0.1.nip.io` and `preview.myproject.127.0.0.1.nip.io` just work.
+
+**Everything runs in K8s** — main app, Postgres, and project pods all run in the k3d cluster. Keeps networking simple (main app can reach pods directly) and avoids "works locally but not in K8s" bugs.
+
+**Dev workflow:**
+```bash
+mise install                    # Install tools
+./scripts/dev-setup.sh          # Create k3d cluster + registry
+tilt up                         # Build, deploy, watch for changes
+# Open http://portable.127.0.0.1.nip.io
+```
