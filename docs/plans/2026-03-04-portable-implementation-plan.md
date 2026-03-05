@@ -288,7 +288,7 @@ Create, list, rename, delete projects. Database only — K8s/GitHub wired later.
 - Create: `packages/app/tests/projects/slug.test.ts`
 - Create: `packages/app/tests/projects/crud.test.ts`
 
-### Task 3.3: Dashboard UI `[ ]`
+### Task 3.3: Dashboard UI `[DONE]`
 
 Project cards: name, status, start/stop, rename, delete. "New Project" button. Use the frontend-design skill.
 
