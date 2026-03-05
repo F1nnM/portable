@@ -4,7 +4,7 @@ import { useGitHubClient } from "../../../utils/auth";
 export default defineEventHandler(async (event) => {
   const github = useGitHubClient();
   const state = arctic.generateState();
-  const scopes = ["repo", "read:user"];
+  const scopes = ["repo", "read:user", "delete_repo"];
 
   const url = github.createAuthorizationURL(state, scopes);
 
