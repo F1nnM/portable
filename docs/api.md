@@ -248,4 +248,4 @@ WebSocket upgrade requests on subdomains are handled by a separate Nitro plugin 
 
 ---
 
-Note: All API routes, auth routes, project lifecycle endpoints, and subdomain proxy are implemented (Phases 1-6). See `docs/progress.md` for current status.
+Note: All API routes, auth routes, project lifecycle endpoints, and subdomain proxy are fully implemented. See `docs/progress.md` for current status.
