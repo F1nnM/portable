@@ -77,7 +77,7 @@ Created and maintained continuously throughout implementation.
 
 > This phase sets up everything needed for TDD from the start: monorepo, linting, formatting, test runners, Dockerfiles, Helm chart, Tilt, and initial documentation.
 
-### Task 1.1: Monorepo structure and mise config `[ ]`
+### Task 1.1: Monorepo structure and mise config `[DONE]`
 
 Set up the repository structure with mise for tool management.
 
