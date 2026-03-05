@@ -70,6 +70,8 @@ function sortTree(nodes: FileTreeNode[]): void {
   }
 }
 
+// Module-level state: intentionally shared across all useFiles() callers so the
+// Files view, CodeViewer, and any other consumer share a single file-browser state.
 const fileTree = ref<FileTreeNode[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -138,8 +140,13 @@ export function useFiles() {
 
   async function saveCurrentFile(): Promise<void> {
     if (!currentFile.value) return;
-    await saveFile(currentFile.value.path, editorContent.value);
-    currentFile.value.content = editorContent.value;
+    error.value = null;
+    try {
+      await saveFile(currentFile.value.path, editorContent.value);
+      currentFile.value.content = editorContent.value;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to save file";
+    }
   }
 
   function reset(): void {
