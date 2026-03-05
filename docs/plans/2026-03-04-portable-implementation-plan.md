@@ -371,7 +371,7 @@ Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete po
 
 ## Phase 6: Reverse Proxy
 
-### Task 6.1: Subdomain-based auth proxy `[ ]`
+### Task 6.1: Subdomain-based auth proxy `[DONE]`
 
 Nitro middleware: parse Host header, validate session, proxy via `h3.proxyRequest`. Nitro plugin for WebSocket upgrade via `httpxy`.
 
