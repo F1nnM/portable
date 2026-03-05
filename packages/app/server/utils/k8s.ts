@@ -117,6 +117,14 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
             { containerPort: 3001, name: "preview" },
           ],
           env,
+          securityContext: {
+            runAsNonRoot: true,
+            runAsUser: 1000,
+            allowPrivilegeEscalation: false,
+            capabilities: {
+              drop: ["ALL"],
+            },
+          },
           resources: {
             requests: {
               cpu: config.podResourceCpuRequest,
