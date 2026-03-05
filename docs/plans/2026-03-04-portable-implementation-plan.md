@@ -339,7 +339,7 @@ Scaffold picker, project name input, create button. Use the frontend-design skil
 
 ## Phase 5: Kubernetes Integration
 
-### Task 5.1: K8s client and pod management `[ ]`
+### Task 5.1: K8s client and pod management `[DONE]`
 
 `@kubernetes/client-node`: create/delete pods with PVC mounts + env vars, create/delete headless services (`clusterIP: None`) for stable DNS at `project-<slug>.<namespace>.svc.cluster.local`, watch pod status, create/delete PVCs.
 
