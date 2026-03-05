@@ -270,20 +270,23 @@ Settings page: enter API key or Claude Code OAuth token. Save encrypted. Check e
 - Create: `packages/app/server/api/settings/credential.get.ts`
 - Modify: `packages/app/pages/settings.vue`
 
-### Task 3.2: Project CRUD API `[ ]`
+### Task 3.2: Project CRUD API `[DONE]`
 
-Create, list, rename, delete projects. Database only — K8s/GitHub wired later.
+Create, list, rename, delete projects. Database only — K8s/GitHub wired later. Slug generation utility for project names. Start/stop endpoints return 501 as placeholders for K8s integration.
 
-**Tests:** Create project returns slug. List returns only user's projects. Rename updates name. Delete removes project. Duplicate slugs rejected.
+**Tests:** Auth returns 401 for all CRUD endpoints when unauthenticated. Start/stop return 501 with "Not implemented" message. Slug generation: lowercase, hyphens, special char removal, truncation to 50 chars.
 
 **Files:**
 
+- Create: `packages/app/server/utils/slug.ts`
 - Create: `packages/app/server/api/projects/index.get.ts`
 - Create: `packages/app/server/api/projects/index.post.ts`
-- Create: `packages/app/server/api/projects/[slug]/index.patch.ts`
-- Create: `packages/app/server/api/projects/[slug]/index.delete.ts`
-- Create: `packages/app/server/api/projects/[slug]/start.post.ts` (placeholder)
-- Create: `packages/app/server/api/projects/[slug]/stop.post.ts` (placeholder)
+- Create: `packages/app/server/api/projects/[slug].patch.ts`
+- Create: `packages/app/server/api/projects/[slug].delete.ts`
+- Create: `packages/app/server/api/projects/[slug]/start.post.ts` (placeholder, returns 501)
+- Create: `packages/app/server/api/projects/[slug]/stop.post.ts` (placeholder, returns 501)
+- Create: `packages/app/tests/projects/slug.test.ts`
+- Create: `packages/app/tests/projects/crud.test.ts`
 
 ### Task 3.3: Dashboard UI `[ ]`
 
