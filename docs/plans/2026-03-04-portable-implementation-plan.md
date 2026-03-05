@@ -177,7 +177,7 @@ Local domain: `portable.127.0.0.1.nip.io`
 - Create: `deploy/dev-values.yaml`
 - Create: `scripts/dev-setup.sh`
 
-### Task 1.7: Initial documentation `[ ]`
+### Task 1.7: Initial documentation `[DONE]`
 
 Create all documentation files with initial content. `CLAUDE.md` with project structure, commands, conventions. `README.md` with project overview. Other docs as stubs that will be filled in.
 
