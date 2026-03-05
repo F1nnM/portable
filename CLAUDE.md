@@ -11,12 +11,12 @@ portable/
   packages/
     app/              Nuxt 3 full-stack main app (auth, project management, proxy)
       server/
-        api/          API endpoints (health, auth/me, settings/credential, projects CRUD)
+        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, scaffolds)
         routes/       Route handlers (auth/github, auth/logout)
         middleware/   Server middleware (session auth)
         db/           Drizzle schema and migrations
         plugins/      Nitro plugins (auto-migration on startup)
-        utils/        Shared server utilities (db, auth, crypto, slug)
+        utils/        Shared server utilities (db, auth, crypto, slug, github)
       composables/    Vue composables (useAuth)
       components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)

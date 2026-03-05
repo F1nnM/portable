@@ -132,3 +132,32 @@ Built the dashboard page with a project list supporting loading, error, and empt
 ### Phase 3 summary
 
 Phase 3 added project management: Anthropic credential storage (encrypted at rest on the users table), a complete project CRUD API with slug generation, and a dashboard UI with project cards. The settings page now supports credential management. Start/stop endpoints are 501 placeholders pending K8s integration in Phase 5. Ready for Phase 4 (Scaffold System & GitHub Integration).
+
+---
+
+## Phase 4: Scaffold System & GitHub Integration
+
+**Status:** Complete
+
+### Task 4.1: nuxt-postgres scaffold
+
+Created the `scaffolds/nuxt-postgres/` directory with 15 files forming a complete Nuxt 3 + Postgres + Drizzle todo application. Includes `CLAUDE.md` with dev server instructions for Claude Code, Drizzle ORM config, server API routes for todo CRUD, a single-page UI, `.env.example`, `.gitignore`, and `tsconfig.json`. Covered by 19 filesystem-based tests validating scaffold structure and file contents.
+
+### Task 4.2: GitHub repo creation and scaffold push
+
+Created `server/utils/github.ts` with five functions: `listScaffolds()` reads scaffold directories and parses metadata, `readScaffoldFiles()` reads all files from a scaffold directory, `getDecryptedGithubToken()` decrypts the user's stored GitHub token, `createGitHubRepo()` creates a repository via the Octokit REST API, and `pushScaffoldToRepo()` pushes scaffold files as an initial commit via the Git Data API (no local git binary needed). Added `GET /api/scaffolds` endpoint (public, no auth required) that returns available scaffolds. Modified `POST /api/projects` to create a GitHub repo and push the scaffold on project creation using a create-then-update pattern (project record is created first, then repo URL is updated after successful GitHub operations). Added the `octokit` dependency. Covered by 10 tests.
+
+### Task 4.3: New project page UI
+
+Built the `/new` page with a scaffold picker (radio buttons for available scaffolds loaded from the API), a project name input with live slug preview matching the server-side `generateSlug()` logic, and a create button. Includes loading state with a spinner, error display, and automatic redirect to the dashboard on success. Covered by 2 tests.
+
+### Code review fixes
+
+- Added `scaffoldId` validation against available scaffolds in `POST /api/projects` to prevent path traversal
+- Fixed client-side slug preview in `pages/new.vue` to match server-side `generateSlug()` behavior
+- Added `repoUrl` field to the `Project` type interface and all API response shapes
+- Added `updatedAt` to `POST /api/projects` response for consistency
+
+### Phase 4 summary
+
+Phase 4 added the scaffold system and GitHub integration: a complete nuxt-postgres scaffold template, server-side GitHub repo creation and scaffold push via the Git Data API, a scaffolds listing endpoint, and a new project creation page with scaffold selection. Project creation now creates a GitHub repository and pushes the selected scaffold as the initial commit. Ready for Phase 5 (Kubernetes Integration).

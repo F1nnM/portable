@@ -70,15 +70,18 @@ List all projects for the authenticated user.
 
 ### `POST /api/projects`
 
-Create a new project. Generates a URL-safe slug from the project name (lowercase, hyphens, max 50 chars). GitHub repo creation, scaffold push, per-project database, and pod startup are wired in later phases.
+Create a new project. Generates a URL-safe slug from the project name (lowercase, hyphens, max 50 chars). Creates a GitHub repository under the authenticated user's account and pushes the selected scaffold as the initial commit via the Git Data API (no local git required). Per-project database and pod startup are wired in later phases.
 
 **Request:**
 
 ```json
 {
-  "name": "My Project"
+  "name": "My Project",
+  "scaffoldId": "nuxt-postgres"
 }
 ```
+
+The `scaffoldId` must match one of the available scaffolds returned by `GET /api/scaffolds`. If omitted, defaults to `"nuxt-postgres"`.
 
 **Response:**
 
@@ -89,12 +92,13 @@ Create a new project. Generates a URL-safe slug from the project name (lowercase
   "slug": "my-project",
   "scaffoldId": "nuxt-postgres",
   "status": "stopped",
+  "repoUrl": "https://github.com/user/my-project",
   "createdAt": "2026-03-04T12:00:00Z",
   "updatedAt": "2026-03-04T12:00:00Z"
 }
 ```
 
-**Errors:** 400 if name is missing, empty, or exceeds 100 characters. 409 if the generated slug conflicts with an existing project for the same user.
+**Errors:** 400 if name is missing, empty, exceeds 100 characters, or scaffoldId is invalid. 409 if the generated slug conflicts with an existing project for the same user. If GitHub repo creation fails, the project record is still created with `repoUrl: null` (create-then-update pattern).
 
 ### `PATCH /api/projects/:slug`
 
@@ -184,4 +188,4 @@ Health check endpoint.
 
 ---
 
-Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), and settings (`/api/settings/credential`) are implemented (Phases 1-3). Project start/stop endpoints return 501 until K8s integration in Phase 5. Scaffold endpoints are planned for Phase 4. See `docs/progress.md` for current status.
+Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), settings (`/api/settings/credential`), and scaffolds (`/api/scaffolds`) are implemented (Phases 1-4). Project creation includes GitHub repo creation and scaffold push. Project start/stop endpoints return 501 until K8s integration in Phase 5. See `docs/progress.md` for current status.
