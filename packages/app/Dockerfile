@@ -44,10 +44,15 @@ WORKDIR /app
 # Copy the Nuxt build output (standalone server)
 COPY --from=build /app/packages/app/.output .output
 
+# Create non-root user for running the app
+RUN addgroup -S app && adduser -S -G app -u 1000 app \
+    && chown -R app:app /app
+
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
 EXPOSE 3000
 
+USER app
 CMD ["node", ".output/server/index.mjs"]
