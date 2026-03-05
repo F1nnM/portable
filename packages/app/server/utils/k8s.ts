@@ -348,8 +348,9 @@ export async function deleteProjectPVC(slug: string, namespace?: string): Promis
 }
 
 function isK8s404(err: unknown): boolean {
-  if (err && typeof err === "object" && "statusCode" in err) {
-    return (err as { statusCode: number }).statusCode === 404;
+  if (err && typeof err === "object") {
+    if ("code" in err && (err as { code: number }).code === 404) return true;
+    if ("statusCode" in err && (err as { statusCode: number }).statusCode === 404) return true;
   }
   return false;
 }

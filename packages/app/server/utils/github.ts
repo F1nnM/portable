@@ -157,7 +157,7 @@ export async function createGitHubRepo(
   const { data } = await octokit.rest.repos.createForAuthenticatedUser({
     name,
     private: isPrivate,
-    auto_init: false,
+    auto_init: true,
   });
 
   return {
@@ -187,6 +187,10 @@ export async function pushScaffoldToRepo(
   const octokit = new Octokit({ auth: token });
   const files = readScaffoldFiles(scaffoldId);
 
+  // Get the current HEAD commit (repo was created with auto_init: true)
+  const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: "heads/main" });
+  const parentSha = ref.object.sha;
+
   // Step 1: Create blobs for each file
   const blobPromises = files.map(async (file) => {
     const { data } = await octokit.rest.git.createBlob({
@@ -205,26 +209,27 @@ export async function pushScaffoldToRepo(
 
   const treeItems = await Promise.all(blobPromises);
 
-  // Step 2: Create a tree with all blobs (no base_tree since repo is empty)
+  // Step 2: Create a tree with all blobs
   const { data: tree } = await octokit.rest.git.createTree({
     owner,
     repo,
     tree: treeItems,
   });
 
-  // Step 3: Create a commit with the tree (no parents since this is the initial commit)
+  // Step 3: Create a commit on top of the initial commit
   const { data: commit } = await octokit.rest.git.createCommit({
     owner,
     repo,
     message: "Initial scaffold",
     tree: tree.sha,
+    parents: [parentSha],
   });
 
-  // Step 4: Create the main branch ref pointing to the commit
-  await octokit.rest.git.createRef({
+  // Step 4: Update the main branch to point to the new commit
+  await octokit.rest.git.updateRef({
     owner,
     repo,
-    ref: "refs/heads/main",
+    ref: "heads/main",
     sha: commit.sha,
   });
 }
