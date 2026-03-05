@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { app } from "./app.js";
 
-const { injectWebSocket, upgradeWebSocket: _upgradeWebSocket } = createNodeWebSocket({ app });
+const { injectWebSocket } = createNodeWebSocket({ app });
 
 const port = Number.parseInt(process.env.PORT || "8080", 10);
 
@@ -17,5 +17,3 @@ const server = serve(
 );
 
 injectWebSocket(server);
-
-export { app };

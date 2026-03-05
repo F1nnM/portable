@@ -17,8 +17,7 @@ portable/
   deploy/
     helm/portable/    Helm chart for Kubernetes deployment
     dev-values.yaml   Development overrides for local k3d
-  scripts/
-    dev-setup.sh      Creates k3d cluster + registry + ingress-nginx
+  ctlptl-config.yaml  Declares k3d cluster + registry for ctlptl
   docs/               Architecture, development, deployment, and API docs
   Tiltfile            Live development via Tilt (builds, deploys, watches)
 ```
@@ -68,11 +67,11 @@ pnpm --filter @portable/editor test    # Run editor tests
 ### Local development (K8s)
 
 ```bash
-mise install              # Install Node.js, pnpm, kubectl, helm, k3d, tilt
-./scripts/dev-setup.sh    # Create k3d cluster + registry + ingress-nginx
-tilt up                   # Build images, deploy via Helm, watch for changes
+mise install                          # Install Node.js, pnpm, kubectl, helm, k3d, tilt
+ctlptl apply -f ctlptl-config.yaml   # Create k3d cluster + registry
+tilt up                               # Build images, deploy via Helm, watch for changes
 # Open http://portable.127.0.0.1.nip.io
-tilt down                 # Tear down dev resources
+tilt down                             # Tear down dev resources
 ```
 
 ## Testing

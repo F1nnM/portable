@@ -1,0 +1,22 @@
+apiVersion: ctlptl.dev/v1alpha1
+kind: Registry
+name: k3d-portable-registry.localhost
+port: 5000
+---
+apiVersion: ctlptl.dev/v1alpha1
+kind: Cluster
+name: k3d-portable
+product: k3d
+registry: k3d-portable-registry.localhost
+k3d:
+  v1alpha5Simple:
+    ports:
+      - port: 80:80
+        nodeFilters:
+          - loadbalancer
+    options:
+      k3s:
+        extraArgs:
+          - arg: --disable=traefik
+            nodeFilters:
+              - server:*

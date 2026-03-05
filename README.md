@@ -65,10 +65,10 @@ See `docs/deployment.md` for the full configuration reference.
 Prerequisites: Docker, mise.
 
 ```bash
-mise install                # Install Node.js 22, pnpm, kubectl, helm, k3d, tilt
-pnpm install                # Install dependencies
-./scripts/dev-setup.sh      # Create k3d cluster + registry
-tilt up                     # Build, deploy, watch
+mise install                          # Install Node.js 22, pnpm, kubectl, helm, k3d, tilt
+pnpm install                          # Install dependencies
+ctlptl apply -f ctlptl-config.yaml   # Create k3d cluster + registry
+tilt up                               # Build, deploy, watch
 # Open http://portable.127.0.0.1.nip.io
 ```
 
@@ -76,4 +76,4 @@ See `docs/development.md` for the full development guide.
 
 ## License
 
-TBD
+[MIT](LICENSE)

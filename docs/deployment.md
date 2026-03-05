@@ -69,7 +69,7 @@ This creates a Certificate resource requesting a wildcard cert for `*.domain` an
 ```yaml
 image:
   repository: portable/app # Container image repository
-  tag: "0.1.0" # Container image tag
+  tag: 0.1.0 # Container image tag
   pullPolicy: IfNotPresent
 
 replicaCount: 1 # Main app replicas
@@ -99,7 +99,7 @@ postgres:
   storage: 10Gi # PVC size
   image:
     repository: postgres
-    tag: "16-alpine"
+    tag: 16-alpine
   resources:
     requests:
       cpu: 250m
@@ -127,7 +127,7 @@ pod:
 podServer:
   image:
     repository: portable/pod-server
-    tag: "0.1.0"
+    tag: 0.1.0
 ```
 
 ## Deployed Resources
@@ -146,7 +146,7 @@ The Helm chart creates the following Kubernetes resources:
 | Role                  | `portable`               | RBAC: pods, PVCs, services (create/get/list/watch/delete) |
 | RoleBinding           | `portable`               | Binds Role to ServiceAccount                              |
 | Secret                | `portable`               | GitHub OAuth, Postgres password, encryption key           |
-| ConfigMap             | `portable`               | Domain, pod resource defaults, pod server image           |
+| ConfigMap             | `portable-config`        | Pod resource defaults                                     |
 
 ## Upgrading
 

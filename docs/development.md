@@ -16,8 +16,8 @@ mise install
 # 2. Install Node.js dependencies
 pnpm install
 
-# 3. Create the k3d cluster with local registry and ingress-nginx
-./scripts/dev-setup.sh
+# 3. Create the k3d cluster with local registry
+ctlptl apply -f ctlptl-config.yaml
 
 # 4. Start the development environment
 tilt up
@@ -30,9 +30,9 @@ After `tilt up`, open http://portable.127.0.0.1.nip.io in your browser. Tilt bui
 Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and any project pods. No processes run on the host outside of K8s. This is a deliberate architectural constraint to keep networking simple and avoid discrepancies between local and production environments.
 
 - **k3d** creates a lightweight K3s cluster in Docker with a local container registry at `k3d-portable-registry.localhost:5000`
-- **ingress-nginx** is installed by `dev-setup.sh` and listens on ports 80/443 of the host
+- **ingress-nginx** is installed separately and listens on ports 80/443 of the host
 - **nip.io** provides wildcard DNS: `*.127.0.0.1.nip.io` resolves to `127.0.0.1`, so subdomains like `myproject.portable.127.0.0.1.nip.io` work without any `/etc/hosts` configuration
-- **Tilt** watches source files, rebuilds Docker images, pushes to the k3d registry, and updates deployments. `live_update` rules sync code changes without full image rebuilds when possible
+- **Tilt** watches source files, rebuilds Docker images, pushes to the k3d registry, and updates deployments
 
 ## Development Workflow
 
@@ -120,7 +120,7 @@ tilt down
 k3d cluster delete portable
 
 # Re-create the cluster from scratch
-./scripts/dev-setup.sh
+ctlptl apply -f ctlptl-config.yaml
 
 # Type-check all packages
 pnpm typecheck
