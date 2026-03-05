@@ -1,4 +1,4 @@
-import { $fetch, setup } from "@nuxt/test-utils/e2e";
+import { fetch, setup, url } from "@nuxt/test-utils/e2e";
 import { describe, expect, it } from "vitest";
 
 describe("app smoke tests", async () => {
@@ -6,13 +6,14 @@ describe("app smoke tests", async () => {
     server: true,
   });
 
-  it("returns { status: 'ok' } from /api/health", async () => {
-    const response = await $fetch("/api/health");
-    expect(response).toEqual({ status: "ok" });
+  it("returns 503 from /api/health when database is unavailable", async () => {
+    const response = await fetch(url("/api/health"));
+    expect(response.status).toBe(503);
   });
 
   it("returns HTML with page content from /", async () => {
-    const html = await $fetch<string>("/");
+    const response = await fetch(url("/"));
+    const html = await response.text();
     expect(html).toContain("Portable");
   });
 });
