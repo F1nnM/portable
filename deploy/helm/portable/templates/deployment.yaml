@@ -48,7 +48,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: encryption-key
-            - name: NUXT_BASE_URL
+            - name: NUXT_APP_BASE_URL
               value: {{ printf "https://%s" .Values.domain | quote }}
             - name: NUXT_POD_NAMESPACE
               valueFrom:

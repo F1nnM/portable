@@ -6,7 +6,7 @@ export default defineNuxtConfig({
     githubClientId: "",
     githubClientSecret: "",
     encryptionKey: "",
-    baseUrl: "http://localhost:3000",
+    appBaseUrl: "http://localhost:3000",
     podNamespace: "default",
     podServerImage: "portable/pod-server:latest",
     podResourceCpuRequest: "500m",

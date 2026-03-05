@@ -46,7 +46,7 @@ These Helm values are translated into environment variables for the main app con
 | `github.clientSecret` | `NUXT_GITHUB_CLIENT_SECRET` | `githubClientSecret`    |
 | `encryptionKey`       | `NUXT_ENCRYPTION_KEY`       | `encryptionKey`         |
 | (from postgres)       | `DATABASE_URL`              | (direct env access)     |
-| `domain`              | `NUXT_BASE_URL`             | `baseUrl`               |
+| `domain`              | `NUXT_APP_BASE_URL`         | `appBaseUrl`            |
 
 ### Generating an encryption key
 

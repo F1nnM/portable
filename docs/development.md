@@ -39,7 +39,7 @@ The main app requires these environment variables. In the k3d dev environment, t
 | `NUXT_GITHUB_CLIENT_ID`     | GitHub OAuth App client ID                            | `dev-client-id`                    |
 | `NUXT_GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret                        | `dev-client-secret`                |
 | `NUXT_ENCRYPTION_KEY`       | 32-byte hex key for AES-256-GCM credential encryption | `aabb...` (dummy 64 hex)           |
-| `NUXT_BASE_URL`             | Public URL of the app (for OAuth callback URLs)       | `http://portable.127.0.0.1.nip.io` |
+| `NUXT_APP_BASE_URL`         | Public URL of the app (for OAuth callback URLs)       | `http://portable.127.0.0.1.nip.io` |
 
 To use real GitHub OAuth locally, create a GitHub OAuth App (homepage: `http://portable.127.0.0.1.nip.io`, callback: `http://portable.127.0.0.1.nip.io/auth/github/callback`) and override the values in `deploy/dev-values.yaml`.
 
