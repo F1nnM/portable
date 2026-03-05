@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
       slug: projects.slug,
       scaffoldId: projects.scaffoldId,
       status: projects.status,
+      repoUrl: projects.repoUrl,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
     })

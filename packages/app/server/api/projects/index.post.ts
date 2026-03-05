@@ -1,7 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { projects } from "../../db/schema";
 import { useDb } from "../../utils/db";
-import { createGitHubRepo, getDecryptedGithubToken, pushScaffoldToRepo } from "../../utils/github";
+import {
+  createGitHubRepo,
+  getDecryptedGithubToken,
+  listScaffolds,
+  pushScaffoldToRepo,
+} from "../../utils/github";
 import { generateSlug } from "../../utils/slug";
 
 export default defineEventHandler(async (event) => {
@@ -32,6 +37,15 @@ export default defineEventHandler(async (event) => {
   }
 
   const scaffoldId = body.scaffoldId ?? "nuxt-postgres";
+
+  // Validate scaffoldId against available scaffolds
+  const availableScaffolds = listScaffolds();
+  if (!availableScaffolds.some((s) => s.id === scaffoldId)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Invalid scaffold: "${scaffoldId}"`,
+    });
+  }
 
   const db = useDb();
 
@@ -66,6 +80,7 @@ export default defineEventHandler(async (event) => {
       status: projects.status,
       repoUrl: projects.repoUrl,
       createdAt: projects.createdAt,
+      updatedAt: projects.updatedAt,
     });
 
   const project = result[0];

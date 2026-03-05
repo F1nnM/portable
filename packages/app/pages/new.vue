@@ -16,12 +16,18 @@ const scaffolds = ref<Scaffold[]>([]);
 const scaffoldsLoading = ref(true);
 const scaffoldsError = ref("");
 
+/**
+ * Client-side slug preview -- must match the server-side generateSlug in server/utils/slug.ts.
+ */
 function generateSlugPreview(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50)
+    .replace(/-+$/, "");
 }
 
 const slugPreview = computed(() => generateSlugPreview(projectName.value));
