@@ -450,7 +450,7 @@ Vue 3 SPA with vue-router, bottom tab nav (Chat, Files, Preview), dark theme wit
 - Create: `packages/editor/src/views/FilesView.vue` (placeholder)
 - Create: `packages/editor/src/views/PreviewView.vue` (placeholder)
 
-### Task 8.2: Chat view `[ ]`
+### Task 8.2: Chat view `[DONE]`
 
 WebSocket chat. Streaming markdown messages. Mobile keyboard input. Tool usage inline. Use the frontend-design skill.
 
