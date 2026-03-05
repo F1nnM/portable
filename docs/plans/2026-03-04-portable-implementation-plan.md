@@ -15,11 +15,13 @@
 ### Red-Green-Refactor (TDD)
 
 Every feature follows this cycle:
+
 1. **Red:** Write a failing test that describes the desired behavior
 2. **Green:** Write the minimal implementation to make the test pass
 3. **Refactor:** Clean up while keeping tests green
 
 Test frameworks:
+
 - `vitest` for all packages (app server routes, pod-server, editor components)
 - `@vue/test-utils` for Vue component tests
 - `supertest` or direct handler invocation for API route tests
@@ -49,6 +51,7 @@ Each phase is executed as follows:
 ### Plan Updates
 
 Subagents MUST update this plan when they encounter:
+
 - A wrong assumption (mark with `[PLAN UPDATED]` and explain)
 - A better approach than what was planned
 - A roadblock that requires changing the approach
@@ -60,16 +63,16 @@ Subagents MUST update this plan when they encounter:
 
 Created and maintained continuously throughout implementation.
 
-| File | Purpose | Audience |
-|------|---------|----------|
-| `CLAUDE.md` | How to work with the codebase: project structure, commands, conventions, testing | AI agents and developers |
-| `README.md` | What is Portable, features, quick-start deployment, screenshots | Potential users |
-| `docs/architecture.md` | System architecture, component interactions, data flow | Developers |
-| `docs/development.md` | Local dev setup, dev workflow, running tests, linting | Contributors |
-| `docs/deployment.md` | Production deployment via Helm, prerequisites, configuration | Operators |
-| `docs/api.md` | Main app API routes reference | Developers |
-| `docs/pod-server.md` | Pod server internals, WebSocket protocol, Agent SDK bridge | Developers |
-| `docs/progress.md` | Agent progress log: what was done, by whom, when, decisions made | Traceability |
+| File                   | Purpose                                                                          | Audience                 |
+| ---------------------- | -------------------------------------------------------------------------------- | ------------------------ |
+| `CLAUDE.md`            | How to work with the codebase: project structure, commands, conventions, testing | AI agents and developers |
+| `README.md`            | What is Portable, features, quick-start deployment, screenshots                  | Potential users          |
+| `docs/architecture.md` | System architecture, component interactions, data flow                           | Developers               |
+| `docs/development.md`  | Local dev setup, dev workflow, running tests, linting                            | Contributors             |
+| `docs/deployment.md`   | Production deployment via Helm, prerequisites, configuration                     | Operators                |
+| `docs/api.md`          | Main app API routes reference                                                    | Developers               |
+| `docs/pod-server.md`   | Pod server internals, WebSocket protocol, Agent SDK bridge                       | Developers               |
+| `docs/progress.md`     | Agent progress log: what was done, by whom, when, decisions made                 | Traceability             |
 
 ---
 
@@ -100,16 +103,18 @@ docs/
 Initialize all three packages with minimal working code (hello world level).
 
 **Files:**
+
 - Create: `.mise.toml`, `pnpm-workspace.yaml`, `package.json`, `.gitignore`
 - Create: `packages/app/` (Nuxt init with minimal config)
 - Create: `packages/pod-server/` (Hono with `/health` endpoint)
 - Create: `packages/editor/` (Vue 3 + Vite, minimal App.vue)
 
-### Task 1.2: Linting, formatting, and shared config `[ ]`
+### Task 1.2: Linting, formatting, and shared config `[DONE]`
 
 Set up ESLint and Prettier across all packages. Shared config at the root. Husky + lint-staged for pre-commit hooks.
 
 **Files:**
+
 - Create: `eslint.config.js` (flat config, TypeScript, Vue support)
 - Create: `.prettierrc`
 - Create: `.lintstagedrc`
@@ -125,6 +130,7 @@ Set up vitest in all three packages. Each package should have at least one passi
 - `packages/editor`: vitest with `@vue/test-utils` for component testing
 
 **Files:**
+
 - Create: `packages/app/vitest.config.ts` + `packages/app/tests/smoke.test.ts`
 - Create: `packages/pod-server/vitest.config.ts` + `packages/pod-server/tests/smoke.test.ts`
 - Create: `packages/editor/vitest.config.ts` + `packages/editor/tests/smoke.test.ts`
@@ -138,6 +144,7 @@ Create Dockerfiles for both containers so Tilt can build them.
 - Pod server: Node.js LTS, git, dev tools, copies pod-server build + editor SPA dist
 
 **Files:**
+
 - Create: `packages/app/Dockerfile`, `packages/app/.dockerignore`
 - Create: `packages/pod-server/Dockerfile`, `packages/pod-server/.dockerignore`
 
@@ -153,7 +160,8 @@ RBAC must grant the main app's ServiceAccount: pods, persistentvolumeclaims, ser
 Default pod resource limits in ConfigMap: CPU 500m request / 2000m limit, Memory 512Mi request / 4Gi limit, PVC 5Gi.
 
 **Files:**
-- Create: `deploy/helm/portable/` (Chart.yaml, values.yaml, templates/*)
+
+- Create: `deploy/helm/portable/` (Chart.yaml, values.yaml, templates/\*)
 
 ### Task 1.6: Tiltfile and dev setup `[ ]`
 
@@ -164,6 +172,7 @@ Tiltfile that builds images via k3d registry, deploys via Helm with dev override
 Local domain: `portable.127.0.0.1.nip.io`
 
 **Files:**
+
 - Create: `Tiltfile`
 - Create: `deploy/dev-values.yaml`
 - Create: `scripts/dev-setup.sh`
@@ -173,6 +182,7 @@ Local domain: `portable.127.0.0.1.nip.io`
 Create all documentation files with initial content. `CLAUDE.md` with project structure, commands, conventions. `README.md` with project overview. Other docs as stubs that will be filled in.
 
 **Files:**
+
 - Create: `CLAUDE.md`
 - Create: `README.md`
 - Create: `docs/architecture.md`
@@ -195,6 +205,7 @@ Drizzle ORM with `postgres.js` driver. Schema for `users`, `projects`, `sessions
 **Tests:** Schema validation, migration runs without error, basic CRUD operations on each table.
 
 **Files:**
+
 - Create: `packages/app/server/db/schema.ts`
 - Create: `packages/app/server/utils/db.ts`
 - Create: `packages/app/server/plugins/migrate.ts`
@@ -207,6 +218,7 @@ AES-256-GCM encrypt/decrypt using `node:crypto`.
 **Tests:** Encrypt then decrypt round-trip. Different inputs produce different ciphertexts. Tampered ciphertext fails decryption. Missing key throws.
 
 **Files:**
+
 - Create: `packages/app/server/utils/crypto.ts`
 - Create: `packages/app/tests/utils/crypto.test.ts`
 
@@ -217,6 +229,7 @@ Arctic GitHub OAuth: login redirect, callback (upsert user, create session), log
 **Tests:** Middleware attaches user for valid session. Middleware sets null for invalid/missing session. Callback creates user on first login. Callback updates existing user. Logout deletes session.
 
 **Files:**
+
 - Create: `packages/app/server/utils/auth.ts`
 - Create: `packages/app/server/routes/auth/github/index.get.ts`
 - Create: `packages/app/server/routes/auth/github/callback.get.ts`
@@ -230,6 +243,7 @@ Login page (public), dashboard/settings/new (protected). Client-side auth guard.
 **Tests:** Unauthenticated user redirected to login. Authenticated user can access dashboard. `/api/auth/me` returns user data.
 
 **Files:**
+
 - Create: `packages/app/middleware/auth.global.ts`
 - Create: `packages/app/server/api/auth/me.get.ts`
 - Create: `packages/app/pages/login.vue`
@@ -251,6 +265,7 @@ Settings page: enter API key or Claude Code OAuth token. Save encrypted. Check e
 **Tests:** PUT saves encrypted credential. GET returns `{ hasCredential: true/false }`. Credential never returned in plaintext via API.
 
 **Files:**
+
 - Create: `packages/app/server/api/settings/credential.put.ts`
 - Create: `packages/app/server/api/settings/credential.get.ts`
 - Modify: `packages/app/pages/settings.vue`
@@ -262,6 +277,7 @@ Create, list, rename, delete projects. Database only — K8s/GitHub wired later.
 **Tests:** Create project returns slug. List returns only user's projects. Rename updates name. Delete removes project. Duplicate slugs rejected.
 
 **Files:**
+
 - Create: `packages/app/server/api/projects/index.get.ts`
 - Create: `packages/app/server/api/projects/index.post.ts`
 - Create: `packages/app/server/api/projects/[slug]/index.patch.ts`
@@ -276,6 +292,7 @@ Project cards: name, status, start/stop, rename, delete. "New Project" button. U
 **Tests:** Renders project list. Shows correct status indicators. Start/stop buttons call correct API. Rename dialog works. Delete confirms before acting.
 
 **Files:**
+
 - Modify: `packages/app/pages/index.vue`
 - Create: `packages/app/components/ProjectCard.vue`
 
@@ -290,6 +307,7 @@ Minimal Nuxt 3 + Postgres (Drizzle) scaffold. Includes `CLAUDE.md` for Claude Co
 **Tests:** Scaffold directory exists and contains required files. `package.json` is valid. `CLAUDE.md` contains dev server instructions.
 
 **Files:**
+
 - Create: `scaffolds/nuxt-postgres/` (all scaffold files)
 
 ### Task 4.2: GitHub repo creation and scaffold push `[ ]`
@@ -299,6 +317,7 @@ Octokit: create repo, push scaffold via Git Data API. List available scaffolds.
 **Tests:** `listScaffolds()` returns available scaffolds. `createRepo()` calls GitHub API correctly (mock Octokit). `pushScaffold()` creates initial commit with all scaffold files.
 
 **Files:**
+
 - Create: `packages/app/server/utils/github.ts`
 - Create: `packages/app/server/api/scaffolds/index.get.ts`
 - Modify: `packages/app/server/api/projects/index.post.ts` (wire in GitHub)
@@ -310,6 +329,7 @@ Scaffold picker, project name input, create button. Use the frontend-design skil
 **Tests:** Renders scaffold options. Validates project name. Calls create API on submit. Shows loading state. Redirects on success.
 
 **Files:**
+
 - Modify: `packages/app/pages/new.vue`
 
 ---
@@ -327,6 +347,7 @@ Default pod resources: CPU 500m request / 2000m limit, Memory 512Mi request / 4G
 **Tests:** `createProjectPod()` creates pod with correct spec including all env vars (mock K8s API). `createProjectService()` creates service with `clusterIP: None`. `waitForPodReady()` resolves when pod Ready condition is true. `stopProject()` deletes pod and service. PVC creation with 5Gi size and ReadWriteOnce access mode.
 
 **Files:**
+
 - Create: `packages/app/server/utils/k8s.ts`
 
 ### Task 5.2: Wire K8s into project lifecycle `[ ]`
@@ -336,6 +357,7 @@ Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete po
 **Tests:** Start endpoint creates pod and service, updates project status. Stop endpoint deletes pod and service. Delete endpoint cleans up PVC + DB but does NOT delete the GitHub repo (user does this manually). Error handling: pod creation failure rolls back.
 
 **Files:**
+
 - Create: `packages/app/server/utils/project-db.ts`
 - Modify: `packages/app/server/api/projects/index.post.ts`
 - Modify: `packages/app/server/api/projects/[slug]/start.post.ts`
@@ -353,6 +375,7 @@ Nitro middleware: parse Host header, validate session, proxy via `h3.proxyReques
 **Tests:** `parseSubdomain()` correctly extracts slug and type. `<project>.domain` routes to pod editor port. `preview.<project>.domain` routes to pod dev server port. Unauthenticated requests get 401. Unknown projects get 404. WebSocket upgrade is proxied.
 
 **Files:**
+
 - Create: `packages/app/server/utils/proxy.ts`
 - Create: `packages/app/server/middleware/proxy.ts`
 - Create: `packages/app/server/plugins/ws-proxy.ts`
@@ -370,6 +393,7 @@ Static SPA serving, file tree (fdir), file read/write, health check.
 **Tests:** `/health` returns 200. `/api/files` returns file tree excluding node_modules/.git. `/api/files/:path` returns file content. `PUT /api/files/:path` writes file. 404 for nonexistent files. Path traversal blocked.
 
 **Files:**
+
 - Modify: `packages/pod-server/src/index.ts`
 - Create: `packages/pod-server/src/routes/files.ts`
 - Create: `packages/pod-server/src/routes/health.ts`
@@ -381,6 +405,7 @@ WebSocket bridging browser to Claude Agent SDK. V1 `query()` with async generato
 **Tests:** WebSocket connection established. User message forwarded to SDK. SDK streaming events forwarded to browser. Interrupt message cancels current query. Connection cleanup on disconnect.
 
 **Files:**
+
 - Create: `packages/pod-server/src/routes/ws.ts`
 
 ### Task 7.3: Pod startup and dev server supervisor `[ ]`
@@ -390,6 +415,7 @@ Entrypoint: git clone (if needed), npm install, start dev server with auto-resta
 **Tests:** Dev server restarts after crash. Restart has backoff. Git clone skipped when PVC has files. npm install runs when node_modules missing.
 
 **Files:**
+
 - Create: `packages/pod-server/src/dev-server.ts`
 - Create: `packages/pod-server/scripts/entrypoint.sh`
 
@@ -406,6 +432,7 @@ Vue 3 SPA, bottom tab nav (Chat, Files, Preview), VS Code dark theme, mobile lay
 **Tests:** Bottom nav renders three tabs. Tab switching shows correct view. Active tab highlighted.
 
 **Files:**
+
 - Modify: `packages/editor/src/main.ts`, `src/App.vue`
 - Create: `packages/editor/src/router.ts`
 - Create: `packages/editor/src/views/ChatView.vue` (placeholder)
@@ -419,6 +446,7 @@ WebSocket chat. Streaming markdown messages. Mobile keyboard input. Tool usage i
 **Tests:** Connects to WebSocket on mount. Renders user and assistant messages. Renders tool use blocks. Input sends message via WebSocket. Loading indicator during streaming.
 
 **Files:**
+
 - Modify: `packages/editor/src/views/ChatView.vue`
 - Create: `packages/editor/src/composables/useWebSocket.ts`
 - Create: `packages/editor/src/components/ChatMessage.vue`
@@ -431,6 +459,7 @@ File tree, tap opens CodeMirror 6 full-screen, back button, read-only default wi
 **Tests:** File tree fetched and rendered. Tap file navigates to viewer. CodeMirror renders code. Edit toggle switches mode. Save calls PUT API. Back returns to tree.
 
 **Files:**
+
 - Modify: `packages/editor/src/views/FilesView.vue`
 - Create: `packages/editor/src/components/FileTree.vue`
 - Create: `packages/editor/src/components/CodeViewer.vue`
@@ -443,6 +472,7 @@ Full-screen iframe to `preview.<project>.domain`. Detect subdomain, construct UR
 **Tests:** Iframe src constructed correctly from current hostname. Renders iframe full-screen.
 
 **Files:**
+
 - Modify: `packages/editor/src/views/PreviewView.vue`
 
 ---
@@ -456,6 +486,7 @@ Extend base chart: cert-manager Certificate (optional), full values documentatio
 **Tests:** `helm template` renders without errors. `helm lint` passes.
 
 **Files:**
+
 - Modify: `deploy/helm/portable/values.yaml`
 - Create: `deploy/helm/portable/templates/certificate.yaml`
 - Create: `deploy/helm/portable/templates/NOTES.txt`

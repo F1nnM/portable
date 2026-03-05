@@ -1,7 +1,7 @@
 {
   "name": "@portable/pod-server",
-  "private": true,
   "type": "module",
+  "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
@@ -9,14 +9,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.7.4",
     "@hono/node-server": "^1.14.0",
-    "@hono/node-ws": "^1.1.0"
+    "@hono/node-ws": "^1.1.0",
+    "hono": "^4.7.4"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3",
-    "@types/node": "^22.13.10"
+    "typescript": "^5.7.3"
   }
 }

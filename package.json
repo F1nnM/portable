@@ -1,7 +1,11 @@
 {
   "name": "portable",
-  "private": true,
   "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
   "scripts": {
     "dev:app": "pnpm --filter @portable/app dev",
     "dev:pod-server": "pnpm --filter @portable/pod-server dev",
@@ -10,10 +14,19 @@
     "build:pod-server": "pnpm --filter @portable/pod-server build",
     "build:editor": "pnpm --filter @portable/editor build",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
-  "engines": {
-    "node": ">=22",
-    "pnpm": ">=10"
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.6.1",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2",
+    "prettier": "^3.8.1"
   }
 }

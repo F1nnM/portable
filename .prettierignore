@@ -1,0 +1,9 @@
+node_modules
+dist
+.output
+.nuxt
+.nitro
+.cache
+pnpm-lock.yaml
+scaffolds
+deploy

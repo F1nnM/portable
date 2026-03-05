@@ -13,6 +13,7 @@ Two distinct components:
 Handles project management, authentication, and proxies all traffic to project pods.
 
 **Responsibilities:**
+
 - GitHub OAuth login
 - Project CRUD (create, start, stop, rename, delete)
 - K8s pod lifecycle management (create/delete pods, PVCs, headless services)
@@ -21,6 +22,7 @@ Handles project management, authentication, and proxies all traffic to project p
 - Auth-checked reverse proxy for all pod subdomains
 
 **Tech stack:**
+
 - Nuxt 3 (SSR, full-stack)
 - Drizzle ORM with `postgres.js` driver
 - `@kubernetes/client-node` for pod management
@@ -35,12 +37,14 @@ Handles project management, authentication, and proxies all traffic to project p
 Self-contained environment with Claude Code, dev server, and editor UI.
 
 **Responsibilities:**
+
 - Serve the mobile-first editor UI (chat + file browser)
 - WebSocket endpoint bridging browser to Claude Agent SDK
 - File tree and file content API
 - Dev server (Nuxt) with auto-restart on crash
 
 **Tech stack:**
+
 - Hono (~14KB) with `@hono/node-server` and `@hono/node-ws`
 - `@anthropic-ai/claude-agent-sdk` (bundles Claude Code CLI)
 - `fdir` for file tree crawling (<2KB, fastest available)
@@ -52,11 +56,11 @@ Self-contained environment with Claude Code, dev server, and editor UI.
 
 All subdomains route through the main app, which checks auth before proxying.
 
-| URL | Target |
-|-----|--------|
-| `portable.example.com` | Main app UI |
-| `<project>.portable.example.com` | Pod editor (chat, files) |
-| `preview.<project>.portable.example.com` | Pod dev server (at `/`) |
+| URL                                      | Target                   |
+| ---------------------------------------- | ------------------------ |
+| `portable.example.com`                   | Main app UI              |
+| `<project>.portable.example.com`         | Pod editor (chat, files) |
+| `preview.<project>.portable.example.com` | Pod dev server (at `/`)  |
 
 The main app handles wildcard ingress. A Nitro server middleware parses the `Host` header to extract the project slug and proxy type, validates the user's session cookie, then proxies via `h3.proxyRequest` (HTTP) or `httpxy.proxyUpgrade` (WebSocket).
 
@@ -85,6 +89,7 @@ GitHub OAuth via Arctic with scopes `repo` (create/push repos) and `read:user` (
 ### Anthropic Credentials
 
 Users provide either:
+
 - `ANTHROPIC_API_KEY` — standard API key (pay-per-use)
 - `CLAUDE_CODE_OAUTH_TOKEN` — generated via `claude setup-token` (uses Pro/Max subscription)
 
@@ -97,6 +102,7 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 ## Pod Lifecycle
 
 ### Create Project
+
 1. Create GitHub repo via Octokit
 2. Copy scaffold files, push initial commit
 3. Create Postgres database for the project
@@ -104,6 +110,7 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 5. Start pod
 
 ### Start Project
+
 1. Create pod with PVC mount
 2. Inject env vars: DB connection string, Anthropic credential, GitHub token
 3. Create headless Service for stable DNS
@@ -116,10 +123,12 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 5. Store pod IP in database for proxy routing
 
 ### Stop Project
+
 1. Delete pod (PVC persists)
 2. Delete headless Service
 
 ### Delete Project
+
 1. Stop project (if running)
 2. Delete PVC
 3. Drop project database
@@ -130,6 +139,7 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 **Single container image for all scaffolds.**
 
 ### Startup Script
+
 1. If PVC is empty: `git clone` from GitHub repo
 2. If PVC has files: `git pull` (or skip, user manages git via Claude)
 3. `npm install` (if node_modules missing or package.json changed)
@@ -138,6 +148,7 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 6. Signal readiness via `/health` endpoint
 
 ### Pod Server (Hono)
+
 - `GET /` — Mobile-first editor SPA (served via `serveStatic`)
 - `GET /health` — Readiness probe
 - `GET /ws` — WebSocket: browser <-> Agent SDK session (via `@hono/node-ws`)
@@ -148,11 +159,14 @@ All pod traffic flows through the main app's reverse proxy. The main app validat
 - Port 3000 for the dev server (Nuxt)
 
 ### Agent SDK WebSocket Bridge
+
 Uses the V1 `query()` function with an async generator as the prompt parameter, allowing continuous message feeding from the WebSocket client:
+
 - Inbound messages: `{ type: "user_message", content: string }` and `{ type: "interrupt" }`
 - Outbound messages: SDK streaming events forwarded as JSON
 
 ### Resource Defaults
+
 - CPU: 500m request, 2000m limit
 - Memory: 512Mi request, 4Gi limit
 - PVC: 5Gi
@@ -162,36 +176,43 @@ Uses the V1 `query()` function with an async generator as the prompt parameter, 
 Served from inside the pod as a static SPA. Bottom navigation bar with three tabs.
 
 ### Chat Tab
+
 - Streaming messages from Claude Code via WebSocket
 - User text input at bottom (mobile keyboard optimized)
 - Tool usage shown inline (file edits, bash commands, etc.)
 - VS Code-inspired dark theme
 
 ### Files Tab
+
 - File tree (collapsible, VS Code-style icons)
 - Tap a file to open full-screen code view
 - CodeMirror 6 for both viewing and editing (~150KB, mobile-first)
 - VS Code dark color scheme
 
 ### Preview Tab
+
 - Full-screen iframe to `preview.<project>.portable.example.com`
 - Shows the running dev server output
 
 ## Main App UI
 
 ### `/login`
+
 GitHub OAuth login page.
 
 ### `/` (Dashboard)
+
 - Project cards: name, status indicator (running/stopped), start/stop toggle
 - Actions per project: rename, delete
 - "New Project" button
 
 ### `/settings`
+
 - Anthropic API key / token input field
 - Instructions for obtaining each credential type
 
 ### `/new`
+
 - Scaffold picker (shows all folders from `scaffolds/`)
 - Project name input
 - Creates repo, scaffolds, starts pod, redirects to editor
@@ -214,6 +235,7 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 ## Helm Chart
 
 ### Deployed Resources
+
 - Main app: Deployment + Service + Ingress (wildcard)
 - Postgres: StatefulSet + Service + PVC (or option to use external Postgres)
 - ServiceAccount + RBAC (pod/PVC/service management)
@@ -221,17 +243,20 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 - ConfigMap: default pod resource limits
 
 ### Required Helm Values
+
 - `domain` — base domain (e.g., `portable.example.com`)
 - `github.clientId` / `github.clientSecret`
 - `postgres.password` (or `externalPostgres.url`)
 - `encryptionKey` — 32-byte hex key for AES-256-GCM credential encryption
 
 ### Optional Helm Values
+
 - `certManager.enabled` + `certManager.issuer` + DNS solver config
 - `pod.resources.cpu` / `pod.resources.memory` / `pod.storage`
 - `image.repository` / `image.tag`
 
 ### Deployer Prerequisites
+
 - Kubernetes cluster
 - Wildcard DNS: `*.portable.example.com` → cluster
 - cert-manager (if using automated TLS)
@@ -240,6 +265,7 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 ## Local Development
 
 **Tool management:** mise (`.mise.toml` in repo root)
+
 - Node.js LTS, pnpm, kubectl, helm, k3d, tilt
 
 **Local K8s:** k3d with a local container registry.
@@ -251,6 +277,7 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 **Everything runs in K8s** — main app, Postgres, and project pods all run in the k3d cluster. Keeps networking simple (main app can reach pods directly) and avoids "works locally but not in K8s" bugs.
 
 **Dev workflow:**
+
 ```bash
 mise install                    # Install tools
 ./scripts/dev-setup.sh          # Create k3d cluster + registry
