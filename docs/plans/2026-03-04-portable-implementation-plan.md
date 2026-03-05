@@ -303,7 +303,7 @@ Project cards: name, status, start/stop, rename, delete. "New Project" button. U
 
 ## Phase 4: Scaffold System & GitHub Integration
 
-### Task 4.1: Create the nuxt-postgres scaffold `[ ]`
+### Task 4.1: Create the nuxt-postgres scaffold `[DONE]`
 
 Minimal Nuxt 3 + Postgres (Drizzle) scaffold. Includes `CLAUDE.md` for Claude Code.
 
