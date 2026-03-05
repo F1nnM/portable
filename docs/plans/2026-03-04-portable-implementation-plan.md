@@ -490,7 +490,7 @@ Full-screen iframe to `preview.<project>.domain`. Detect subdomain, construct UR
 
 ## Phase 9: Helm Chart Finalization
 
-### Task 9.1: Complete Helm chart `[ ]`
+### Task 9.1: Complete Helm chart `[DONE]`
 
 Extend base chart: cert-manager Certificate (optional), full values documentation, NOTES.txt with post-install instructions.
 

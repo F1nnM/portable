@@ -1,0 +1,45 @@
+Portable has been deployed!
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Domain:    {{ .Values.domain }}
+
+Access the application at:
+{{- if .Values.certManager.enabled }}
+  https://{{ .Values.domain }}
+{{- else }}
+  http://{{ .Values.domain }}
+{{- end }}
+
+{{- if .Values.certManager.enabled }}
+
+TLS is enabled via cert-manager.
+  Issuer:      {{ .Values.certManager.issuer }}
+  Issuer Kind: {{ .Values.certManager.issuerKind }}
+  Certificate: {{ include "portable.fullname" . }}-tls
+{{- else }}
+
+TLS is NOT enabled. To enable automatic TLS certificates, set:
+  certManager.enabled=true
+  certManager.issuer=<your-issuer-name>
+{{- end }}
+
+DNS Configuration:
+  Point both of the following to your cluster's ingress controller IP:
+    {{ .Values.domain }}
+    *.{{ .Values.domain }}
+
+  The wildcard record is required for project subdomains
+  (<project>.{{ .Values.domain }}) and preview subdomains
+  (preview.<project>.{{ .Values.domain }}).
+
+Next Steps:
+  1. Ensure GitHub OAuth credentials are configured (github.clientId, github.clientSecret)
+  2. Ensure the encryption key is set (encryptionKey) -- generate with:
+       openssl rand -hex 32
+  3. Log in and configure your Anthropic API key in the app settings
+
+Check application status:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+  kubectl get ingress {{ include "portable.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}

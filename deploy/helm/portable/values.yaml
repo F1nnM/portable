@@ -1,93 +1,190 @@
-# -- Base domain for the application (e.g., portable.example.com)
-# All project subdomains will be <project>.<domain> and preview.<project>.<domain>
+# =============================================================================
+# Portable Helm Chart Values
+# =============================================================================
+# This file configures the Portable deployment. All values have sensible
+# defaults for production use unless otherwise noted.
+#
+# Required values (must be set for a working deployment):
+#   - domain
+#   - github.clientId
+#   - github.clientSecret
+#   - postgres.password
+#   - encryptionKey
+# =============================================================================
+
+# -- Base domain for the application.
+# All traffic is routed through this domain and its subdomains:
+#   <domain>                       -> Main app (auth, dashboard, settings)
+#   <project>.<domain>             -> Project editor (chat, files)
+#   preview.<project>.<domain>     -> Project dev server preview
+#
+# A wildcard DNS record (*.<domain>) pointing to the cluster ingress is required.
+# Example: portable.example.com
 domain: ""
 
-# -- GitHub OAuth credentials for user authentication
+# -- GitHub OAuth credentials for user authentication.
+# Create a GitHub OAuth App at https://github.com/settings/developers
+# Set the authorization callback URL to https://<domain>/auth/github/callback
 github:
-  # -- GitHub OAuth App client ID
+  # -- GitHub OAuth App client ID.
+  # Found on the OAuth App settings page after creation.
   clientId: ""
-  # -- GitHub OAuth App client secret
+  # -- GitHub OAuth App client secret.
+  # Generated once when creating the OAuth App. Stored encrypted in a K8s Secret.
   clientSecret: ""
 
-# -- Postgres configuration for the shared database instance
+# -- Postgres configuration for the shared database instance.
+# A single Postgres StatefulSet is deployed within the chart. The main app uses
+# it for user/session/project data, and each project gets its own database
+# (portable_<slug>) within the same instance.
 postgres:
-  # -- Postgres superuser password
+  # -- Postgres superuser password.
+  # Used for the 'portable' user. Required. Choose a strong random password.
+  # Example: openssl rand -base64 32
   password: ""
-  # -- Postgres storage size
+  # -- Persistent volume size for Postgres data.
+  # Must accommodate the main app database plus all per-project databases.
+  # Format: Kubernetes quantity (e.g., 10Gi, 50Gi).
   storage: 10Gi
-  # -- Postgres image repository
+  # -- Postgres container image.
   image:
+    # -- Image repository. Default uses the official Postgres Alpine image.
     repository: postgres
+    # -- Image tag. Portable is tested with Postgres 16.
     tag: "16-alpine"
-  # -- Postgres resource requests and limits
+  # -- Resource requests and limits for the Postgres container.
   resources:
     requests:
+      # -- Minimum CPU allocated to Postgres.
       cpu: 250m
+      # -- Minimum memory allocated to Postgres.
       memory: 256Mi
     limits:
+      # -- Maximum CPU Postgres can use.
       cpu: 1000m
+      # -- Maximum memory Postgres can use. OOM-killed if exceeded.
       memory: 1Gi
 
-# -- AES-256-GCM encryption key for credential storage (32-byte hex string)
+# -- AES-256-GCM encryption key for credential storage.
+# Used to encrypt sensitive data at rest (GitHub tokens, Anthropic API keys).
+# Must be exactly 32 bytes encoded as a 64-character hexadecimal string.
+# Generate with: openssl rand -hex 32
+# Example: a1b2c3d4e5f6...  (64 hex characters total)
 encryptionKey: ""
 
-# -- Main app container image
+# -- Main application container image.
+# The Nuxt full-stack app that handles auth, project management, and proxying.
 image:
+  # -- Image repository.
+  # For production, push to your container registry and set the full path.
+  # Example: ghcr.io/myorg/portable-app
   repository: portable/app
+  # -- Image tag. Defaults to the chart appVersion.
   tag: "0.1.0"
+  # -- Image pull policy.
+  # Use "Always" for mutable tags (e.g., "latest", "dev"), "IfNotPresent" for
+  # immutable tags (e.g., version numbers, SHA digests).
   pullPolicy: IfNotPresent
 
-# -- Main app replica count
+# -- Number of main app replicas.
+# The app is stateless and can be scaled horizontally. A single replica is
+# sufficient for most workloads. Multiple replicas require sticky sessions
+# or a shared session store (not yet implemented).
 replicaCount: 1
 
-# -- Main app resource requests and limits
+# -- Resource requests and limits for the main app container.
 resources:
   requests:
+    # -- Minimum CPU for the main app.
     cpu: 250m
+    # -- Minimum memory for the main app.
     memory: 256Mi
   limits:
+    # -- Maximum CPU for the main app.
     cpu: 1000m
+    # -- Maximum memory for the main app.
     memory: 512Mi
 
-# -- Main app service configuration
+# -- Main app Kubernetes Service configuration.
 service:
+  # -- Service type. ClusterIP is standard for use behind an Ingress.
+  # Use LoadBalancer or NodePort only if not using Ingress.
   type: ClusterIP
+  # -- Service port. Must match the Nuxt server listen port (3000).
   port: 3000
 
-# -- Ingress configuration
+# -- Ingress configuration for routing external traffic to the app.
+# A single Ingress handles both the bare domain and wildcard subdomains.
+# The main app's proxy middleware routes subdomain traffic to project pods.
 ingress:
-  # -- Additional annotations for the Ingress resource
+  # -- Additional annotations for the Ingress resource.
+  # Use this to configure ingress controller behavior.
+  # Example for nginx:
+  #   nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  #   nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
   annotations: {}
-  # -- Ingress class name (e.g., nginx, traefik)
+  # -- Ingress class name. Set to the ingress controller installed in your cluster.
+  # Common values: "nginx", "traefik", "haproxy"
+  # Leave empty to use the cluster default ingress class.
   className: ""
 
-# -- cert-manager integration for automatic TLS certificates
+# -- cert-manager integration for automatic TLS certificates.
+# When enabled, a Certificate resource is created requesting a wildcard cert
+# covering both <domain> and *.<domain>. The resulting TLS secret is
+# referenced by the Ingress for HTTPS termination.
+# Requires cert-manager to be installed in the cluster:
+#   https://cert-manager.io/docs/installation/
 certManager:
-  # -- Enable cert-manager Certificate resource for wildcard TLS
+  # -- Enable cert-manager Certificate resource for wildcard TLS.
+  # Set to true to create a Certificate resource and configure TLS on the Ingress.
   enabled: false
-  # -- Name of the cert-manager ClusterIssuer or Issuer to use
+  # -- Name of the cert-manager Issuer or ClusterIssuer to use.
+  # Must be pre-configured in the cluster. Common examples:
+  #   letsencrypt-prod, letsencrypt-staging
   issuer: ""
-  # -- Issuer kind: ClusterIssuer or Issuer
+  # -- Kind of the issuer reference.
+  # "ClusterIssuer" for cluster-wide issuers, "Issuer" for namespace-scoped.
   issuerKind: ClusterIssuer
 
-# -- Default resource limits for project pods (stored in ConfigMap, used by the app)
+# -- Default resource configuration for project pods.
+# These values are passed to the main app via a ConfigMap and used when
+# creating per-project Kubernetes pods. Individual projects cannot override
+# these limits -- they apply uniformly to all project pods.
 pod:
   resources:
     requests:
-      # -- CPU request for project pods
+      # -- CPU request for each project pod.
+      # Sets the minimum guaranteed CPU. 500m (half a core) is suitable for
+      # running a dev server and Claude Code concurrently.
       cpu: 500m
-      # -- Memory request for project pods
+      # -- Memory request for each project pod.
+      # Sets the minimum guaranteed memory. 512Mi supports a Node.js dev server
+      # plus the Claude Agent SDK.
       memory: 512Mi
     limits:
-      # -- CPU limit for project pods
+      # -- CPU limit for each project pod.
+      # Maximum CPU a project pod can burst to. 2000m (2 cores) allows for
+      # build tasks and concurrent processes.
       cpu: 2000m
-      # -- Memory limit for project pods
+      # -- Memory limit for each project pod.
+      # Maximum memory before OOM-kill. 4Gi supports large Node.js builds,
+      # TypeScript compilation, and the Claude Agent SDK.
       memory: 4Gi
-  # -- PVC size for project pods
+  # -- Persistent volume size for each project pod's workspace.
+  # Each project gets a PVC of this size mounted at /workspace.
+  # Must be large enough for the project source code, node_modules,
+  # and build artifacts. Format: Kubernetes quantity (e.g., 5Gi, 10Gi).
   storage: 5Gi
 
-# -- Pod server container image (used inside project pods)
+# -- Pod server container image.
+# The Hono server that runs inside each project pod, serving the editor SPA,
+# file APIs, and the Claude Agent SDK WebSocket bridge.
 podServer:
   image:
+    # -- Image repository for the pod server.
+    # For production, push to your container registry and set the full path.
+    # Example: ghcr.io/myorg/portable-pod-server
     repository: portable/pod-server
+    # -- Image tag for the pod server. Defaults to the chart appVersion.
     tag: "0.1.0"
