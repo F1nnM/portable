@@ -55,6 +55,9 @@ FROM node:22-alpine AS runtime
 #   make, g++ - compile native npm addons
 RUN apk add --no-cache git python3 make g++
 
+# Enable pnpm so projects using pnpm can install dependencies
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /srv
 
 # Copy pod-server build output and its production dependencies
@@ -65,6 +68,10 @@ COPY --from=build /build/packages/pod-server/package.json ./package.json
 # Copy editor SPA dist into a known location the pod-server can serve
 COPY --from=build /build/packages/editor/dist ./public
 
+# Copy entrypoint script
+COPY packages/pod-server/scripts/entrypoint.sh ./scripts/entrypoint.sh
+RUN chmod +x ./scripts/entrypoint.sh
+
 # Project workspace will be mounted here via PVC
 RUN mkdir -p /workspace
 VOLUME /workspace
@@ -73,5 +80,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 EXPOSE 3000
+EXPOSE 3001
 
-CMD ["node", "dist/index.js"]
+CMD ["./scripts/entrypoint.sh"]
