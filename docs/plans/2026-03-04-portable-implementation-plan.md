@@ -198,7 +198,7 @@ Create all documentation files with initial content. `CLAUDE.md` with project st
 
 > Prerequisite: Phase 1 complete. All tasks follow TDD.
 
-### Task 2.1: Database schema and Drizzle setup `[ ]`
+### Task 2.1: Database schema and Drizzle setup `[DONE]`
 
 Drizzle ORM with `postgres.js` driver. Schema for `users`, `projects`, `sessions`. Migration tooling. Auto-migrate on server start via Nitro plugin.
 

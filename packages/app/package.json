@@ -8,15 +8,20 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.1",
     "nuxt": "^3.16.0",
+    "postgres": "^3.4.8",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@nuxt/test-utils": "^4.0.0",
+    "drizzle-kit": "^0.31.9",
     "happy-dom": "^20.8.3",
     "typescript": "^5.7.3",
     "vitest": "^4.0.18"
