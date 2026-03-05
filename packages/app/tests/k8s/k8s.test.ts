@@ -83,11 +83,11 @@ describe("k8s utilities", () => {
       });
 
       expect(mockCreateNamespacedPod).toHaveBeenCalledOnce();
-      const [namespace, body] = mockCreateNamespacedPod.mock.calls[0];
+      const [arg] = mockCreateNamespacedPod.mock.calls[0];
 
-      expect(namespace).toBe("test-ns");
-      expect(body.metadata.name).toBe("project-my-project");
-      expect(body.metadata.labels).toEqual(
+      expect(arg.namespace).toBe("test-ns");
+      expect(arg.body.metadata.name).toBe("project-my-project");
+      expect(arg.body.metadata.labels).toEqual(
         expect.objectContaining({
           "app.kubernetes.io/managed-by": "portable",
           "portable.dev/project": "my-project",
@@ -105,7 +105,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       expect(body.spec.containers[0].image).toBe("portable/pod-server:0.1.0");
     });
 
@@ -119,7 +119,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_mytoken",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       const envVars = body.spec.containers[0].env;
 
       const findEnv = (name: string) => envVars.find((e: { name: string }) => e.name === name);
@@ -145,7 +145,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_mytoken",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       const envVars = body.spec.containers[0].env;
 
       const findEnv = (name: string) => envVars.find((e: { name: string }) => e.name === name);
@@ -167,7 +167,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       const resources = body.spec.containers[0].resources;
 
       expect(resources.requests).toEqual({ cpu: "500m", memory: "512Mi" });
@@ -184,7 +184,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       const volumeMounts = body.spec.containers[0].volumeMounts;
       const volumes = body.spec.volumes;
 
@@ -216,7 +216,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       expect(body.spec.restartPolicy).toBe("Always");
     });
 
@@ -230,7 +230,7 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [, body] = mockCreateNamespacedPod.mock.calls[0];
+      const { body } = mockCreateNamespacedPod.mock.calls[0][0];
       const ports = body.spec.containers[0].ports;
 
       expect(ports).toEqual(
@@ -252,8 +252,8 @@ describe("k8s utilities", () => {
         githubToken: "ghp_test",
       });
 
-      const [namespace] = mockCreateNamespacedPod.mock.calls[0];
-      expect(namespace).toBe("custom-ns");
+      const [arg] = mockCreateNamespacedPod.mock.calls[0];
+      expect(arg.namespace).toBe("custom-ns");
     });
   });
 
@@ -264,12 +264,12 @@ describe("k8s utilities", () => {
       await createProjectService("my-project");
 
       expect(mockCreateNamespacedService).toHaveBeenCalledOnce();
-      const [namespace, body] = mockCreateNamespacedService.mock.calls[0];
+      const [arg] = mockCreateNamespacedService.mock.calls[0];
 
-      expect(namespace).toBe("test-ns");
-      expect(body.metadata.name).toBe("project-my-project");
-      expect(body.spec.clusterIP).toBe("None");
-      expect(body.metadata.labels).toEqual(
+      expect(arg.namespace).toBe("test-ns");
+      expect(arg.body.metadata.name).toBe("project-my-project");
+      expect(arg.body.spec.clusterIP).toBe("None");
+      expect(arg.body.metadata.labels).toEqual(
         expect.objectContaining({
           "app.kubernetes.io/managed-by": "portable",
           "portable.dev/project": "my-project",
@@ -282,7 +282,7 @@ describe("k8s utilities", () => {
 
       await createProjectService("my-project");
 
-      const [, body] = mockCreateNamespacedService.mock.calls[0];
+      const { body } = mockCreateNamespacedService.mock.calls[0][0];
       expect(body.spec.selector).toEqual(
         expect.objectContaining({
           "portable.dev/project": "my-project",
@@ -295,7 +295,7 @@ describe("k8s utilities", () => {
 
       await createProjectService("my-project");
 
-      const [, body] = mockCreateNamespacedService.mock.calls[0];
+      const { body } = mockCreateNamespacedService.mock.calls[0][0];
       const ports = body.spec.ports;
 
       expect(ports).toEqual(
@@ -311,8 +311,8 @@ describe("k8s utilities", () => {
 
       await createProjectService("my-project", "custom-ns");
 
-      const [namespace] = mockCreateNamespacedService.mock.calls[0];
-      expect(namespace).toBe("custom-ns");
+      const [arg] = mockCreateNamespacedService.mock.calls[0];
+      expect(arg.namespace).toBe("custom-ns");
     });
   });
 
@@ -323,11 +323,11 @@ describe("k8s utilities", () => {
       await createProjectPVC("my-project");
 
       expect(mockCreateNamespacedPersistentVolumeClaim).toHaveBeenCalledOnce();
-      const [namespace, body] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
+      const [arg] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
 
-      expect(namespace).toBe("test-ns");
-      expect(body.metadata.name).toBe("project-my-project");
-      expect(body.metadata.labels).toEqual(
+      expect(arg.namespace).toBe("test-ns");
+      expect(arg.body.metadata.name).toBe("project-my-project");
+      expect(arg.body.metadata.labels).toEqual(
         expect.objectContaining({
           "app.kubernetes.io/managed-by": "portable",
           "portable.dev/project": "my-project",
@@ -340,7 +340,7 @@ describe("k8s utilities", () => {
 
       await createProjectPVC("my-project");
 
-      const [, body] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
+      const { body } = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0][0];
       expect(body.spec.resources.requests.storage).toBe("5Gi");
     });
 
@@ -349,7 +349,7 @@ describe("k8s utilities", () => {
 
       await createProjectPVC("my-project");
 
-      const [, body] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
+      const { body } = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0][0];
       expect(body.spec.accessModes).toEqual(["ReadWriteOnce"]);
     });
 
@@ -358,8 +358,8 @@ describe("k8s utilities", () => {
 
       await createProjectPVC("my-project", "custom-ns");
 
-      const [namespace] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
-      expect(namespace).toBe("custom-ns");
+      const [arg] = mockCreateNamespacedPersistentVolumeClaim.mock.calls[0];
+      expect(arg.namespace).toBe("custom-ns");
     });
   });
 
@@ -441,9 +441,9 @@ describe("k8s utilities", () => {
       await deleteProjectPod("my-project");
 
       expect(mockDeleteNamespacedPod).toHaveBeenCalledOnce();
-      const [name, namespace] = mockDeleteNamespacedPod.mock.calls[0];
-      expect(name).toBe("project-my-project");
-      expect(namespace).toBe("test-ns");
+      const [arg] = mockDeleteNamespacedPod.mock.calls[0];
+      expect(arg.name).toBe("project-my-project");
+      expect(arg.namespace).toBe("test-ns");
     });
 
     it("gracefully handles 404 (already deleted)", async () => {
@@ -467,8 +467,8 @@ describe("k8s utilities", () => {
 
       await deleteProjectPod("my-project", "custom-ns");
 
-      const [, namespace] = mockDeleteNamespacedPod.mock.calls[0];
-      expect(namespace).toBe("custom-ns");
+      const [arg] = mockDeleteNamespacedPod.mock.calls[0];
+      expect(arg.namespace).toBe("custom-ns");
     });
   });
 
@@ -479,9 +479,9 @@ describe("k8s utilities", () => {
       await deleteProjectService("my-project");
 
       expect(mockDeleteNamespacedService).toHaveBeenCalledOnce();
-      const [name, namespace] = mockDeleteNamespacedService.mock.calls[0];
-      expect(name).toBe("project-my-project");
-      expect(namespace).toBe("test-ns");
+      const [arg] = mockDeleteNamespacedService.mock.calls[0];
+      expect(arg.name).toBe("project-my-project");
+      expect(arg.namespace).toBe("test-ns");
     });
 
     it("gracefully handles 404 (already deleted)", async () => {
@@ -508,9 +508,9 @@ describe("k8s utilities", () => {
       await deleteProjectPVC("my-project");
 
       expect(mockDeleteNamespacedPersistentVolumeClaim).toHaveBeenCalledOnce();
-      const [name, namespace] = mockDeleteNamespacedPersistentVolumeClaim.mock.calls[0];
-      expect(name).toBe("project-my-project");
-      expect(namespace).toBe("test-ns");
+      const [arg] = mockDeleteNamespacedPersistentVolumeClaim.mock.calls[0];
+      expect(arg.name).toBe("project-my-project");
+      expect(arg.namespace).toBe("test-ns");
     });
 
     it("gracefully handles 404 (already deleted)", async () => {

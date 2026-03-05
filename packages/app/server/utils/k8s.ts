@@ -101,56 +101,59 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
     env.push({ name: "ANTHROPIC_API_KEY", value: options.anthropicApiKey });
   }
 
-  await api.createNamespacedPod(namespace, {
-    metadata: {
-      name,
-      labels,
-    },
-    spec: {
-      restartPolicy: "Always",
-      containers: [
-        {
-          name: "pod-server",
-          image: config.podServerImage,
-          ports: [
-            { containerPort: 3000, name: "editor" },
-            { containerPort: 3001, name: "preview" },
-          ],
-          env,
-          securityContext: {
-            runAsNonRoot: true,
-            runAsUser: 1000,
-            allowPrivilegeEscalation: false,
-            capabilities: {
-              drop: ["ALL"],
+  await api.createNamespacedPod({
+    namespace,
+    body: {
+      metadata: {
+        name,
+        labels,
+      },
+      spec: {
+        restartPolicy: "Always",
+        containers: [
+          {
+            name: "pod-server",
+            image: config.podServerImage,
+            ports: [
+              { containerPort: 3000, name: "editor" },
+              { containerPort: 3001, name: "preview" },
+            ],
+            env,
+            securityContext: {
+              runAsNonRoot: true,
+              runAsUser: 1000,
+              allowPrivilegeEscalation: false,
+              capabilities: {
+                drop: ["ALL"],
+              },
+            },
+            resources: {
+              requests: {
+                cpu: config.podResourceCpuRequest,
+                memory: config.podResourceMemoryRequest,
+              },
+              limits: {
+                cpu: config.podResourceCpuLimit,
+                memory: config.podResourceMemoryLimit,
+              },
+            },
+            volumeMounts: [
+              {
+                name: "workspace",
+                mountPath: "/workspace",
+              },
+            ],
+          },
+        ],
+        volumes: [
+          {
+            name: "workspace",
+            persistentVolumeClaim: {
+              claimName: name,
             },
           },
-          resources: {
-            requests: {
-              cpu: config.podResourceCpuRequest,
-              memory: config.podResourceMemoryRequest,
-            },
-            limits: {
-              cpu: config.podResourceCpuLimit,
-              memory: config.podResourceMemoryLimit,
-            },
-          },
-          volumeMounts: [
-            {
-              name: "workspace",
-              mountPath: "/workspace",
-            },
-          ],
-        },
-      ],
-      volumes: [
-        {
-          name: "workspace",
-          persistentVolumeClaim: {
-            claimName: name,
-          },
-        },
-      ],
+        ],
+      },
     },
   });
 }
@@ -165,20 +168,23 @@ export async function createProjectService(slug: string, namespace?: string): Pr
   const name = projectResourceName(slug);
   const labels = projectLabels(slug);
 
-  await api.createNamespacedService(ns, {
-    metadata: {
-      name,
-      labels,
-    },
-    spec: {
-      clusterIP: "None",
-      selector: {
-        "portable.dev/project": slug,
+  await api.createNamespacedService({
+    namespace: ns,
+    body: {
+      metadata: {
+        name,
+        labels,
       },
-      ports: [
-        { port: 3000, targetPort: 3000, name: "editor" },
-        { port: 3001, targetPort: 3001, name: "preview" },
-      ],
+      spec: {
+        clusterIP: "None",
+        selector: {
+          "portable.dev/project": slug,
+        },
+        ports: [
+          { port: 3000, targetPort: 3000, name: "editor" },
+          { port: 3001, targetPort: 3001, name: "preview" },
+        ],
+      },
     },
   });
 }
@@ -193,16 +199,19 @@ export async function createProjectPVC(slug: string, namespace?: string): Promis
   const name = projectResourceName(slug);
   const labels = projectLabels(slug);
 
-  await api.createNamespacedPersistentVolumeClaim(ns, {
-    metadata: {
-      name,
-      labels,
-    },
-    spec: {
-      accessModes: ["ReadWriteOnce"],
-      resources: {
-        requests: {
-          storage: config.podStorageSize,
+  await api.createNamespacedPersistentVolumeClaim({
+    namespace: ns,
+    body: {
+      metadata: {
+        name,
+        labels,
+      },
+      spec: {
+        accessModes: ["ReadWriteOnce"],
+        resources: {
+          requests: {
+            storage: config.podStorageSize,
+          },
         },
       },
     },
@@ -297,7 +306,7 @@ export async function deleteProjectPod(slug: string, namespace?: string): Promis
   const name = projectResourceName(slug);
 
   try {
-    await api.deleteNamespacedPod(name, ns);
+    await api.deleteNamespacedPod({ name, namespace: ns });
   } catch (err: unknown) {
     if (isK8s404(err)) return;
     throw err;
@@ -314,7 +323,7 @@ export async function deleteProjectService(slug: string, namespace?: string): Pr
   const name = projectResourceName(slug);
 
   try {
-    await api.deleteNamespacedService(name, ns);
+    await api.deleteNamespacedService({ name, namespace: ns });
   } catch (err: unknown) {
     if (isK8s404(err)) return;
     throw err;
@@ -331,7 +340,7 @@ export async function deleteProjectPVC(slug: string, namespace?: string): Promis
   const name = projectResourceName(slug);
 
   try {
-    await api.deleteNamespacedPersistentVolumeClaim(name, ns);
+    await api.deleteNamespacedPersistentVolumeClaim({ name, namespace: ns });
   } catch (err: unknown) {
     if (isK8s404(err)) return;
     throw err;
