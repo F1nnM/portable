@@ -380,7 +380,7 @@ describe("k8s utilities", () => {
               conditions: [{ type: "Ready", status: "True" }],
             },
           });
-          return { abort: vi.fn() };
+          return Promise.resolve(new AbortController());
         },
       );
 
@@ -397,7 +397,7 @@ describe("k8s utilities", () => {
           _done: (err: unknown) => void,
         ) => {
           // Never call callback -- simulate timeout
-          return { abort: vi.fn() };
+          return Promise.resolve(new AbortController());
         },
       );
 
@@ -426,7 +426,7 @@ describe("k8s utilities", () => {
               conditions: [{ type: "Ready", status: "True" }],
             },
           });
-          return { abort: vi.fn() };
+          return Promise.resolve(new AbortController());
         },
       );
 

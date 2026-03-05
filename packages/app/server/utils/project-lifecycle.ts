@@ -136,23 +136,31 @@ export async function startProject(userId: string, slug: string): Promise<void> 
     // Create per-project database
     const databaseUrl = await createProjectDatabase(slug);
 
-    // Create PVC (ignore AlreadyExists)
+    // Create PVC (ignore AlreadyExists for retries after partial failure)
     try {
       await createProjectPVC(slug);
     } catch (err: unknown) {
       if (!isK8sAlreadyExists(err)) throw err;
     }
 
-    // Create pod
-    await createProjectPod({
-      slug,
-      databaseUrl,
-      githubToken,
-      anthropicApiKey,
-    });
+    // Create pod (ignore AlreadyExists for retries after partial failure)
+    try {
+      await createProjectPod({
+        slug,
+        databaseUrl,
+        githubToken,
+        anthropicApiKey,
+      });
+    } catch (err: unknown) {
+      if (!isK8sAlreadyExists(err)) throw err;
+    }
 
-    // Create headless service
-    await createProjectService(slug);
+    // Create headless service (ignore AlreadyExists for retries after partial failure)
+    try {
+      await createProjectService(slug);
+    } catch (err: unknown) {
+      if (!isK8sAlreadyExists(err)) throw err;
+    }
 
     // Wait for pod ready
     await waitForPodReady(slug);

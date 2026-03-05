@@ -75,10 +75,10 @@ export async function deleteProjectDatabase(slug: string): Promise<void> {
   const sql = postgres(mainUrl, { max: 1 });
 
   try {
-    // Terminate active connections to the database before dropping
-    await sql.unsafe(
-      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${dbName}' AND pid <> pg_backend_pid()`,
-    );
+    // Terminate active connections to the database before dropping.
+    // dbName is safe (derived from slug which is [a-z0-9-] only), but we
+    // use a parameterized query for defense-in-depth.
+    await sql`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = ${dbName} AND pid <> pg_backend_pid()`;
     await sql.unsafe(`DROP DATABASE IF EXISTS "${dbName}"`);
   } finally {
     await sql.end();

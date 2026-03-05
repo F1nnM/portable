@@ -211,41 +211,66 @@ export async function waitForPodReady(
   const watch = new Watch(kc);
 
   return new Promise<void>((resolve, reject) => {
-    let req: { abort: () => void } | undefined;
+    let abortController: AbortController | undefined;
+    let settled = false;
+
+    function settle() {
+      if (settled) return;
+      settled = true;
+    }
 
     const timeout = setTimeout(() => {
-      if (req && typeof req.abort === "function") {
-        req.abort();
+      settle();
+      if (abortController) {
+        abortController.abort();
       }
       reject(new Error(`Pod ${name} timed out waiting to become ready after ${timeoutMs}ms`));
     }, timeoutMs);
 
-    req = watch.watch(
-      `/api/v1/namespaces/${ns}/pods`,
-      { fieldSelector: `metadata.name=${name}` },
-      (
-        type: string,
-        apiObj: { status?: { conditions?: Array<{ type: string; status: string }> } },
-      ) => {
-        const conditions = apiObj?.status?.conditions;
-        if (conditions) {
-          const ready = conditions.find((c) => c.type === "Ready" && c.status === "True");
-          if (ready) {
-            clearTimeout(timeout);
-            if (req && typeof req.abort === "function") {
-              req.abort();
+    watch
+      .watch(
+        `/api/v1/namespaces/${ns}/pods`,
+        { fieldSelector: `metadata.name=${name}` },
+        (
+          _type: string,
+          apiObj: { status?: { conditions?: Array<{ type: string; status: string }> } },
+        ) => {
+          const conditions = apiObj?.status?.conditions;
+          if (conditions) {
+            const ready = conditions.find((c) => c.type === "Ready" && c.status === "True");
+            if (ready && !settled) {
+              settle();
+              clearTimeout(timeout);
+              if (abortController) {
+                abortController.abort();
+              }
+              resolve();
             }
-            resolve();
           }
+        },
+        (err: unknown) => {
+          if (settled) return;
+          settle();
+          clearTimeout(timeout);
+          if (err) {
+            reject(err instanceof Error ? err : new Error(String(err)));
+          }
+        },
+      )
+      .then((ac) => {
+        abortController = ac;
+        // If already settled (e.g., callback fired synchronously or timeout hit),
+        // abort the watch immediately.
+        if (settled) {
+          ac.abort();
         }
-      },
-      (err: unknown) => {
+      })
+      .catch((err) => {
+        if (settled) return;
+        settle();
         clearTimeout(timeout);
-        if (err) {
-          reject(err instanceof Error ? err : new Error(String(err)));
-        }
-      },
-    ) as unknown as { abort: () => void };
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
   });
 }
 
