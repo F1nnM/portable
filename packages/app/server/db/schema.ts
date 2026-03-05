@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
   encryptedGithubToken: text("encrypted_github_token"),
+  encryptedAnthropicKey: text("encrypted_anthropic_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

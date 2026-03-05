@@ -1,5 +1,54 @@
 <script setup lang="ts">
 const { user } = useAuth();
+
+const credentialInput = ref("");
+const isLoading = ref(false);
+const statusMessage = ref<{ type: "success" | "error"; text: string } | null>(null);
+
+const { data: credentialStatus, refresh: refreshCredentialStatus } = useFetch<{
+  hasCredential: boolean;
+}>("/api/settings/credential");
+
+const hasCredential = computed(() => credentialStatus.value?.hasCredential ?? false);
+
+async function saveCredential() {
+  if (!credentialInput.value.trim()) return;
+
+  isLoading.value = true;
+  statusMessage.value = null;
+
+  try {
+    await $fetch("/api/settings/credential", {
+      method: "PUT",
+      body: { credential: credentialInput.value.trim() },
+    });
+    credentialInput.value = "";
+    statusMessage.value = { type: "success", text: "Credential saved" };
+    await refreshCredentialStatus();
+  } catch {
+    statusMessage.value = { type: "error", text: "Failed to save credential" };
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function removeCredential() {
+  isLoading.value = true;
+  statusMessage.value = null;
+
+  try {
+    await $fetch("/api/settings/credential", {
+      method: "PUT",
+      body: { credential: "" },
+    });
+    statusMessage.value = { type: "success", text: "Credential removed" };
+    await refreshCredentialStatus();
+  } catch {
+    statusMessage.value = { type: "error", text: "Failed to remove credential" };
+  } finally {
+    isLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -25,10 +74,46 @@ const { user } = useAuth();
         <p class="setting-description">
           Add your Anthropic API key or Claude Code OAuth token to enable Claude in your projects.
         </p>
+
         <div class="setting-row">
           <span class="setting-label">Status</span>
-          <span class="setting-badge not-set">Not configured</span>
+          <span v-if="hasCredential" class="setting-badge configured">Configured</span>
+          <span v-else class="setting-badge not-set">Not configured</span>
         </div>
+
+        <div v-if="statusMessage" class="status-message" :class="statusMessage.type">
+          {{ statusMessage.text }}
+        </div>
+
+        <form class="credential-form" @submit.prevent="saveCredential">
+          <input
+            v-model="credentialInput"
+            type="password"
+            class="credential-input"
+            :placeholder="
+              hasCredential ? 'Enter new credential to replace' : 'sk-ant-... or OAuth token'
+            "
+            autocomplete="off"
+          />
+          <div class="credential-actions">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isLoading || !credentialInput.trim()"
+            >
+              {{ isLoading ? "Saving..." : "Save" }}
+            </button>
+            <button
+              v-if="hasCredential"
+              type="button"
+              class="btn btn-danger"
+              :disabled="isLoading"
+              @click="removeCredential"
+            >
+              Remove
+            </button>
+          </div>
+        </form>
       </div>
     </section>
   </div>
@@ -118,5 +203,95 @@ const { user } = useAuth();
 .setting-badge.not-set {
   background: var(--bg-overlay);
   color: var(--text-muted);
+}
+
+.setting-badge.configured {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.status-message {
+  font-size: 0.8125rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.status-message.success {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.status-message.error {
+  background: rgba(255, 77, 106, 0.15);
+  color: var(--danger);
+}
+
+.credential-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.credential-input {
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-md);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  transition: border-color var(--transition-fast);
+}
+
+.credential-input::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+}
+
+.credential-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.credential-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.btn {
+  min-height: var(--touch-min);
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition:
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: var(--accent-dim);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger-dim);
+  color: var(--danger);
+}
+
+.btn-danger:not(:disabled):hover {
+  background: rgba(255, 77, 106, 0.1);
 }
 </style>

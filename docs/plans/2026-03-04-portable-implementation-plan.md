@@ -258,7 +258,7 @@ Login page (public), dashboard/settings/new (protected). Client-side auth guard.
 
 > Tasks 3.1 and 3.2 can be parallelized.
 
-### Task 3.1: Anthropic credential management `[ ]`
+### Task 3.1: Anthropic credential management `[DONE]`
 
 Settings page: enter API key or Claude Code OAuth token. Save encrypted. Check existence endpoint.
 
