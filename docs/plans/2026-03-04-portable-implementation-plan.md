@@ -136,7 +136,7 @@ Set up vitest in all three packages. Each package should have at least one passi
 - Create: `packages/editor/vitest.config.ts` + `packages/editor/tests/smoke.test.ts`
 - Modify: root `package.json` (add `test` script that runs all)
 
-### Task 1.4: Dockerfiles `[ ]`
+### Task 1.4: Dockerfiles `[DONE]`
 
 Create Dockerfiles for both containers so Tilt can build them.
 
