@@ -148,7 +148,7 @@ Create Dockerfiles for both containers so Tilt can build them.
 - Create: `packages/app/Dockerfile`, `packages/app/.dockerignore`
 - Create: `packages/pod-server/Dockerfile`, `packages/pod-server/.dockerignore`
 
-### Task 1.5: Helm chart (base) `[ ]`
+### Task 1.5: Helm chart (base) `[DONE]`
 
 Base Helm chart: main app Deployment + Service + Ingress (wildcard `*.<domain>`), Postgres StatefulSet + Service + PVC, RBAC, Secrets, ConfigMap. Dev-friendly defaults.
 
