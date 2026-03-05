@@ -143,7 +143,14 @@ Create Dockerfiles for both containers so Tilt can build them.
 
 ### Task 1.5: Helm chart (base) `[ ]`
 
-Base Helm chart: main app Deployment + Service + Ingress (wildcard), Postgres StatefulSet + Service + PVC, RBAC, Secrets, ConfigMap. Dev-friendly defaults.
+Base Helm chart: main app Deployment + Service + Ingress (wildcard `*.<domain>`), Postgres StatefulSet + Service + PVC, RBAC, Secrets, ConfigMap. Dev-friendly defaults.
+
+Required Helm values: `domain`, `github.clientId`, `github.clientSecret`, `postgres.password`, `encryptionKey`.
+Optional: `certManager.enabled`, `pod.resources.*`, `pod.storage`, `image.repository`, `image.tag`.
+
+RBAC must grant the main app's ServiceAccount: pods, persistentvolumeclaims, services (create, get, list, watch, delete) in the project namespace.
+
+Default pod resource limits in ConfigMap: CPU 500m request / 2000m limit, Memory 512Mi request / 4Gi limit, PVC 5Gi.
 
 **Files:**
 - Create: `deploy/helm/portable/` (Chart.yaml, values.yaml, templates/*)
@@ -151,6 +158,8 @@ Base Helm chart: main app Deployment + Service + Ingress (wildcard), Postgres St
 ### Task 1.6: Tiltfile and dev setup `[ ]`
 
 Tiltfile that builds images via k3d registry, deploys via Helm with dev overrides, uses `live_update` for code syncing. Dev setup script and docs.
+
+**All components (main app, Postgres, project pods) run inside the k3d cluster. No process runs on the host outside of K8s.** This is a deliberate architectural constraint to keep networking simple and avoid "works locally but not in K8s" bugs.
 
 Local domain: `portable.127.0.0.1.nip.io`
 
@@ -309,9 +318,13 @@ Scaffold picker, project name input, create button. Use the frontend-design skil
 
 ### Task 5.1: K8s client and pod management `[ ]`
 
-`@kubernetes/client-node`: create/delete pods with PVC mounts + env vars, create/delete headless services, watch pod status, create/delete PVCs.
+`@kubernetes/client-node`: create/delete pods with PVC mounts + env vars, create/delete headless services (`clusterIP: None`) for stable DNS at `project-<slug>.<namespace>.svc.cluster.local`, watch pod status, create/delete PVCs.
 
-**Tests:** `createProjectPod()` creates pod with correct spec (mock K8s API). `waitForPodReady()` resolves when pod Ready condition is true. `stopProject()` deletes pod and service. PVC creation with correct size and access mode.
+Pod env vars to inject: `DATABASE_URL` (per-project DB connection string), `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` (user's credential), `GITHUB_TOKEN` (user's GitHub access token).
+
+Default pod resources: CPU 500m request / 2000m limit, Memory 512Mi request / 4Gi limit, PVC 5Gi.
+
+**Tests:** `createProjectPod()` creates pod with correct spec including all env vars (mock K8s API). `createProjectService()` creates service with `clusterIP: None`. `waitForPodReady()` resolves when pod Ready condition is true. `stopProject()` deletes pod and service. PVC creation with 5Gi size and ReadWriteOnce access mode.
 
 **Files:**
 - Create: `packages/app/server/utils/k8s.ts`
@@ -320,7 +333,7 @@ Scaffold picker, project name input, create button. Use the frontend-design skil
 
 Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete pod + service. Delete = PVC + DB. Create project also creates per-project Postgres DB.
 
-**Tests:** Start endpoint creates pod and service, updates project status. Stop endpoint deletes pod and service. Delete endpoint cleans up everything. Error handling: pod creation failure rolls back.
+**Tests:** Start endpoint creates pod and service, updates project status. Stop endpoint deletes pod and service. Delete endpoint cleans up PVC + DB but does NOT delete the GitHub repo (user does this manually). Error handling: pod creation failure rolls back.
 
 **Files:**
 - Create: `packages/app/server/utils/project-db.ts`
