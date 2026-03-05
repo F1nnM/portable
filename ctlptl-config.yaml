@@ -1,7 +1,7 @@
 apiVersion: ctlptl.dev/v1alpha1
 kind: Registry
 name: k3d-portable-registry.localhost
-port: 5000
+port: 5002
 ---
 apiVersion: ctlptl.dev/v1alpha1
 kind: Cluster
