@@ -121,7 +121,7 @@ Set up ESLint and Prettier across all packages. Shared config at the root. Husky
 - Modify: `package.json` (add lint/format scripts, husky, lint-staged)
 - Each package inherits root config
 
-### Task 1.3: Testing infrastructure `[ ]`
+### Task 1.3: Testing infrastructure `[DONE]`
 
 Set up vitest in all three packages. Each package should have at least one passing smoke test to verify the setup works.
 
