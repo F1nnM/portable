@@ -325,7 +325,7 @@ Octokit: create repo, push scaffold via Git Data API. List available scaffolds. 
 - Create: `packages/app/server/api/scaffolds/index.get.ts`
 - Modify: `packages/app/server/api/projects/index.post.ts` (wire in GitHub)
 
-### Task 4.3: New project page UI `[ ]`
+### Task 4.3: New project page UI `[DONE]`
 
 Scaffold picker, project name input, create button. Use the frontend-design skill.
 
