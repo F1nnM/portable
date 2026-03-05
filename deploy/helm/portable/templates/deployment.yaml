@@ -24,8 +24,6 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
-            - name: NUXT_PUBLIC_DOMAIN
-              value: {{ .Values.domain | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -49,7 +47,7 @@ spec:
                   name: {{ include "portable.secretName" . }}
                   key: encryption-key
             - name: NUXT_APP_BASE_URL
-              value: {{ printf "https://%s" .Values.domain | quote }}
+              value: {{ printf "%s://%s" (ternary "https" "http" .Values.certManager.enabled) .Values.domain | quote }}
             - name: NUXT_POD_NAMESPACE
               valueFrom:
                 fieldRef:
