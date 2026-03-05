@@ -236,7 +236,7 @@ Arctic GitHub OAuth: login redirect, callback (upsert user, create session), log
 - Create: `packages/app/server/routes/auth/logout.post.ts`
 - Create: `packages/app/server/middleware/auth.ts`
 
-### Task 2.4: Auth-guarded pages and layout `[ ]`
+### Task 2.4: Auth-guarded pages and layout `[DONE]`
 
 Login page (public), dashboard/settings/new (protected). Client-side auth guard. Mobile-first layout. Use the frontend-design skill.
 
