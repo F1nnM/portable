@@ -222,7 +222,7 @@ AES-256-GCM encrypt/decrypt using `node:crypto`.
 - Create: `packages/app/server/utils/crypto.ts`
 - Create: `packages/app/tests/utils/crypto.test.ts`
 
-### Task 2.3: GitHub OAuth flow `[ ]`
+### Task 2.3: GitHub OAuth flow `[DONE]`
 
 Arctic GitHub OAuth: login redirect, callback (upsert user, create session), logout. Auth middleware attaches user to context. Store GitHub token encrypted.
 
