@@ -7,6 +7,7 @@ import {
   listScaffolds,
   pushScaffoldToRepo,
 } from "../../utils/github";
+import { createProjectDatabase } from "../../utils/project-db";
 import { generateSlug } from "../../utils/slug";
 
 export default defineEventHandler(async (event) => {
@@ -85,8 +86,10 @@ export default defineEventHandler(async (event) => {
 
   const project = result[0];
 
-  // Create GitHub repo and push scaffold files
+  // Create per-project database and GitHub repo
   try {
+    await createProjectDatabase(slug);
+
     const githubToken = await getDecryptedGithubToken(user.id);
     const repo = await createGitHubRepo(githubToken, slug);
     await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
@@ -99,8 +102,8 @@ export default defineEventHandler(async (event) => {
 
     project.repoUrl = repo.htmlUrl;
   } catch (err) {
-    // If GitHub operations fail, set status to "error" but keep the DB record
-    console.error("Failed to create GitHub repo:", err);
+    // If operations fail, set status to "error" but keep the DB record
+    console.error("Failed to set up project:", err);
     await db
       .update(projects)
       .set({ status: "error", updatedAt: new Date() })

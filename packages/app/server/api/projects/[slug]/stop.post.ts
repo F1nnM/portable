@@ -1,12 +1,17 @@
-export default defineEventHandler((event) => {
+import { stopProject } from "../../../utils/project-lifecycle";
+
+export default defineEventHandler(async (event) => {
   const user = event.context.user;
   if (!user) {
     throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
   }
 
-  throw createError({
-    statusCode: 501,
-    statusMessage: "Not implemented",
-    message: "Not implemented — K8s integration pending",
-  });
+  const slug = getRouterParam(event, "slug");
+  if (!slug) {
+    throw createError({ statusCode: 400, statusMessage: "Slug is required" });
+  }
+
+  await stopProject(user.id, slug);
+
+  return { ok: true };
 });
