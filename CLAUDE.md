@@ -44,6 +44,8 @@ portable/
     nuxt-postgres/    Project template: Nuxt 3 + Postgres (Drizzle)
   deploy/
     helm/portable/    Helm chart for Kubernetes deployment
+      templates/      K8s resource templates (deployment, service, ingress, postgres, RBAC, certificate, NOTES.txt)
+      values.yaml     Chart values with comprehensive documentation comments
     dev-values.yaml   Development overrides for local k3d
   docs/               Architecture, development, deployment, and API docs
   ctlptl-config.yaml  Declares k3d cluster + registry for ctlptl

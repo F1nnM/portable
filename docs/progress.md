@@ -296,3 +296,21 @@ Implemented a full-screen iframe pointing to `preview.<hostname>` with subdomain
 ### Phase 8 summary
 
 Phase 8 implemented the complete editor SPA: a Vue 3 single-page application with Vue Router, dark theme, and mobile-first layout. The Chat view provides a full WebSocket chat interface with streaming messages, tool use blocks, and auto-reconnect. The Files view offers workspace browsing with a recursive file tree and a CodeMirror 6 code editor supporting multiple languages. The Preview view embeds the project's dev server in a full-screen iframe via subdomain URL construction. New dependencies: vue-router and CodeMirror 6 with language extensions and the One Dark theme. 36 total tests across the editor package (2 smoke + 4 navigation + 17 chat + 6 files + 7 preview). Ready for Phase 9 (Helm Chart Finalization).
+
+---
+
+## Phase 9: Helm Chart Finalization
+
+**Status:** Complete
+
+### Task 9.1: Complete Helm chart
+
+Finalized the Helm chart at `deploy/helm/portable/`:
+
+- Created `templates/certificate.yaml` -- A cert-manager Certificate resource, conditional on `certManager.enabled`. Requests TLS certificates for both the bare domain and wildcard (`*.domain`) via the configured issuer. The certificate secret is named `<release>-tls`.
+- Created `templates/NOTES.txt` -- Post-install instructions displayed after `helm install`. Shows the access URL, TLS status, DNS configuration requirements (bare + wildcard records for project and preview subdomains), next steps (OAuth, encryption key, Anthropic API key), and useful `kubectl` commands for checking status.
+- Added comprehensive documentation comments to `values.yaml` explaining all configurable values, their defaults, and usage notes. No value changes were made.
+
+### Phase 9 summary
+
+Phase 9 finalized the Helm chart with production-readiness improvements: a conditional cert-manager Certificate resource for automatic wildcard TLS, post-install NOTES.txt with setup instructions, and thorough values.yaml documentation. All nine implementation phases are now complete.

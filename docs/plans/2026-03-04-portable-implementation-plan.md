@@ -488,7 +488,7 @@ Full-screen iframe to `preview.<project>.domain`. Detect subdomain, construct UR
 
 ---
 
-## Phase 9: Helm Chart Finalization
+## Phase 9: Helm Chart Finalization `[COMPLETE]`
 
 ### Task 9.1: Complete Helm chart `[DONE]`
 

@@ -144,19 +144,20 @@ podServer:
 
 The Helm chart creates the following Kubernetes resources:
 
-| Resource              | Name                     | Purpose                                                   |
-| --------------------- | ------------------------ | --------------------------------------------------------- |
-| Deployment            | `portable`               | Main app (Nuxt)                                           |
-| Service               | `portable`               | Exposes main app on port 3000                             |
-| Ingress               | `portable`               | Wildcard `*.domain` + bare `domain`                       |
-| StatefulSet           | `portable-postgres`      | Postgres 16 database                                      |
-| Service               | `portable-postgres`      | Exposes Postgres on port 5432                             |
-| PersistentVolumeClaim | (managed by StatefulSet) | Postgres data storage                                     |
-| ServiceAccount        | `portable`               | Identity for the main app                                 |
-| Role                  | `portable`               | RBAC: pods, PVCs, services (create/get/list/watch/delete) |
-| RoleBinding           | `portable`               | Binds Role to ServiceAccount                              |
-| Secret                | `portable`               | GitHub OAuth, Postgres password, encryption key           |
-| ConfigMap             | `portable-config`        | Pod resource defaults                                     |
+| Resource              | Name                     | Purpose                                                    |
+| --------------------- | ------------------------ | ---------------------------------------------------------- |
+| Deployment            | `portable`               | Main app (Nuxt)                                            |
+| Service               | `portable`               | Exposes main app on port 3000                              |
+| Ingress               | `portable`               | Wildcard `*.domain` + bare `domain`                        |
+| StatefulSet           | `portable-postgres`      | Postgres 16 database                                       |
+| Service               | `portable-postgres`      | Exposes Postgres on port 5432                              |
+| PersistentVolumeClaim | (managed by StatefulSet) | Postgres data storage                                      |
+| ServiceAccount        | `portable`               | Identity for the main app                                  |
+| Role                  | `portable`               | RBAC: pods, PVCs, services (create/get/list/watch/delete)  |
+| RoleBinding           | `portable`               | Binds Role to ServiceAccount                               |
+| Secret                | `portable`               | GitHub OAuth, Postgres password, encryption key            |
+| ConfigMap             | `portable-config`        | Pod resource defaults                                      |
+| Certificate           | `portable-tls`           | Wildcard + bare domain TLS cert (if `certManager.enabled`) |
 
 ## Upgrading
 
