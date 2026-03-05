@@ -18,8 +18,9 @@ import { createProjectDatabase, deleteProjectDatabase } from "./project-db";
  * Checks if a K8s error is an AlreadyExists (409) error.
  */
 function isK8sAlreadyExists(err: unknown): boolean {
-  if (err && typeof err === "object" && "statusCode" in err) {
-    return (err as { statusCode: number }).statusCode === 409;
+  if (err && typeof err === "object") {
+    if ("code" in err && (err as { code: number }).code === 409) return true;
+    if ("statusCode" in err && (err as { statusCode: number }).statusCode === 409) return true;
   }
   return false;
 }

@@ -11,7 +11,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Slug is required" });
   }
 
-  await startProject(user.id, slug);
+  // Fire and forget — status transitions (starting → running / error) happen via DB.
+  // The client polls for status changes while transitioning.
+  startProject(user.id, slug).catch((err: unknown) => {
+    console.error(`Failed to start project ${slug}:`, err);
+  });
 
+  setResponseStatus(event, 202);
   return { ok: true };
 });

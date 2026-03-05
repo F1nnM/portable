@@ -274,9 +274,11 @@ export async function waitForPodReady(
           if (settled) return;
           settle();
           clearTimeout(timeout);
-          if (err) {
-            reject(err instanceof Error ? err : new Error(String(err)));
-          }
+          reject(
+            err instanceof Error
+              ? err
+              : new Error(err ? String(err) : "Watch ended without pod becoming ready"),
+          );
         },
       )
       .then((ac) => {
