@@ -26,13 +26,13 @@ spec:
           env:
             - name: NUXT_PUBLIC_DOMAIN
               value: {{ .Values.domain | quote }}
-            - name: DATABASE_URL
-              value: "postgres://portable:$(POSTGRES_PASSWORD)@{{ include "portable.postgres.fullname" . }}:5432/portable"
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: postgres-password
+            - name: DATABASE_URL
+              value: "postgres://portable:$(POSTGRES_PASSWORD)@{{ include "portable.postgres.fullname" . }}:5432/portable"
             - name: GITHUB_CLIENT_ID
               valueFrom:
                 secretKeyRef:
