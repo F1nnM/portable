@@ -353,7 +353,7 @@ Default pod resources: CPU 500m request / 2000m limit, Memory 512Mi request / 4G
 
 - Create: `packages/app/server/utils/k8s.ts`
 
-### Task 5.2: Wire K8s into project lifecycle `[ ]`
+### Task 5.2: Wire K8s into project lifecycle `[DONE]`
 
 Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete pod + service. Delete = PVC + DB. Create project also creates per-project Postgres DB.
 
