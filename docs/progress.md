@@ -161,3 +161,32 @@ Built the `/new` page with a scaffold picker (radio buttons for available scaffo
 ### Phase 4 summary
 
 Phase 4 added the scaffold system and GitHub integration: a complete nuxt-postgres scaffold template, server-side GitHub repo creation and scaffold push via the Git Data API, a scaffolds listing endpoint, and a new project creation page with scaffold selection. Project creation now creates a GitHub repository and pushes the selected scaffold as the initial commit. Ready for Phase 5 (Kubernetes Integration).
+
+---
+
+## Phase 5: Kubernetes Integration
+
+**Status:** Complete
+
+### Task 5.1: K8s client and pod management
+
+Created `packages/app/server/utils/k8s.ts` with `@kubernetes/client-node`. Provides six functions: `createProjectPod` (creates a pod with the pod-server image, env vars, resource limits, and PVC mount), `createProjectService` (creates a headless service with `clusterIP: None`), `createProjectPVC` (creates a 5Gi ReadWriteOnce PVC), `waitForPodReady` (watches pod until Ready condition is true with 120s timeout), `deleteProjectPod`, `deleteProjectService`, and `deleteProjectPVC` (all ignore 404 for idempotency). Configuration is read from `NUXT_POD_*` environment variables with defaults. Resources are named `project-<slug>` and labeled with `app.kubernetes.io/managed-by: portable` and `portable.dev/project: <slug>`.
+
+### Task 5.2: Wire K8s into project lifecycle
+
+Created two new server utilities:
+
+- `server/utils/project-db.ts` -- Per-project Postgres database management. `createProjectDatabase` creates a database named `portable_<slug>` (idempotent, ignores "already exists"). `deleteProjectDatabase` terminates active connections and drops the database. `buildProjectDatabaseUrl` constructs the connection string for the per-project database.
+- `server/utils/project-lifecycle.ts` -- High-level orchestration of start, stop, and delete operations. `startProject` validates state, creates the per-project DB, PVC, pod (with `DATABASE_URL`, Anthropic credential, and `GITHUB_TOKEN`), and service, waits for ready, and updates status. `stopProject` deletes pod and service (preserves PVC). `deleteProject` cleans up all K8s resources, drops the per-project database, and deletes the DB row (does NOT delete the GitHub repo).
+
+Modified all four project endpoints: `POST /api/projects` now creates the per-project database on project creation. `POST /api/projects/:slug/start` and `POST /api/projects/:slug/stop` delegate to the lifecycle functions (no longer return 501). `DELETE /api/projects/:slug` uses the lifecycle delete function for full resource cleanup.
+
+### Code review fixes
+
+- Fixed async watch handling in `waitForPodReady` to properly abort the watch when the promise settles before the watch is established
+- Used parameterized SQL in `deleteProjectDatabase` for defense-in-depth
+- Added AlreadyExists (409) handling in `startProject` for pod, service, and PVC creation to support retries after partial failures
+
+### Phase 5 summary
+
+Phase 5 added full Kubernetes integration: a K8s client utility for managing pods, services, and PVCs; per-project Postgres database management; and a project lifecycle orchestrator that ties everything together. Project start creates a database, PVC, pod, and headless service, then waits for the pod to become ready. Project stop tears down the pod and service while preserving the PVC. Project delete cleans up all resources including the per-project database. All operations handle partial failures gracefully with AlreadyExists and 404 tolerance. Ready for Phase 6 (Reverse Proxy).

@@ -16,7 +16,7 @@ portable/
         middleware/   Server middleware (session auth)
         db/           Drizzle schema and migrations
         plugins/      Nitro plugins (auto-migration on startup)
-        utils/        Shared server utilities (db, auth, crypto, slug, github)
+        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle)
       composables/    Vue composables (useAuth)
       components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)
@@ -140,17 +140,36 @@ The main app uses GitHub OAuth via Arctic for authentication:
 
 The Nuxt app uses `runtimeConfig` for server-only configuration. Set these via `NUXT_` prefixed env vars:
 
-| Environment Variable        | Runtime Config Key   | Description                                 |
-| --------------------------- | -------------------- | ------------------------------------------- |
-| `DATABASE_URL`              | (direct env)         | Postgres connection string                  |
-| `NUXT_GITHUB_CLIENT_ID`     | `githubClientId`     | GitHub OAuth App client ID                  |
-| `NUXT_GITHUB_CLIENT_SECRET` | `githubClientSecret` | GitHub OAuth App client secret              |
-| `NUXT_ENCRYPTION_KEY`       | `encryptionKey`      | 32-byte hex key for AES-256-GCM encryption  |
-| `NUXT_BASE_URL`             | `baseUrl`            | Public URL of the app (for OAuth callbacks) |
+| Environment Variable               | Runtime Config Key         | Description                                                         |
+| ---------------------------------- | -------------------------- | ------------------------------------------------------------------- |
+| `DATABASE_URL`                     | (direct env)               | Postgres connection string                                          |
+| `NUXT_GITHUB_CLIENT_ID`            | `githubClientId`           | GitHub OAuth App client ID                                          |
+| `NUXT_GITHUB_CLIENT_SECRET`        | `githubClientSecret`       | GitHub OAuth App client secret                                      |
+| `NUXT_ENCRYPTION_KEY`              | `encryptionKey`            | 32-byte hex key for AES-256-GCM encryption                          |
+| `NUXT_BASE_URL`                    | `baseUrl`                  | Public URL of the app (for OAuth callbacks)                         |
+| `NUXT_POD_NAMESPACE`               | `podNamespace`             | K8s namespace for project pods (default: `default`)                 |
+| `NUXT_POD_SERVER_IMAGE`            | `podServerImage`           | Docker image for pod-server (default: `portable/pod-server:latest`) |
+| `NUXT_POD_RESOURCE_CPU_REQUEST`    | `podResourceCpuRequest`    | Pod CPU request (default: `500m`)                                   |
+| `NUXT_POD_RESOURCE_CPU_LIMIT`      | `podResourceCpuLimit`      | Pod CPU limit (default: `2000m`)                                    |
+| `NUXT_POD_RESOURCE_MEMORY_REQUEST` | `podResourceMemoryRequest` | Pod memory request (default: `512Mi`)                               |
+| `NUXT_POD_RESOURCE_MEMORY_LIMIT`   | `podResourceMemoryLimit`   | Pod memory limit (default: `4Gi`)                                   |
+| `NUXT_POD_STORAGE_SIZE`            | `podStorageSize`           | PVC size for project workspaces (default: `5Gi`)                    |
 
 ## Credential Encryption
 
 Sensitive credentials (GitHub tokens, Anthropic API keys) are encrypted at rest using AES-256-GCM. The `encrypt()` and `decrypt()` functions in `server/utils/crypto.ts` use a 32-byte hex key from `NUXT_ENCRYPTION_KEY`. Encrypted values are stored as `iv:tag:ciphertext` (base64-encoded components).
+
+## Kubernetes Integration
+
+The main app manages project pods via `@kubernetes/client-node`. All K8s utilities are in `server/utils/`:
+
+- **`k8s.ts`** -- Low-level K8s operations: `createProjectPod`, `createProjectService`, `createProjectPVC`, `waitForPodReady`, `deleteProjectPod`, `deleteProjectService`, `deleteProjectPVC`. Reads config from `NUXT_POD_*` env vars with sensible defaults. Uses `KubeConfig.loadFromCluster()` (expects to run inside K8s). Resources are named `project-<slug>` and labeled with `app.kubernetes.io/managed-by: portable` and `portable.dev/project: <slug>`.
+- **`project-db.ts`** -- Per-project Postgres database management: `createProjectDatabase` creates a database named `portable_<slug>`, `deleteProjectDatabase` drops it. Uses the main `DATABASE_URL` connection to run admin SQL. `buildProjectDatabaseUrl` constructs the per-project connection string.
+- **`project-lifecycle.ts`** -- High-level orchestration: `startProject` (validates state, creates DB + PVC + pod + service, waits for ready, sets status to running), `stopProject` (deletes pod + service, keeps PVC, sets status to stopped), `deleteProject` (cleans up all K8s resources + per-project DB + DB row, does NOT delete GitHub repo). Handles AlreadyExists errors for retry safety and rolls back on failure.
+
+### Per-Project Databases
+
+Each project gets its own Postgres database in the shared instance, named `portable_<slug>`. The connection string is injected into the pod as `DATABASE_URL`. Databases are created on project start and dropped on project delete.
 
 ## Architecture Summary
 

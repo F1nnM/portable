@@ -70,7 +70,7 @@ List all projects for the authenticated user.
 
 ### `POST /api/projects`
 
-Create a new project. Generates a URL-safe slug from the project name (lowercase, hyphens, max 50 chars). Creates a GitHub repository under the authenticated user's account and pushes the selected scaffold as the initial commit via the Git Data API (no local git required). Per-project database and pod startup are wired in later phases.
+Create a new project. Generates a URL-safe slug from the project name (lowercase, hyphens, max 50 chars). Creates a per-project Postgres database (`portable_<slug>`), a GitHub repository under the authenticated user's account, and pushes the selected scaffold as the initial commit via the Git Data API (no local git required).
 
 **Request:**
 
@@ -116,17 +116,49 @@ Rename a project.
 
 ### `DELETE /api/projects/:slug`
 
-Delete a project. Currently deletes the database record only. Pod cleanup, PVC deletion, and database drop will be wired in Phase 5.
+Delete a project and all associated resources. Cleans up the K8s pod, service, and PVC, drops the per-project Postgres database (`portable_<slug>`), and deletes the database record. Does NOT delete the GitHub repository.
+
+**Response:**
+
+```json
+{
+  "ok": true
+}
+```
 
 **Errors:** 404 if the project does not exist or does not belong to the authenticated user.
 
 ### `POST /api/projects/:slug/start`
 
-Start a stopped project. Currently returns 501 (not implemented). K8s pod creation will be wired in Phase 5.
+Start a stopped or errored project. Creates the per-project Postgres database (if it does not already exist), a PersistentVolumeClaim, a pod with the pod-server image, and a headless service. Waits for the pod to reach the Ready condition (up to 120 seconds). Injects `DATABASE_URL`, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, and `GITHUB_TOKEN` as environment variables into the pod.
+
+**State transitions:** `stopped` or `error` -> `starting` -> `running`. On failure, rolls back to `error` and cleans up partially created resources.
+
+**Response:**
+
+```json
+{
+  "ok": true
+}
+```
+
+**Errors:** 401 if not authenticated. 404 if the project does not exist or does not belong to the authenticated user. 409 if the project is not in a startable state (`stopped` or `error`).
 
 ### `POST /api/projects/:slug/stop`
 
-Stop a running project. Currently returns 501 (not implemented). K8s pod deletion will be wired in Phase 5.
+Stop a running, starting, or errored project. Deletes the pod and headless service but preserves the PVC so workspace data persists across restarts.
+
+**State transitions:** `running`, `starting`, or `error` -> `stopping` -> `stopped`.
+
+**Response:**
+
+```json
+{
+  "ok": true
+}
+```
+
+**Errors:** 401 if not authenticated. 404 if the project does not exist or does not belong to the authenticated user. 409 if the project is not in a stoppable state (`running`, `starting`, or `error`).
 
 ## Settings
 
@@ -188,4 +220,4 @@ Health check endpoint.
 
 ---
 
-Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), settings (`/api/settings/credential`), and scaffolds (`/api/scaffolds`) are implemented (Phases 1-4). Project creation includes GitHub repo creation and scaffold push. Project start/stop endpoints return 501 until K8s integration in Phase 5. See `docs/progress.md` for current status.
+Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), settings (`/api/settings/credential`), scaffolds (`/api/scaffolds`), and project lifecycle endpoints (start/stop/delete with full K8s integration) are implemented (Phases 1-5). Project creation includes GitHub repo creation, scaffold push, and per-project database creation. Start/stop manage K8s pods, services, and PVCs. See `docs/progress.md` for current status.

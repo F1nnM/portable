@@ -52,7 +52,7 @@ Key responsibilities:
 
 - **Authentication:** GitHub OAuth via Arctic. Session cookies stored in the `sessions` table. Server middleware validates cookies on every request.
 - **Project management:** CRUD operations on projects, stored in Postgres.
-- **K8s lifecycle:** Creates/deletes pods, PVCs, and headless services via `@kubernetes/client-node`.
+- **K8s lifecycle:** Creates/deletes pods, PVCs, and headless services via `@kubernetes/client-node`. Manages the full project lifecycle (start/stop/delete) with state transitions, error rollback, and retry-safe AlreadyExists handling. See `server/utils/k8s.ts` (low-level K8s operations), `server/utils/project-db.ts` (per-project database management), and `server/utils/project-lifecycle.ts` (orchestration).
 - **GitHub integration:** Creates repos and pushes scaffold files via Octokit.
 - **Reverse proxy:** Parses the `Host` header to route subdomain traffic to the correct pod. All requests are authenticated before proxying. HTTP via `h3.proxyRequest`, WebSocket via `httpxy`.
 - **Credential encryption:** Stores GitHub tokens and Anthropic API keys encrypted with AES-256-GCM.
@@ -92,7 +92,42 @@ Single shared Postgres 16 instance. Deployed via the Helm chart as a StatefulSet
 Contains:
 
 - **Main app tables:** `users`, `projects`, `sessions`
-- **Per-project databases:** Each project gets its own database. Connection strings are injected into pods as environment variables.
+- **Per-project databases:** Each project gets its own database named `portable_<slug>`, created via `CREATE DATABASE` on project start (or project creation) and dropped on project delete. Connection strings are built by replacing the database name in the main `DATABASE_URL` and injected into pods as the `DATABASE_URL` environment variable.
+
+## Pod Lifecycle
+
+Project pods are managed through three lifecycle operations, each with defined state transitions:
+
+### Start (`stopped` or `error` -> `starting` -> `running`)
+
+1. Validate project is in a startable state
+2. Set status to `starting`
+3. Decrypt the user's GitHub token and Anthropic API key (project-level key takes precedence over user-level)
+4. Create per-project Postgres database (`portable_<slug>`) if it does not already exist
+5. Create PersistentVolumeClaim (5Gi ReadWriteOnce) -- idempotent, ignores AlreadyExists
+6. Create pod with pod-server image, injecting `DATABASE_URL`, credential, and `GITHUB_TOKEN` -- idempotent
+7. Create headless service (`clusterIP: None`) for DNS at `project-<slug>.<namespace>.svc.cluster.local` -- idempotent
+8. Watch pod until Ready condition is true (120s timeout)
+9. Set status to `running` with `podName`
+
+On failure at any step: set status to `error`, attempt cleanup of pod and service, re-throw the error.
+
+### Stop (`running`, `starting`, or `error` -> `stopping` -> `stopped`)
+
+1. Set status to `stopping`
+2. Delete pod (ignores 404)
+3. Delete service (ignores 404)
+4. Set status to `stopped`, clear `podName`
+
+PVC is preserved so workspace data persists across restarts.
+
+### Delete
+
+1. Delete pod, service, and PVC (all ignore 404)
+2. Drop per-project Postgres database
+3. Delete the project record from the database
+
+Does NOT delete the GitHub repository (user manages this manually).
 
 ## Data Flow
 
@@ -252,4 +287,4 @@ When a project pod is created, these environment variables are injected:
 | Memory   | 512Mi   | 4Gi   |
 | PVC      | --      | 5Gi   |
 
-These are configurable via the Helm chart's `pod.resources` and `pod.storage` values.
+These are configurable via `NUXT_POD_RESOURCE_*` and `NUXT_POD_STORAGE_SIZE` environment variables (set via the Helm chart's `pod.resources` and `pod.storage` values).
