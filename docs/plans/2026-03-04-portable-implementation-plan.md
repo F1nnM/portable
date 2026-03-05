@@ -211,7 +211,7 @@ Drizzle ORM with `postgres.js` driver. Schema for `users`, `projects`, `sessions
 - Create: `packages/app/server/plugins/migrate.ts`
 - Create: `packages/app/drizzle.config.ts`
 
-### Task 2.2: Credential encryption utility `[ ]`
+### Task 2.2: Credential encryption utility `[DONE]`
 
 AES-256-GCM encrypt/decrypt using `node:crypto`.
 
