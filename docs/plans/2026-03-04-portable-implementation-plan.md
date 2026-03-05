@@ -413,16 +413,22 @@ WebSocket bridging browser to Claude Agent SDK. V1 `query()` with async generato
 - Modify: `packages/pod-server/src/app.ts`
 - Modify: `packages/pod-server/src/index.ts`
 
-### Task 7.3: Pod startup and dev server supervisor `[ ]`
+### Task 7.3: Pod startup and dev server supervisor `[DONE]`
 
-Entrypoint: git clone (if needed), npm install, start dev server with auto-restart, start Hono server.
+Entrypoint: git clone (if needed), npm install, start dev server with auto-restart, start Hono server. Implemented DevServerSupervisor class with exponential backoff (1s-30s), backoff reset after stable running, graceful shutdown. Workspace setup module with git clone, auto package manager detection, and dependency install. Entrypoint script delegates to setup module then starts Hono server. Dockerfile updated for pnpm runtime and entrypoint.
 
-**Tests:** Dev server restarts after crash. Restart has backoff. Git clone skipped when PVC has files. npm install runs when node_modules missing.
+**Tests:** Dev server restarts after crash. Restart has backoff. Backoff resets after stable run. Stop kills child process. Git clone skipped when PVC has files. npm install runs when node_modules missing. Package manager auto-detection (pnpm/yarn/npm). lost+found ignored on empty PVC.
 
 **Files:**
 
 - Create: `packages/pod-server/src/dev-server.ts`
+- Create: `packages/pod-server/src/setup.ts`
 - Create: `packages/pod-server/scripts/entrypoint.sh`
+- Create: `packages/pod-server/tests/dev-server.test.ts`
+- Create: `packages/pod-server/tests/setup.test.ts`
+- Modify: `packages/pod-server/src/index.ts`
+- Modify: `packages/pod-server/Dockerfile`
+- Modify: `packages/pod-server/tsup.config.ts`
 
 ---
 
