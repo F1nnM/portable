@@ -6,6 +6,7 @@ const { user } = useAuth();
 const loading = ref(true);
 const error = ref("");
 const projects = ref<Project[]>([]);
+let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 async function fetchProjects() {
   loading.value = true;
@@ -21,8 +22,28 @@ async function fetchProjects() {
   }
 }
 
+const isAnyTransitioning = computed(() =>
+  projects.value.some((p) => p.status === "starting" || p.status === "stopping"),
+);
+
+watch(isAnyTransitioning, (transitioning) => {
+  if (transitioning && !pollInterval) {
+    pollInterval = setInterval(fetchProjects, 3000);
+  } else if (!transitioning && pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+});
+
 onMounted(() => {
   fetchProjects();
+});
+
+onUnmounted(() => {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
 });
 
 function handleProjectUpdated() {

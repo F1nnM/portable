@@ -41,7 +41,14 @@ const isTransitioning = computed(
 const canStart = computed(
   () => props.project.status === "stopped" || props.project.status === "error",
 );
-const canStop = computed(() => props.project.status === "running");
+const canStop = computed(
+  () => props.project.status === "running" || props.project.status === "starting",
+);
+
+const projectUrl = computed(() => {
+  if (typeof window === "undefined") return null;
+  return `//${props.project.slug}.${window.location.host}`;
+});
 
 function toggleMenu() {
   showMenu.value = !showMenu.value;
@@ -211,6 +218,27 @@ function handleRenameKeydown(e: KeyboardEvent) {
       <div v-if="actionError" class="action-error">
         {{ actionError }}
       </div>
+      <a
+        v-if="project.status === 'running' && projectUrl"
+        :href="projectUrl"
+        target="_blank"
+        rel="noopener"
+        class="btn-action btn-open"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          width="16"
+          height="16"
+        >
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+        Open
+      </a>
       <button
         v-if="canStart"
         class="btn-action btn-start"
@@ -611,6 +639,19 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .btn-action svg {
   width: 14px;
   height: 14px;
+}
+
+.btn-open {
+  background: var(--bg-overlay);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+}
+
+.btn-open:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .btn-start {
