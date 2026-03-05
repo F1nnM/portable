@@ -5,3 +5,16 @@ kubectl = "latest"
 helm = "latest"
 k3d = "latest"
 tilt = "latest"
+ctlptl = "latest"
+
+[tasks.start]
+dir = "."
+run = """
+ctlptl apply -f ctlptl-config.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+tilt up
+"""
+
+[tasks.stop]
+dir = "."
+run = "ctlptl delete -f ctlptl-config.yaml"

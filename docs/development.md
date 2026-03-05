@@ -4,9 +4,8 @@
 
 - **Docker** -- Required for building container images and running k3d. Install from https://docs.docker.com/get-docker/
 - **mise** -- Tool version manager. Install from https://mise.jdx.dev/
-- **ctlptl** -- Declarative cluster management. Install from https://github.com/tilt-dev/ctlptl
 
-mise manages Node.js, pnpm, kubectl, helm, k3d, and tilt via the `.mise.toml` file in the repo root. ctlptl is installed separately.
+mise manages Node.js, pnpm, kubectl, helm, k3d, tilt, and ctlptl via the `.mise.toml` file in the repo root.
 
 ## Initial Setup
 
@@ -17,14 +16,8 @@ mise install
 # 2. Install Node.js dependencies
 pnpm install
 
-# 3. Create the k3d cluster with local registry
-ctlptl apply -f ctlptl-config.yaml
-
-# 4. Install ingress-nginx into the cluster
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-
-# 5. Start the development environment
-tilt up
+# 3. Start the development environment (creates cluster, installs ingress, runs tilt)
+mise start
 ```
 
 After `tilt up`, open http://portable.127.0.0.1.nip.io in your browser. Tilt builds the Docker images, pushes them to the local k3d registry, deploys via Helm, and watches for code changes.
@@ -71,12 +64,12 @@ Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and
 
 ## Development Workflow
 
-1. Start the environment: `tilt up`
+1. Start the environment: `mise start`
 2. Make code changes in `packages/app/`, `packages/pod-server/`, or `packages/editor/`
 3. Tilt detects changes and syncs/rebuilds as needed
 4. Check the Tilt UI (press `s` in the terminal, or open http://localhost:10350) for build status and logs
 5. Run tests locally: `pnpm test`
-6. When done: `tilt down`
+6. When done: press `ctrl+c` in the Tilt terminal, then `mise stop` to tear down the cluster
 
 ## Running Tests
 
@@ -226,14 +219,11 @@ packages/
 ## Useful Commands
 
 ```bash
-# Tear down dev resources (keeps cluster)
-tilt down
+# Start the dev environment (cluster + ingress + tilt)
+mise start
 
-# Delete the entire k3d cluster
-k3d cluster delete portable
-
-# Re-create the cluster from scratch
-ctlptl apply -f ctlptl-config.yaml
+# Tear down the cluster entirely
+mise stop
 
 # Type-check all packages
 pnpm typecheck

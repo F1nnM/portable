@@ -1,11 +1,8 @@
 # Tiltfile for Portable local development
 #
-# Prerequisites:
-#   ctlptl apply -f ctlptl-config.yaml   (creates k3d cluster + registry)
-#
 # Usage:
-#   tilt up                  (build, deploy, watch)
-#   tilt down                (tear down)
+#   mise start               (create cluster, install ingress, tilt up)
+#   mise stop                (tear down cluster)
 
 # ---------------------------------------------------------------------------
 # Configuration

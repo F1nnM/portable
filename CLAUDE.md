@@ -110,12 +110,10 @@ pnpm --filter @portable/editor test    # Run editor tests
 ### Local development (K8s)
 
 ```bash
-mise install                          # Install Node.js, pnpm, kubectl, helm, k3d, tilt
-ctlptl apply -f ctlptl-config.yaml   # Create k3d cluster + registry (ctlptl installed separately)
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-tilt up                               # Build images, deploy via Helm, watch for changes
+mise install                          # Install Node.js, pnpm, kubectl, helm, k3d, tilt, ctlptl
+mise start                            # Create cluster, install ingress, tilt up
 # Open http://portable.127.0.0.1.nip.io
-tilt down                             # Tear down dev resources
+mise stop                             # Tear down cluster
 ```
 
 ## Testing
@@ -267,15 +265,15 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 
 ### Pod Server Environment Variables
 
-| Variable             | Description                                     | Default      |
-| -------------------- | ----------------------------------------------- | ------------ |
-| `WORKSPACE_DIR`      | Path to the project workspace                   | `/workspace` |
-| `GITHUB_REPO_URL`    | Git repo URL for initial clone                  | (none)       |
-| `GITHUB_TOKEN`       | GitHub token for authenticated clone            | (none)       |
-| `DEV_SERVER_COMMAND` | Command to start the project's dev server       | `pnpm dev`   |
-| `PORT`               | Hono server listen port                         | `3000`       |
-| `DATABASE_URL`       | Connection string for the project's Postgres DB | (none)       |
-| `ANTHROPIC_API_KEY`  | User's Anthropic API key (injected by main app) | (none)       |
+| Variable                  | Description                                     | Default      |
+| ------------------------- | ----------------------------------------------- | ------------ |
+| `WORKSPACE_DIR`           | Path to the project workspace                   | `/workspace` |
+| `GITHUB_REPO_URL`         | Git repo URL for initial clone                  | (none)       |
+| `GITHUB_TOKEN`            | GitHub token for authenticated clone            | (none)       |
+| `DEV_SERVER_COMMAND`      | Command to start the project's dev server       | `pnpm dev`   |
+| `PORT`                    | Hono server listen port                         | `3000`       |
+| `DATABASE_URL`            | Connection string for the project's Postgres DB | (none)       |
+| `ANTHROPIC_API_KEY`       | User's Anthropic API key (injected by main app) | (none)       |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude (alternative to API key) | (none)       |
 
 ## Editor SPA
