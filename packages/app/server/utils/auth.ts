@@ -6,6 +6,29 @@ import { useDb } from "./db";
 
 const SESSION_EXPIRY_DAYS = 30;
 
+/**
+ * Returns cookie options for the session cookie.
+ * The domain is set to the root domain (with leading dot) derived from baseUrl
+ * so that the cookie is sent on all subdomains (e.g. project pods).
+ */
+export function sessionCookieOptions(): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: "lax";
+  path: string;
+  domain: string;
+} {
+  const config = useRuntimeConfig();
+  const hostname = new URL(config.baseUrl).hostname;
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    domain: `.${hostname}`,
+  };
+}
+
 export function createGitHubClient(
   clientId: string,
   clientSecret: string,

@@ -1,5 +1,5 @@
 import { users } from "../../../db/schema";
-import { createSession, useGitHubClient } from "../../../utils/auth";
+import { createSession, sessionCookieOptions, useGitHubClient } from "../../../utils/auth";
 import { encrypt } from "../../../utils/crypto";
 import { useDb } from "../../../utils/db";
 
@@ -90,12 +90,9 @@ export default defineEventHandler(async (event) => {
   // Create session
   const sessionToken = await createSession(userId);
 
-  // Set session cookie
+  // Set session cookie with domain so it's valid on all subdomains
   setCookie(event, "portable_session", sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
+    ...sessionCookieOptions(),
     maxAge: 30 * 24 * 60 * 60, // 30 days
   });
 

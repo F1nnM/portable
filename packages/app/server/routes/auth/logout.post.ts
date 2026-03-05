@@ -1,4 +1,4 @@
-import { deleteSession } from "../../utils/auth";
+import { deleteSession, sessionCookieOptions } from "../../utils/auth";
 
 export default defineEventHandler(async (event) => {
   const sessionToken = getCookie(event, "portable_session");
@@ -11,13 +11,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Clear the session cookie regardless
-  deleteCookie(event, "portable_session", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
+  // Clear the session cookie — must use same domain as when it was set
+  deleteCookie(event, "portable_session", sessionCookieOptions());
 
   return { ok: true };
 });
