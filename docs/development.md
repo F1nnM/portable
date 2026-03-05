@@ -97,9 +97,9 @@ pnpm --filter @portable/editor exec vitest
 
 ### Test setup per package
 
-- **`packages/app`**: Uses `@nuxt/test-utils` which boots a real Nuxt server. Tests use `$fetch` to make HTTP requests. The vitest config has a 30-second timeout due to Nuxt server startup time.
-- **`packages/pod-server`**: Tests import the Hono `app` directly and use `app.request()` to test routes without starting a server.
-- **`packages/editor`**: Tests use `@vue/test-utils` with `jsdom` to mount and test Vue components.
+- **`packages/app`**: Uses `@nuxt/test-utils` which boots a real Nuxt server. Tests use `$fetch` to make HTTP requests. The vitest config has a 30-second timeout due to Nuxt server startup time. Tests cover auth, database, projects CRUD, scaffolds, settings, proxy, Kubernetes integration, and utility functions.
+- **`packages/pod-server`**: Tests import the Hono `app` directly and use `app.request()` to test routes without starting a server. Tests cover the file API, WebSocket bridge, dev server supervisor, and workspace setup.
+- **`packages/editor`**: Tests use `@vue/test-utils` with `jsdom` to mount and test Vue components. Tests cover chat messaging, file browsing/editing, navigation, and the preview iframe.
 
 ## Linting and Formatting
 
@@ -119,54 +119,108 @@ Pre-commit hooks (Husky + lint-staged) automatically run ESLint fix and Prettier
 
 ```
 packages/
-  app/                 Nuxt 3 main app
+  app/                       Nuxt 3 main app
+    components/
+      ProjectCard.vue        Project card with status, actions, and lifecycle controls
     composables/
-      useAuth.ts       Auth state composable (user, refresh, logout)
+      useAuth.ts             Auth state composable (user, refresh, logout)
     layouts/
-      default.vue      Main layout (topbar, bottom nav, content area)
+      default.vue            Main layout (topbar, bottom nav, content area)
     middleware/
-      auth.global.ts   Client-side auth guard (redirects to /login)
+      auth.global.ts         Client-side auth guard (redirects to /login)
     pages/
-      login.vue        Login page (GitHub OAuth button, no layout)
-      index.vue        Dashboard (placeholder)
-      settings.vue     Settings page (placeholder)
-      new.vue          New project page (placeholder)
+      login.vue              Login page (GitHub OAuth button, no layout)
+      index.vue              Dashboard (project list with start/stop/delete)
+      settings.vue           Settings page (Anthropic API key management)
+      new.vue                New project page (scaffold picker, GitHub repo creation)
+    types/
+      project.ts             Shared Project interface
     server/
-      api/             API endpoints (health, auth/me)
-      routes/          Route handlers (auth/github, auth/github/callback, auth/logout)
+      api/
+        health.get.ts        Health check endpoint
+        auth/
+          me.get.ts          Current user endpoint
+        projects/
+          index.get.ts       List user's projects
+          index.post.ts      Create a new project
+          [slug].patch.ts    Update a project
+          [slug].delete.ts   Delete a project
+          [slug]/
+            start.post.ts   Start a project pod
+            stop.post.ts    Stop a project pod
+        scaffolds/
+          index.get.ts       List available scaffolds
+        settings/
+          credential.get.ts  Get credential status (has key or not)
+          credential.put.ts  Store encrypted Anthropic API key
+      routes/
+        auth/
+          github/
+            index.get.ts     GitHub OAuth redirect
+            callback.get.ts  GitHub OAuth callback (upsert user, create session)
+          logout.post.ts     Destroy session and clear cookie
       middleware/
-        auth.ts        Session validation middleware (attaches user to context)
+        auth.ts              Session validation (attaches user to context)
+        proxy.ts             Subdomain reverse proxy (HTTP requests)
       db/
-        schema.ts      Drizzle ORM schema (users, projects, sessions)
-        migrations/    Generated Drizzle migrations
+        schema.ts            Drizzle ORM schema (users, projects, sessions)
+        migrations/          Generated Drizzle migrations
       plugins/
-        migrate.ts     Auto-migrate on server startup
+        migrate.ts           Auto-migrate on server startup
+        ws-proxy.ts          WebSocket upgrade proxy for subdomain requests
       utils/
-        db.ts          Database connection singleton
-        auth.ts        GitHub OAuth client, session CRUD
-        crypto.ts      AES-256-GCM encrypt/decrypt
-    drizzle.config.ts  Drizzle Kit configuration
-    tests/             Vitest tests
-    Dockerfile         Multi-stage production build
-    nuxt.config.ts     Nuxt configuration (runtimeConfig, CSS, fonts)
-    vitest.config.ts   Test configuration
+        db.ts                Database connection singleton
+        auth.ts              GitHub OAuth client, session CRUD
+        crypto.ts            AES-256-GCM encrypt/decrypt
+        slug.ts              Slug generation and validation
+        github.ts            GitHub API helpers (repo creation, scaffold push)
+        k8s.ts               Kubernetes pod/service/PVC operations
+        project-db.ts        Per-project Postgres database management
+        project-lifecycle.ts Project start/stop/delete orchestration
+        proxy.ts             Shared proxy logic (subdomain parsing, target building)
+    drizzle.config.ts        Drizzle Kit configuration
+    tests/                   Vitest tests (auth, db, projects, proxy, k8s, settings, etc.)
+    Dockerfile               Multi-stage production build
+    nuxt.config.ts           Nuxt configuration (runtimeConfig, CSS, fonts)
+    vitest.config.ts         Test configuration
 
-  pod-server/          Hono server for project pods
+  pod-server/                Hono server for project pods
     src/
-      index.ts         Server entry point (Hono + node-ws)
-      app.ts           Hono app definition and routes (/health, /)
-    tests/             Vitest tests (smoke.test.ts)
-    Dockerfile         Multi-stage build (includes editor SPA + dev tools)
-    tsup.config.ts     Build configuration
-    vitest.config.ts   Test configuration
+      app.ts                 Hono app factory (createApp)
+      index.ts               Server entry point (Hono + node-ws + dev server supervisor)
+      dev-server.ts          DevServerSupervisor (auto-restart, backoff, graceful shutdown)
+      setup.ts               Workspace setup (git clone, dependency install)
+      routes/
+        health.ts            Health check route
+        files.ts             File list, read, and write API
+        ws.ts                WebSocket bridge to Claude Agent SDK
+    scripts/
+      entrypoint.sh          Pod container entrypoint
+    tests/                   Vitest tests (files, ws, dev-server, setup)
+    Dockerfile               Multi-stage build (includes editor SPA + dev tools)
+    tsup.config.ts           Build configuration
+    vitest.config.ts         Test configuration
 
-  editor/              Vue 3 SPA for in-pod editor UI
+  editor/                    Vue 3 SPA for in-pod editor UI
     src/
-      main.ts          Vue app entry point
-      App.vue          Root component
-    tests/             Vitest tests (smoke.test.ts)
-    vite.config.ts     Vite build configuration
-    vitest.config.ts   Test configuration
+      main.ts                Vue app entry point
+      router.ts              Vue Router (/chat, /files, /preview)
+      App.vue                Root layout with bottom tab bar
+      views/
+        ChatView.vue         Chat interface with streaming messages
+        FilesView.vue        File browser with tree navigation
+        PreviewView.vue      Dev server preview iframe
+      components/
+        ChatInput.vue        Auto-growing textarea with send/interrupt
+        ChatMessage.vue      User and assistant message rendering
+        CodeViewer.vue       CodeMirror 6 editor with language support
+        FileTree.vue         Recursive directory tree with expand/collapse
+      composables/
+        useWebSocket.ts      WebSocket connection lifecycle and messaging
+        useFiles.ts          File API client (list, read, write, tree building)
+    tests/                   Vitest tests (chat, files, navigation, preview)
+    vite.config.ts           Vite build configuration
+    vitest.config.ts         Test configuration
 ```
 
 ## Useful Commands
