@@ -1,0 +1,19 @@
+{
+  "name": "portable",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:app": "pnpm --filter @portable/app dev",
+    "dev:pod-server": "pnpm --filter @portable/pod-server dev",
+    "dev:editor": "pnpm --filter @portable/editor dev",
+    "build:app": "pnpm --filter @portable/app build",
+    "build:pod-server": "pnpm --filter @portable/pod-server build",
+    "build:editor": "pnpm --filter @portable/editor build",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  }
+}

@@ -16,3 +16,28 @@ config
 hooks
 objects
 refs
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.output/
+.nuxt/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Misc
+.nitro/
+.cache/
