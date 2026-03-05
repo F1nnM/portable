@@ -21,6 +21,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const name = body.name.trim();
+
+  if (name.length > 100) {
+    throw createError({ statusCode: 400, statusMessage: "Name must be 100 characters or fewer" });
+  }
+
   const newSlug = generateSlug(name);
 
   if (newSlug.length === 0) {

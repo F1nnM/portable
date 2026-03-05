@@ -39,22 +39,18 @@ describe("project CRUD API", async () => {
   });
 
   describe("start/stop placeholders", () => {
-    it("returns 501 for POST /api/projects/[slug]/start", async () => {
+    it("returns 401 for POST /api/projects/[slug]/start when not authenticated", async () => {
       const response = await fetch(url("/api/projects/some-slug/start"), {
         method: "POST",
       });
-      expect(response.status).toBe(501);
-      const body = await response.json();
-      expect(body.message).toContain("Not implemented");
+      expect(response.status).toBe(401);
     });
 
-    it("returns 501 for POST /api/projects/[slug]/stop", async () => {
+    it("returns 401 for POST /api/projects/[slug]/stop when not authenticated", async () => {
       const response = await fetch(url("/api/projects/some-slug/stop"), {
         method: "POST",
       });
-      expect(response.status).toBe(501);
-      const body = await response.json();
-      expect(body.message).toContain("Not implemented");
+      expect(response.status).toBe(401);
     });
   });
 });

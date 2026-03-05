@@ -1,4 +1,9 @@
-export default defineEventHandler((_event) => {
+export default defineEventHandler((event) => {
+  const user = event.context.user;
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
+  }
+
   throw createError({
     statusCode: 501,
     statusMessage: "Not implemented",
