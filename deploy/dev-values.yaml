@@ -48,12 +48,6 @@ resources:
 # Use nginx ingress class (installed separately into the k3d cluster)
 ingress:
   className: nginx
-  annotations:
-    # Allow large request bodies for file uploads
-    nginx.ingress.kubernetes.io/proxy-body-size: 50m
-    # WebSocket support
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 
 # No TLS for local dev
 certManager:
