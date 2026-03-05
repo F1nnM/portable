@@ -50,11 +50,11 @@ spec:
                   key: encryption-key
             - name: NUXT_BASE_URL
               value: {{ printf "https://%s" .Values.domain | quote }}
-            - name: POD_NAMESPACE
+            - name: NUXT_POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: POD_SERVER_IMAGE
+            - name: NUXT_POD_SERVER_IMAGE
               value: "{{ .Values.podServer.image.repository }}:{{ .Values.podServer.image.tag }}"
           envFrom:
             - configMapRef:

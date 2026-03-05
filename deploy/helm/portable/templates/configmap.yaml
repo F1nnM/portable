@@ -5,8 +5,8 @@ metadata:
   labels:
     {{- include "portable.labels" . | nindent 4 }}
 data:
-  POD_RESOURCE_CPU_REQUEST: {{ .Values.pod.resources.requests.cpu | quote }}
-  POD_RESOURCE_CPU_LIMIT: {{ .Values.pod.resources.limits.cpu | quote }}
-  POD_RESOURCE_MEMORY_REQUEST: {{ .Values.pod.resources.requests.memory | quote }}
-  POD_RESOURCE_MEMORY_LIMIT: {{ .Values.pod.resources.limits.memory | quote }}
-  POD_STORAGE_SIZE: {{ .Values.pod.storage | quote }}
+  NUXT_POD_RESOURCE_CPU_REQUEST: {{ .Values.pod.resources.requests.cpu | quote }}
+  NUXT_POD_RESOURCE_CPU_LIMIT: {{ .Values.pod.resources.limits.cpu | quote }}
+  NUXT_POD_RESOURCE_MEMORY_REQUEST: {{ .Values.pod.resources.requests.memory | quote }}
+  NUXT_POD_RESOURCE_MEMORY_LIMIT: {{ .Values.pod.resources.limits.memory | quote }}
+  NUXT_POD_STORAGE_SIZE: {{ .Values.pod.storage | quote }}

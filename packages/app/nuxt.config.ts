@@ -7,6 +7,13 @@ export default defineNuxtConfig({
     githubClientSecret: "",
     encryptionKey: "",
     baseUrl: "http://localhost:3000",
+    podNamespace: "default",
+    podServerImage: "portable/pod-server:latest",
+    podResourceCpuRequest: "500m",
+    podResourceCpuLimit: "2000m",
+    podResourceMemoryRequest: "512Mi",
+    podResourceMemoryLimit: "4Gi",
+    podStorageSize: "5Gi",
   },
   app: {
     head: {
