@@ -15,8 +15,9 @@ COPY packages/editor/package.json packages/editor/package.json
 # Install all dependencies (pnpm needs the full workspace context)
 RUN pnpm install --frozen-lockfile
 
-# Copy app source
+# Copy app source and scaffolds
 COPY packages/app/ packages/app/
+COPY scaffolds/ scaffolds/
 
 ENV HOST=0.0.0.0
 ENV PORT=3000

@@ -14,7 +14,6 @@ Thumbs.db
 *.tsbuildinfo
 .husky
 docs
-scaffolds
 scripts
 deploy/dev-values.yaml
 .prettierrc

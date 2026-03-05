@@ -44,6 +44,9 @@ WORKDIR /app
 # Copy the Nuxt build output (standalone server)
 COPY --from=build /app/packages/app/.output .output
 
+# Copy scaffolds (read at runtime by the scaffolds API)
+COPY scaffolds/ scaffolds/
+
 # Ensure the node user (UID 1000) owns the app directory
 RUN chown -R node:node /app
 
