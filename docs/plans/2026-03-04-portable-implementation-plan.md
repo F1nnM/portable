@@ -432,7 +432,7 @@ Entrypoint: git clone (if needed), npm install, start dev server with auto-resta
 
 ---
 
-## Phase 8: Editor SPA (Mobile-First UI)
+## Phase 8: Editor SPA (Mobile-First UI) `[COMPLETE]`
 
 > Task 8.1 first, then 8.2-8.4 can be parallelized.
 

@@ -79,11 +79,11 @@ The pod server also manages:
 
 ### Editor SPA (`packages/editor`)
 
-Vue 3 single-page application with three tabs:
+Vue 3 single-page application with Vue Router, served by the pod server at the root URL. Uses a dark theme (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout. A bottom tab bar with SVG icons provides navigation between three views:
 
-- **Chat:** WebSocket connection to the Agent SDK bridge. Streaming markdown messages, tool usage display, mobile-optimized keyboard input.
-- **Files:** File tree with tap-to-open, CodeMirror 6 code viewer/editor in a VS Code dark theme.
-- **Preview:** Full-screen iframe pointing to `preview.<project>.domain` showing the running dev server.
+- **Chat (`/chat`, default route):** Connects to the pod server's WebSocket bridge at `/ws` via the `useWebSocket` composable. Renders user and assistant messages with the `ChatMessage` component, which supports collapsible tool use blocks. The `ChatInput` component provides an auto-growing textarea with send/interrupt buttons (Enter to send, Shift+Enter for newlines). Auto-scrolls on new messages and shows a pulsing dots streaming indicator. Reconnects automatically after 2 seconds on disconnect.
+- **Files (`/files`):** Uses the `useFiles` composable to fetch the file tree from `GET /api/files` and build a nested directory structure. The `FileTree` component renders a recursive tree with expand/collapse, indent guides, and dimmed file extensions. Selecting a file opens the `CodeViewer` component -- a CodeMirror 6 editor with the One Dark theme and language detection (JavaScript, TypeScript, JSON, CSS, HTML, Vue, Markdown). Read-only by default with an edit toggle and save button that calls `PUT /api/files/:path`. Back navigation returns to the tree.
+- **Preview (`/preview`):** Full-screen iframe pointing to `preview.<hostname>` (subdomain URL constructed from `window.location.hostname`). Thin header bar with a "Preview" label, URL display, and refresh button. Loading state overlay while the iframe loads.
 
 ### Postgres
 

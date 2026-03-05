@@ -252,3 +252,47 @@ Updated `src/index.ts` to wire the dev server supervisor (starts after Hono begi
 ### Phase 7 summary
 
 Phase 7 implemented the complete pod server: a file API for workspace file access with path traversal protection, a WebSocket bridge to the Claude Agent SDK with streaming events and interrupt support, a dev server supervisor with exponential backoff restart, and a workspace setup module for git clone and dependency installation. The Hono server listens on port 3000 and the dev server on port 3001, matching the main app proxy routing. The pod entrypoint script orchestrates workspace setup before starting the server. Ready for Phase 8 (Editor SPA).
+
+---
+
+## Phase 8: Editor SPA (Mobile-First UI)
+
+**Status:** Complete
+
+### Task 8.1: Editor SPA scaffolding and navigation
+
+Set up Vue Router with `/chat`, `/files`, and `/preview` routes. Built a bottom tab bar with SVG icons (chat bubble, folder, monitor) and an active state with a top border indicator. Established dark theme CSS variables (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout. Created placeholder views with `data-testid` attributes. Covered by 2 smoke tests and 4 navigation tests.
+
+### Task 8.2: Chat view
+
+Implemented the full chat interface with WebSocket connectivity to the pod server's `/ws` endpoint. Created three modules:
+
+- `useWebSocket` composable: Manages connection lifecycle, sends `user_message` and `interrupt` messages, processes `query_start`, `sdk_event`, `query_end`, and `error` events. Auto-reconnects after 2 seconds on disconnect.
+- `ChatMessage` component: Renders user and assistant messages with collapsible tool use blocks (showing tool name and input).
+- `ChatInput` component: Auto-growing textarea with send/interrupt buttons. Enter sends, Shift+Enter inserts newlines. Shows interrupt button during active queries.
+
+Also includes auto-scroll on new messages and a streaming indicator with pulsing dots. Covered by 17 tests.
+
+### Task 8.3: Files view
+
+Built the file browsing and editing interface. Created three modules:
+
+- `useFiles` composable: Fetches flat file list from the pod server's file API, builds a nested tree structure, reads and writes file content.
+- `FileTree` component: Recursive tree rendering with expand/collapse directories, indent guides, and dimmed file extensions.
+- `CodeViewer` component: CodeMirror 6 editor with One Dark theme and language detection (JS, TS, JSON, CSS, HTML, Vue, Markdown). Read-only by default with edit toggle and save button. Back navigation returns to the file tree.
+
+Covered by 6 tests.
+
+### Task 8.4: Preview view
+
+Implemented a full-screen iframe pointing to `preview.<hostname>` with subdomain URL construction from `window.location.hostname`. Added a thin header bar with a "Preview" label, URL display, and refresh button. Includes a loading state overlay. Covered by 7 tests.
+
+### Code review fixes
+
+- Fixed file tree state management to properly reset when navigating between views
+- Ensured WebSocket cleanup on component unmount to prevent memory leaks
+- Verified CodeMirror language detection covers all scaffold file extensions
+
+### Phase 8 summary
+
+Phase 8 implemented the complete editor SPA: a Vue 3 single-page application with Vue Router, dark theme, and mobile-first layout. The Chat view provides a full WebSocket chat interface with streaming messages, tool use blocks, and auto-reconnect. The Files view offers workspace browsing with a recursive file tree and a CodeMirror 6 code editor supporting multiple languages. The Preview view embeds the project's dev server in a full-screen iframe via subdomain URL construction. New dependencies: vue-router and CodeMirror 6 with language extensions and the One Dark theme. 36 total tests across the editor package (2 smoke + 4 navigation + 17 chat + 6 files + 7 preview). Ready for Phase 9 (Helm Chart Finalization).

@@ -33,6 +33,13 @@ portable/
       scripts/
         entrypoint.sh Pod startup script
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
+      src/
+        views/        Route views (ChatView, FilesView, PreviewView)
+        components/   UI components (ChatMessage, ChatInput, FileTree, CodeViewer)
+        composables/  Vue composables (useWebSocket, useFiles)
+        router.ts     Vue Router with /chat, /files, /preview routes
+        App.vue       Root layout with bottom tab bar navigation
+        main.ts       Entrypoint (creates Vue app with router)
   scaffolds/
     nuxt-postgres/    Project template: Nuxt 3 + Postgres (Drizzle)
   deploy/
@@ -48,7 +55,7 @@ portable/
 
 - **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth), httpxy (WebSocket proxying)
 - **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, `@anthropic-ai/claude-agent-sdk`, fdir
-- **Editor SPA:** Vue 3, Vite, CodeMirror 6
+- **Editor SPA:** Vue 3, Vue Router, Vite, CodeMirror 6 (JS/TS/JSON/CSS/HTML/Markdown language support, One Dark theme)
 - **Infrastructure:** Kubernetes, Helm, k3d (local), Tilt (live dev), Postgres 16
 - **Tooling:** mise (tool management), pnpm (package manager), Node.js 22
 
@@ -264,6 +271,35 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 | `PORT`               | Hono server listen port                         | `3000`       |
 | `DATABASE_URL`       | Connection string for the project's Postgres DB | (none)       |
 | `ANTHROPIC_API_KEY`  | User's Anthropic API key (injected by main app) | (none)       |
+
+## Editor SPA
+
+The editor SPA (`packages/editor`) is a Vue 3 single-page application served by the pod server at the root URL. It provides three views accessible via a bottom tab bar: Chat, Files, and Preview. The app uses a dark theme with CSS variables (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout.
+
+### Routing
+
+Vue Router with three routes: `/chat` (default), `/files`, and `/preview`. The bottom tab bar shows SVG icons for each tab with an active state indicator (top border highlight). Navigation is handled via `<router-link>`.
+
+### Chat View
+
+The chat view connects to the pod server's WebSocket bridge at `/ws` via the `useWebSocket` composable. Features:
+
+- **WebSocket composable (`composables/useWebSocket.ts`):** Manages connection lifecycle, sends `user_message` and `interrupt` messages, processes incoming `query_start`, `sdk_event`, `query_end`, and `error` messages. Reconnects automatically after 2 seconds on disconnect.
+- **ChatMessage component:** Renders user messages and assistant messages. Assistant messages include collapsible tool use blocks (showing tool name + input). Distinguishes between text content and tool use events from the SDK stream.
+- **ChatInput component:** Auto-growing `<textarea>` with send and interrupt buttons. Enter sends the message (Shift+Enter for newlines). Shows interrupt button during active queries.
+- **Auto-scroll:** Scrolls to the bottom on new messages. Streaming indicator shows pulsing dots while the assistant is responding.
+
+### Files View
+
+The files view provides workspace file browsing and editing via the `useFiles` composable and the pod server's file API.
+
+- **File API composable (`composables/useFiles.ts`):** Fetches the flat file list from `GET /api/files`, builds a tree structure (nested directories and files), reads file content from `GET /api/files/:path`, and writes via `PUT /api/files/:path`.
+- **FileTree component:** Recursive tree rendering with expand/collapse for directories, indent guides, and dimmed file extensions. Clicking a file selects it and triggers content loading.
+- **CodeViewer component:** CodeMirror 6 editor with the One Dark theme. Supports language detection for JavaScript, TypeScript, JSON, CSS, HTML, Vue, and Markdown files. Defaults to read-only mode with an edit toggle button. Save button appears in edit mode and calls the file write API. Back navigation returns to the file tree.
+
+### Preview View
+
+Full-screen iframe that loads the project's dev server at `preview.<hostname>`. The hostname is constructed by prepending `preview.` to the current `window.location.hostname`. Includes a thin header bar with a "Preview" label, the preview URL, and a refresh button. Shows a loading overlay while the iframe is loading.
 
 ## Architecture Summary
 
