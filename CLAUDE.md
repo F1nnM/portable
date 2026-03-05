@@ -273,6 +273,7 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 | `PORT`               | Hono server listen port                         | `3000`       |
 | `DATABASE_URL`       | Connection string for the project's Postgres DB | (none)       |
 | `ANTHROPIC_API_KEY`  | User's Anthropic API key (injected by main app) | (none)       |
+| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude (alternative to API key) | (none)       |
 
 ## Editor SPA
 

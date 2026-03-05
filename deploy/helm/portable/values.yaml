@@ -30,7 +30,7 @@ github:
   # Found on the OAuth App settings page after creation.
   clientId: ""
   # -- GitHub OAuth App client secret.
-  # Generated once when creating the OAuth App. Stored encrypted in a K8s Secret.
+  # Generated once when creating the OAuth App. Stored in a K8s Secret.
   clientSecret: ""
 
 # -- Postgres configuration for the shared database instance.
