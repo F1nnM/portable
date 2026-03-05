@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "portable.fullname" . }}
+  labels:
+    {{- include "portable.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "portable.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "portable.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "portable.serviceAccountName" . }}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NUXT_PUBLIC_DOMAIN
+              value: {{ .Values.domain | quote }}
+            - name: DATABASE_URL
+              value: "postgres://portable:$(POSTGRES_PASSWORD)@{{ include "portable.postgres.fullname" . }}:5432/portable"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "portable.secretName" . }}
+                  key: postgres-password
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "portable.secretName" . }}
+                  key: github-client-id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "portable.secretName" . }}
+                  key: github-client-secret
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "portable.secretName" . }}
+                  key: encryption-key
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_SERVER_IMAGE
+              value: "{{ .Values.podServer.image.repository }}:{{ .Values.podServer.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "portable.configMapName" . }}
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

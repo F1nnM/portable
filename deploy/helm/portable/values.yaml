@@ -1,0 +1,93 @@
+# -- Base domain for the application (e.g., portable.example.com)
+# All project subdomains will be <project>.<domain> and preview.<project>.<domain>
+domain: ""
+
+# -- GitHub OAuth credentials for user authentication
+github:
+  # -- GitHub OAuth App client ID
+  clientId: ""
+  # -- GitHub OAuth App client secret
+  clientSecret: ""
+
+# -- Postgres configuration for the shared database instance
+postgres:
+  # -- Postgres superuser password
+  password: ""
+  # -- Postgres storage size
+  storage: 10Gi
+  # -- Postgres image repository
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  # -- Postgres resource requests and limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# -- AES-256-GCM encryption key for credential storage (32-byte hex string)
+encryptionKey: ""
+
+# -- Main app container image
+image:
+  repository: portable/app
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# -- Main app replica count
+replicaCount: 1
+
+# -- Main app resource requests and limits
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+# -- Main app service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+# -- Ingress configuration
+ingress:
+  # -- Additional annotations for the Ingress resource
+  annotations: {}
+  # -- Ingress class name (e.g., nginx, traefik)
+  className: ""
+
+# -- cert-manager integration for automatic TLS certificates
+certManager:
+  # -- Enable cert-manager Certificate resource for wildcard TLS
+  enabled: false
+  # -- Name of the cert-manager ClusterIssuer or Issuer to use
+  issuer: ""
+  # -- Issuer kind: ClusterIssuer or Issuer
+  issuerKind: ClusterIssuer
+
+# -- Default resource limits for project pods (stored in ConfigMap, used by the app)
+pod:
+  resources:
+    requests:
+      # -- CPU request for project pods
+      cpu: 500m
+      # -- Memory request for project pods
+      memory: 512Mi
+    limits:
+      # -- CPU limit for project pods
+      cpu: 2000m
+      # -- Memory limit for project pods
+      memory: 4Gi
+  # -- PVC size for project pods
+  storage: 5Gi
+
+# -- Pod server container image (used inside project pods)
+podServer:
+  image:
+    repository: portable/pod-server
+    tag: "0.1.0"
