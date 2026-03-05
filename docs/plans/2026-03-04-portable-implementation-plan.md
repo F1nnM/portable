@@ -163,7 +163,7 @@ Default pod resource limits in ConfigMap: CPU 500m request / 2000m limit, Memory
 
 - Create: `deploy/helm/portable/` (Chart.yaml, values.yaml, templates/\*)
 
-### Task 1.6: Tiltfile and dev setup `[ ]`
+### Task 1.6: Tiltfile and dev setup `[DONE]`
 
 Tiltfile that builds images via k3d registry, deploys via Helm with dev overrides, uses `live_update` for code syncing. Dev setup script and docs.
 

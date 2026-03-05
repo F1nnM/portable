@@ -1,0 +1,77 @@
+# Dev override values for local k3d development
+# Used by the Tiltfile when deploying via Helm
+
+# Local wildcard domain — resolves to 127.0.0.1 via nip.io (zero config)
+domain: portable.127.0.0.1.nip.io
+
+# Dummy GitHub OAuth credentials for local development
+# Replace with real values if you need to test OAuth flow
+github:
+  clientId: dev-github-client-id
+  clientSecret: dev-github-client-secret
+
+# Postgres password for local dev
+postgres:
+  password: dev-postgres-password
+  # Lower resources for local dev
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  storage: 2Gi
+
+# Dummy encryption key (32 bytes hex = 64 hex chars)
+encryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+# Main app image — overridden by Tiltfile docker_build, but set the registry
+# so Helm templates render a valid image ref before Tilt patches it
+image:
+  repository: k3d-portable-registry.localhost:5000/portable-app
+  tag: dev
+  pullPolicy: Always
+
+# Single replica for local dev
+replicaCount: 1
+
+# Lower resources for main app in dev
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Use nginx ingress class installed by dev-setup.sh
+ingress:
+  className: nginx
+  annotations:
+    # Allow large request bodies for file uploads
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+
+# No TLS for local dev
+certManager:
+  enabled: false
+
+# Pod server image — overridden by Tiltfile docker_build
+podServer:
+  image:
+    repository: k3d-portable-registry.localhost:5000/portable-pod-server
+    tag: dev
+
+# Lower default pod resources for local dev
+pod:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  storage: 2Gi
