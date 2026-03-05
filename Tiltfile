@@ -12,10 +12,6 @@ REGISTRY = "k3d-portable-registry.localhost:5002"
 APP_IMAGE = REGISTRY + "/portable-app"
 POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
 
-# Pod server image is referenced only via env var (NUXT_POD_SERVER_IMAGE),
-# not in any static K8s manifest, since pods are created dynamically at runtime.
-update_settings(suppress_unused_image_warnings=[POD_SERVER_IMAGE])
-
 # ---------------------------------------------------------------------------
 # Docker builds
 # ---------------------------------------------------------------------------
@@ -31,24 +27,19 @@ docker_build(
     ],
 )
 
-# Pod server (Hono + editor SPA) — Dockerfile.dev with tsx watch
+# Pod server (Hono + editor SPA) — Dockerfile.dev.
+#
+# Project pods are created dynamically at runtime (not by Tilt), so there is
+# no static K8s manifest that references this image directly. match_in_env_vars
+# tells Tilt to treat env vars containing this image name as image references:
+# it will build the image, push it, and rewrite the NUXT_POD_SERVER_IMAGE env
+# var in the main app Deployment to the actual pushed image reference. Project
+# pods created at runtime inherit the correct image from that env var.
 docker_build(
     POD_SERVER_IMAGE,
     context=".",
     dockerfile="packages/pod-server/Dockerfile.dev",
-    live_update=[
-        fall_back_on([
-            "packages/pod-server/package.json",
-            "packages/editor/package.json",
-            "pnpm-lock.yaml",
-        ]),
-        sync("packages/pod-server/", "/build/packages/pod-server/"),
-        sync("packages/editor/", "/build/packages/editor/"),
-        run(
-            "cd /build && pnpm --filter @portable/editor build",
-            trigger=["packages/editor/"],
-        ),
-    ],
+    match_in_env_vars=True,
 )
 
 # ---------------------------------------------------------------------------
