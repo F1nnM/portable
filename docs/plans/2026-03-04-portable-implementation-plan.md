@@ -476,7 +476,7 @@ File tree, tap opens CodeMirror 6 full-screen, back button, read-only default wi
 - Create: `packages/editor/src/components/CodeViewer.vue`
 - Create: `packages/editor/src/composables/useFiles.ts`
 
-### Task 8.4: Preview view `[ ]`
+### Task 8.4: Preview view `[DONE]`
 
 Full-screen iframe to `preview.<project>.domain`. Detect subdomain, construct URL.
 
