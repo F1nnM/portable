@@ -29,6 +29,6 @@ export function createApp() {
   return { app, registerWsRoute };
 }
 
-// Default export for backwards compatibility with smoke tests
+// Convenience export: a pre-built app instance for tests and simple usage
 const { app } = createApp();
 export { app };

@@ -1,14 +1,21 @@
-import type { ExecSyncOptions } from "node:child_process";
-import { execSync } from "node:child_process";
+import type { Buffer } from "node:buffer";
+import type { ExecFileSyncOptions } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+
+export type ExecFileSyncFn = (
+  file: string,
+  args: readonly string[],
+  options?: ExecFileSyncOptions,
+) => Buffer | string;
 
 export interface SetupOptions {
   workspaceDir: string;
   githubRepoUrl?: string;
   githubToken?: string;
-  /** Inject for testing. Defaults to child_process.execSync. */
-  execSyncFn?: typeof execSync;
+  /** Inject for testing. Defaults to child_process.execFileSync. */
+  execFileSyncFn?: ExecFileSyncFn;
   /** Inject for testing. Defaults to fs.existsSync. */
   existsSyncFn?: typeof existsSync;
   /** Inject for testing. Defaults to fs.readdirSync. */
@@ -25,12 +32,12 @@ export function setupWorkspace(options: SetupOptions): void {
     workspaceDir,
     githubRepoUrl,
     githubToken,
-    execSyncFn = execSync,
+    execFileSyncFn = execFileSync,
     existsSyncFn = existsSync,
     readdirSyncFn = readdirSync,
   } = options;
 
-  const execOpts: ExecSyncOptions = {
+  const execOpts: ExecFileSyncOptions = {
     cwd: workspaceDir,
     stdio: "inherit",
   };
@@ -47,7 +54,7 @@ export function setupWorkspace(options: SetupOptions): void {
     }
 
     console.log(`[setup] Cloning ${githubRepoUrl} into ${workspaceDir}...`);
-    execSyncFn(`git clone ${cloneUrl} .`, execOpts);
+    execFileSyncFn("git", ["clone", cloneUrl, "."], execOpts);
     console.log("[setup] Clone complete.");
   } else if (!workspaceHasFiles) {
     console.log("[setup] Workspace is empty and no GITHUB_REPO_URL set, skipping clone.");
@@ -63,7 +70,7 @@ export function setupWorkspace(options: SetupOptions): void {
     // Detect package manager
     const packageManager = detectPackageManager(workspaceDir, existsSyncFn);
     console.log(`[setup] Installing dependencies with ${packageManager}...`);
-    execSyncFn(`${packageManager} install`, execOpts);
+    execFileSyncFn(packageManager, ["install"], execOpts);
     console.log("[setup] Install complete.");
   } else {
     console.log("[setup] node_modules exists, skipping install.");
