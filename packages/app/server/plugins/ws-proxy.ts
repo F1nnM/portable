@@ -16,7 +16,7 @@ export default defineNitroPlugin((nitroApp) => {
     if (!host) return;
 
     const config = useRuntimeConfig();
-    const domain = getDomainFromBaseUrl(config.appBaseUrl);
+    const domain = getDomainFromBaseUrl(config.baseUrl);
     const { podNamespace } = getK8sConfig();
 
     // Validate session from cookie

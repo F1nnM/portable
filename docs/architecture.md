@@ -162,7 +162,7 @@ On auth or project errors, the socket is destroyed immediately.
 
 `server/utils/proxy.ts` contains the core proxy resolution logic shared by both the HTTP middleware and the WebSocket plugin:
 
-- `getDomainFromBaseUrl(baseUrl)` -- Extracts the hostname from `NUXT_APP_BASE_URL`
+- `getDomainFromBaseUrl(baseUrl)` -- Extracts the hostname from `NUXT_BASE_URL`
 - `parseSubdomain(host, domain)` -- Parses the Host header into a `{ slug, type }` object (type is `"editor"` or `"preview"`)
 - `buildProxyTarget(slug, type, namespace)` -- Constructs the internal K8s service URL (`http://project-<slug>.<ns>.svc.cluster.local:<port>`)
 - `lookupProject(slug, userId)` -- Queries the database for the project, verifying ownership

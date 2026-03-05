@@ -19,13 +19,10 @@ spec:
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 3000
@@ -53,7 +50,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: encryption-key
-            - name: NUXT_APP_BASE_URL
+            - name: NUXT_BASE_URL
               value: {{ printf "%s://%s" (ternary "https" "http" .Values.certManager.enabled) .Values.domain | quote }}
             - name: NUXT_POD_NAMESPACE
               valueFrom:

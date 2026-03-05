@@ -16,7 +16,7 @@ export function createGitHubClient(
 
 export function useGitHubClient(): arctic.GitHub {
   const config = useRuntimeConfig();
-  const callbackUrl = `${config.appBaseUrl}/auth/github/callback`;
+  const callbackUrl = `${config.baseUrl}/auth/github/callback`;
   return createGitHubClient(config.githubClientId, config.githubClientSecret, callbackUrl);
 }
 

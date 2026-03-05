@@ -4,11 +4,9 @@
 # Local wildcard domain — resolves to 127.0.0.1 via nip.io (zero config)
 domain: portable.127.0.0.1.nip.io
 
-# Dummy GitHub OAuth credentials for local development
-# Replace with real values if you need to test OAuth flow
 github:
-  clientId: dev-github-client-id
-  clientSecret: dev-github-client-secret
+  clientId: Ov23liPWirQNUvfw0Pgm
+  clientSecret: 4de12109c93abf28313bd1925edea6aa300b1b5f
 
 # Postgres password for local dev
 postgres:
@@ -32,6 +30,9 @@ image:
   repository: k3d-portable-registry.localhost:5000/portable-app
   tag: dev
   pullPolicy: Always
+
+# Disable security context for dev (Dockerfile.dev runs as root for simplicity)
+securityContext: null
 
 # Single replica for local dev
 replicaCount: 1

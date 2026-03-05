@@ -164,7 +164,7 @@ The Nuxt app uses `runtimeConfig` for server-only configuration. Set these via `
 | `NUXT_GITHUB_CLIENT_ID`            | `githubClientId`           | GitHub OAuth App client ID                                          |
 | `NUXT_GITHUB_CLIENT_SECRET`        | `githubClientSecret`       | GitHub OAuth App client secret                                      |
 | `NUXT_ENCRYPTION_KEY`              | `encryptionKey`            | 32-byte hex key for AES-256-GCM encryption                          |
-| `NUXT_APP_BASE_URL`                | `appBaseUrl`               | Public URL of the app (for OAuth callbacks)                         |
+| `NUXT_BASE_URL`                    | `baseUrl`                  | Public URL of the app (for OAuth callbacks)                         |
 | `NUXT_POD_NAMESPACE`               | `podNamespace`             | K8s namespace for project pods (default: `default`)                 |
 | `NUXT_POD_SERVER_IMAGE`            | `podServerImage`           | Docker image for pod-server (default: `portable/pod-server:latest`) |
 | `NUXT_POD_RESOURCE_CPU_REQUEST`    | `podResourceCpuRequest`    | Pod CPU request (default: `500m`)                                   |

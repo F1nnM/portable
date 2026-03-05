@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // -- Set env vars before any imports --
-process.env.NUXT_APP_BASE_URL = "http://portable.127.0.0.1.nip.io";
+process.env.NUXT_BASE_URL = "http://portable.127.0.0.1.nip.io";
 process.env.NUXT_POD_NAMESPACE = "default";
 
 // -- Mock the DB --

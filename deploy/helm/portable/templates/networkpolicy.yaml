@@ -6,8 +6,9 @@ metadata:
     {{- include "portable.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchLabels:
-      app.kubernetes.io/managed-by: portable
+    matchExpressions:
+      - key: portable.dev/project
+        operator: Exists
   policyTypes:
     - Ingress
   ingress:

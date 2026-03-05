@@ -46,47 +46,6 @@ COPY packages/editor/ packages/editor/
 # Build both packages
 RUN pnpm --filter @portable/pod-server build && pnpm --filter @portable/editor build
 
-# ---- Stage: Dev (used by Tilt live_update) ----
-FROM node:22-alpine AS dev
-
-RUN apk add --no-cache git python3 make g++
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-WORKDIR /build
-
-# Copy installed node_modules from deps stage
-COPY --from=deps /build/node_modules ./node_modules
-COPY --from=deps /build/packages/pod-server/node_modules ./packages/pod-server/node_modules
-COPY --from=deps /build/packages/editor/node_modules ./packages/editor/node_modules
-
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-
-# Copy pod-server source
-COPY packages/pod-server/ packages/pod-server/
-
-# Copy editor source and build the SPA (pod-server serves it as static files)
-COPY packages/editor/ packages/editor/
-RUN pnpm --filter @portable/editor build
-
-# Symlink editor dist into pod-server/public (serveStatic looks for ./public)
-RUN ln -s /build/packages/editor/dist /build/packages/pod-server/public
-
-# Make dev entrypoint executable
-RUN chmod +x packages/pod-server/scripts/entrypoint-dev.sh
-
-# Project workspace will be mounted here via PVC
-RUN mkdir -p /workspace
-VOLUME /workspace
-
-ENV NODE_ENV=development
-ENV PORT=3000
-
-EXPOSE 3000
-EXPOSE 3001
-
-CMD ["./packages/pod-server/scripts/entrypoint-dev.sh"]
-
 # ---- Stage 3: Production runtime ----
 FROM node:22-alpine AS runtime
 

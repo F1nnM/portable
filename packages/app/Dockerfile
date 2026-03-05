@@ -16,30 +16,6 @@ COPY packages/editor/package.json packages/editor/package.json
 # Install all dependencies (pnpm needs the full workspace context)
 RUN pnpm install --frozen-lockfile
 
-# ---- Stage: Dev (used by Tilt live_update) ----
-FROM node:22-alpine AS dev
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-WORKDIR /app
-
-# Copy installed node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/app/node_modules ./packages/app/node_modules
-
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-
-# Copy app source
-COPY packages/app/ packages/app/
-
-ENV HOST=0.0.0.0
-ENV PORT=3000
-
-EXPOSE 3000
-
-CMD ["pnpm", "--filter", "@portable/app", "dev"]
-
 # ---- Stage 2: Build Nuxt ----
 FROM node:22-alpine AS build
 
@@ -68,9 +44,8 @@ WORKDIR /app
 # Copy the Nuxt build output (standalone server)
 COPY --from=build /app/packages/app/.output .output
 
-# Create non-root user for running the app
-RUN addgroup -S app && adduser -S -G app -u 1000 app \
-    && chown -R app:app /app
+# Ensure the node user (UID 1000) owns the app directory
+RUN chown -R node:node /app
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
@@ -78,5 +53,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-USER app
+USER node
 CMD ["node", ".output/server/index.mjs"]

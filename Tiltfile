@@ -8,32 +8,34 @@
 # Configuration
 # ---------------------------------------------------------------------------
 
-REGISTRY = "k3d-portable-registry.localhost:5000"
+REGISTRY = "k3d-portable-registry.localhost:5002"
 APP_IMAGE = REGISTRY + "/portable-app"
 POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
+
+# Pod server image is referenced only via env var (NUXT_POD_SERVER_IMAGE),
+# not in any static K8s manifest, since pods are created dynamically at runtime.
+update_settings(suppress_unused_image_warnings=[POD_SERVER_IMAGE])
 
 # ---------------------------------------------------------------------------
 # Docker builds
 # ---------------------------------------------------------------------------
 
-# Main app (Nuxt) — targets the dev stage for live_update with HMR
+# Main app (Nuxt) — Dockerfile.dev with Nuxt HMR
 docker_build(
     APP_IMAGE,
     context=".",
-    dockerfile="packages/app/Dockerfile",
-    target="dev",
+    dockerfile="packages/app/Dockerfile.dev",
     live_update=[
         fall_back_on(["packages/app/package.json", "pnpm-lock.yaml"]),
         sync("packages/app/", "/app/packages/app/"),
     ],
 )
 
-# Pod server (Hono + editor SPA) — targets the dev stage for live_update with tsx watch
+# Pod server (Hono + editor SPA) — Dockerfile.dev with tsx watch
 docker_build(
     POD_SERVER_IMAGE,
     context=".",
-    dockerfile="packages/pod-server/Dockerfile",
-    target="dev",
+    dockerfile="packages/pod-server/Dockerfile.dev",
     live_update=[
         fall_back_on([
             "packages/pod-server/package.json",
@@ -72,9 +74,15 @@ k8s_yaml(
 # Resource configuration
 # ---------------------------------------------------------------------------
 
-# Main app resource
+# Main app resource — include RBAC objects so they deploy together
 k8s_resource(
     "portable",
+    objects=[
+        "portable:serviceaccount",
+        "portable:role",
+        "portable:rolebinding",
+        "portable-project-isolation:networkpolicy",
+    ],
     port_forwards=[
         port_forward(3000, 3000, name="app-http"),
     ],

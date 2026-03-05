@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!host) return;
 
   const config = useRuntimeConfig();
-  const domain = getDomainFromBaseUrl(config.appBaseUrl);
+  const domain = getDomainFromBaseUrl(config.baseUrl);
   const { podNamespace } = getK8sConfig();
 
   const resolution = await resolveProxyTarget(host, domain, podNamespace, event.context.user);

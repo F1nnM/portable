@@ -105,6 +105,15 @@ resources:
     # -- Maximum memory for the main app.
     memory: 512Mi
 
+# -- Security context for the main app container.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
 # -- Main app Kubernetes Service configuration.
 service:
   # -- Service type. ClusterIP is standard for use behind an Ingress.
