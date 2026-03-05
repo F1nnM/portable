@@ -118,12 +118,13 @@ service:
 # The main app's proxy middleware routes subdomain traffic to project pods.
 ingress:
   # -- Additional annotations for the Ingress resource.
-  # Use this to configure ingress controller behavior.
-  # Example for nginx:
-  #   nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-  #   nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-  annotations: {}
+  # The default annotations enable WebSocket support (required for the Claude
+  # chat interface) and allow large request bodies for file uploads.
+  # Override or extend these as needed for your ingress controller.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
   # -- Ingress class name. Set to the ingress controller installed in your cluster.
   # Common values: "nginx", "traefik", "haproxy"
   # Leave empty to use the cluster default ingress class.
