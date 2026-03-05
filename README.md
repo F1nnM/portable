@@ -62,12 +62,13 @@ See `docs/deployment.md` for the full configuration reference.
 
 ## Development
 
-Prerequisites: Docker, mise.
+Prerequisites: Docker, mise, ctlptl.
 
 ```bash
 mise install                          # Install Node.js 22, pnpm, kubectl, helm, k3d, tilt
 pnpm install                          # Install dependencies
 ctlptl apply -f ctlptl-config.yaml   # Create k3d cluster + registry
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 tilt up                               # Build, deploy, watch
 # Open http://portable.127.0.0.1.nip.io
 ```

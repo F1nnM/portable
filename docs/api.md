@@ -164,4 +164,4 @@ Health check endpoint.
 
 ---
 
-Note: These endpoints are planned. Implementation status may vary -- check the project's `docs/progress.md` for current status. The `/api/health` endpoint is currently implemented.
+Note: Only `/api/health` is currently implemented (Phase 1). All other endpoints are planned for Phases 2-6. See `docs/progress.md` for current status.

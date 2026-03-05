@@ -41,9 +41,9 @@ Created the base Helm chart at `deploy/helm/portable/` with:
 
 Created the Tilt development workflow:
 
-- `Tiltfile`: Builds images via k3d registry, deploys via Helm with dev overrides, `live_update` for code syncing
+- `Tiltfile`: Builds images via k3d registry, deploys via Helm with dev overrides
 - `deploy/dev-values.yaml`: Local k3d overrides (nip.io domain, dummy credentials, lower resources)
-- `scripts/dev-setup.sh`: Idempotent script that creates k3d cluster, local registry, and installs ingress-nginx
+- `ctlptl-config.yaml`: Declarative k3d cluster + registry creation (replaces the earlier `scripts/dev-setup.sh`)
 
 ### Task 1.7: Initial documentation
 
@@ -57,3 +57,18 @@ Created project documentation:
 - `docs/api.md`: API route reference (planned endpoints with request/response formats)
 - `docs/pod-server.md`: Pod server internals (architecture, endpoints, startup, supervisor, WebSocket protocol)
 - `docs/progress.md`: This file
+
+### Code review fixes
+
+After the initial implementation, a code review pass addressed:
+
+- Removed `live_update` blocks from Tiltfile (not needed with full image rebuilds)
+- Cleaned up dead code in `pod-server/src/index.ts` (removed unused route handler, separated app definition into `app.ts`)
+- Replaced `scripts/dev-setup.sh` with declarative `ctlptl-config.yaml` for cluster management
+- Consolidated per-package `.dockerignore` files into a single root `.dockerignore`
+- Fixed documentation inaccuracies in `docs/deployment.md` (ingress className default, cert-manager values)
+- Added MIT License
+
+### Phase 1 summary
+
+Phase 1 established the complete development foundation: pnpm monorepo with three packages, mise for tool management, ESLint + Prettier with Husky pre-commit hooks, Vitest in all packages with smoke tests, multi-stage Dockerfiles for both containers, a full Helm chart with RBAC and Postgres, Tilt-based dev workflow with k3d and ctlptl, and comprehensive documentation. All infrastructure is ready for Phase 2 (Database and Auth).

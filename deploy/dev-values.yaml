@@ -45,7 +45,7 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Use nginx ingress class installed by dev-setup.sh
+# Use nginx ingress class (installed separately into the k3d cluster)
 ingress:
   className: nginx
   annotations:

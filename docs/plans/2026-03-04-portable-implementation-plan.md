@@ -76,7 +76,7 @@ Created and maintained continuously throughout implementation.
 
 ---
 
-## Phase 1: Dev Environment, Tooling & Testing Infrastructure
+## Phase 1: Dev Environment, Tooling & Testing Infrastructure `[COMPLETE]`
 
 > This phase sets up everything needed for TDD from the start: monorepo, linting, formatting, test runners, Dockerfiles, Helm chart, Tilt, and initial documentation.
 
@@ -165,7 +165,7 @@ Default pod resource limits in ConfigMap: CPU 500m request / 2000m limit, Memory
 
 ### Task 1.6: Tiltfile and dev setup `[DONE]`
 
-Tiltfile that builds images via k3d registry, deploys via Helm with dev overrides, uses `live_update` for code syncing. Dev setup script and docs.
+Tiltfile that builds images via k3d registry, deploys via Helm with dev overrides. Cluster managed declaratively via ctlptl. `[PLAN UPDATED]` Replaced `scripts/dev-setup.sh` with `ctlptl-config.yaml` during code review for simpler, declarative cluster management. Removed `live_update` blocks (full image rebuilds are sufficient at this stage).
 
 **All components (main app, Postgres, project pods) run inside the k3d cluster. No process runs on the host outside of K8s.** This is a deliberate architectural constraint to keep networking simple and avoid "works locally but not in K8s" bugs.
 
@@ -175,7 +175,7 @@ Local domain: `portable.127.0.0.1.nip.io`
 
 - Create: `Tiltfile`
 - Create: `deploy/dev-values.yaml`
-- Create: `scripts/dev-setup.sh`
+- Create: `ctlptl-config.yaml`
 
 ### Task 1.7: Initial documentation `[DONE]`
 

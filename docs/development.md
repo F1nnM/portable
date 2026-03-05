@@ -4,8 +4,9 @@
 
 - **Docker** -- Required for building container images and running k3d. Install from https://docs.docker.com/get-docker/
 - **mise** -- Tool version manager. Install from https://mise.jdx.dev/
+- **ctlptl** -- Declarative cluster management. Install from https://github.com/tilt-dev/ctlptl
 
-mise manages all other tools (Node.js, pnpm, kubectl, helm, k3d, tilt) via the `.mise.toml` file in the repo root.
+mise manages Node.js, pnpm, kubectl, helm, k3d, and tilt via the `.mise.toml` file in the repo root. ctlptl is installed separately.
 
 ## Initial Setup
 
@@ -19,7 +20,10 @@ pnpm install
 # 3. Create the k3d cluster with local registry
 ctlptl apply -f ctlptl-config.yaml
 
-# 4. Start the development environment
+# 4. Install ingress-nginx into the cluster
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+
+# 5. Start the development environment
 tilt up
 ```
 
@@ -29,8 +33,9 @@ After `tilt up`, open http://portable.127.0.0.1.nip.io in your browser. Tilt bui
 
 Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and any project pods. No processes run on the host outside of K8s. This is a deliberate architectural constraint to keep networking simple and avoid discrepancies between local and production environments.
 
-- **k3d** creates a lightweight K3s cluster in Docker with a local container registry at `k3d-portable-registry.localhost:5000`
-- **ingress-nginx** is installed separately and listens on ports 80/443 of the host
+- **k3d** creates a lightweight K3s cluster in Docker with a local container registry at `k3d-portable-registry.localhost:5000`. Traefik is disabled via `ctlptl-config.yaml` in favor of ingress-nginx.
+- **ctlptl** declaratively manages the k3d cluster and registry from `ctlptl-config.yaml`
+- **ingress-nginx** is installed into the cluster (step 4 above) and listens on port 80 of the host
 - **nip.io** provides wildcard DNS: `*.127.0.0.1.nip.io` resolves to `127.0.0.1`, so subdomains like `myproject.portable.127.0.0.1.nip.io` work without any `/etc/hosts` configuration
 - **Tilt** watches source files, rebuilds Docker images, pushes to the k3d registry, and updates deployments
 
@@ -85,29 +90,30 @@ Pre-commit hooks (Husky + lint-staged) automatically run ESLint fix and Prettier
 ```
 packages/
   app/                 Nuxt 3 main app
-    server/            Nitro server routes and middleware
-      api/             API endpoints (REST)
-      middleware/       Server middleware (auth, proxy)
-      plugins/         Server plugins (migrations, WebSocket)
-    pages/             Vue pages (dashboard, settings, new project, login)
-    tests/             Vitest tests
+    server/
+      api/             API endpoints (currently: health.get.ts)
+    pages/             Vue pages (currently: index.vue)
+    tests/             Vitest tests (smoke.test.ts)
     Dockerfile         Multi-stage production build
     nuxt.config.ts     Nuxt configuration
     vitest.config.ts   Test configuration
 
   pod-server/          Hono server for project pods
-    src/               Source code
-      index.ts         Server entry point
-      app.ts           Hono app definition and routes
-    tests/             Vitest tests
+    src/
+      index.ts         Server entry point (Hono + node-ws)
+      app.ts           Hono app definition and routes (/health, /)
+    tests/             Vitest tests (smoke.test.ts)
     Dockerfile         Multi-stage build (includes editor SPA + dev tools)
     tsup.config.ts     Build configuration
+    vitest.config.ts   Test configuration
 
   editor/              Vue 3 SPA for in-pod editor UI
-    src/               Source code
+    src/
+      main.ts          Vue app entry point
       App.vue          Root component
-    tests/             Vitest tests
+    tests/             Vitest tests (smoke.test.ts)
     vite.config.ts     Vite build configuration
+    vitest.config.ts   Test configuration
 ```
 
 ## Useful Commands
