@@ -15,6 +15,7 @@ const showRenameSheet = ref(false);
 const showDeleteSheet = ref(false);
 const showMenu = ref(false);
 const renameInput = ref(props.project.name);
+const deleteGithubRepo = ref(false);
 const actionError = ref("");
 
 const statusConfig = computed(() => {
@@ -59,6 +60,7 @@ function openRename() {
 
 function openDelete() {
   actionError.value = "";
+  deleteGithubRepo.value = false;
   showDeleteSheet.value = true;
   closeMenu();
 }
@@ -124,6 +126,7 @@ async function handleDelete() {
   try {
     await $fetch(`/api/projects/${props.project.slug}`, {
       method: "DELETE",
+      body: { deleteGithubRepo: deleteGithubRepo.value },
     });
     showDeleteSheet.value = false;
     emit("deleted");
@@ -315,6 +318,10 @@ function handleRenameKeydown(e: KeyboardEvent) {
                 Delete <strong>{{ project.name }}</strong
                 >? This cannot be undone.
               </p>
+              <label v-if="project.repoUrl" class="checkbox-label">
+                <input v-model="deleteGithubRepo" type="checkbox" class="checkbox-input" />
+                Also delete GitHub repository
+              </label>
               <div v-if="actionError" class="sheet-error">
                 {{ actionError }}
               </div>
@@ -747,6 +754,25 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 .delete-warning strong {
   color: var(--text-primary);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  padding: var(--space-xs) 0;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--danger);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .sheet-actions {

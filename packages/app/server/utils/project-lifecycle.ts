@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { projects, users } from "../db/schema";
 import { decrypt } from "./crypto";
 import { useDb } from "./db";
-import { getDecryptedGithubToken } from "./github";
+import { deleteGitHubRepo, getDecryptedGithubToken, parseGitHubRepoUrl } from "./github";
 import {
   createProjectPod,
   createProjectPVC,
@@ -219,9 +219,22 @@ export async function stopProject(userId: string, slug: string): Promise<void> {
 /**
  * Deletes a project: cleans up all K8s resources, per-project DB, and the DB row.
  */
-export async function deleteProject(userId: string, slug: string): Promise<void> {
+export async function deleteProject(
+  userId: string,
+  slug: string,
+  options?: { deleteGithubRepo?: boolean },
+): Promise<void> {
   // Verify project exists and belongs to user (throws 404 if not found)
-  await lookupProject(userId, slug);
+  const project = await lookupProject(userId, slug);
+
+  // Optionally delete the GitHub repo
+  if (options?.deleteGithubRepo && project.repoUrl) {
+    const parsed = parseGitHubRepoUrl(project.repoUrl);
+    if (parsed) {
+      const githubToken = await getDecryptedGithubToken(userId);
+      await deleteGitHubRepo(githubToken, parsed.owner, parsed.repo);
+    }
+  }
 
   // Clean up K8s resources (all delete functions handle 404 gracefully)
   await deleteProjectPod(slug);

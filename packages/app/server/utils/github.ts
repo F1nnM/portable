@@ -178,6 +178,24 @@ export async function createGitHubRepo(
  * 3. Create a commit with the tree
  * 4. Create the main branch ref pointing to the commit
  */
+/**
+ * Deletes a GitHub repository.
+ */
+export async function deleteGitHubRepo(token: string, owner: string, repo: string): Promise<void> {
+  const octokit = new Octokit({ auth: token });
+  await octokit.rest.repos.delete({ owner, repo });
+}
+
+/**
+ * Parses a GitHub repo URL into owner and repo components.
+ * Supports https://github.com/owner/repo and https://github.com/owner/repo.git
+ */
+export function parseGitHubRepoUrl(url: string): { owner: string; repo: string } | null {
+  const match = url.match(/github\.com\/([^/]+)\/([^/.]+)/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
+}
+
 export async function pushScaffoldToRepo(
   token: string,
   owner: string,
