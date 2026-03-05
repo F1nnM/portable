@@ -190,3 +190,30 @@ Modified all four project endpoints: `POST /api/projects` now creates the per-pr
 ### Phase 5 summary
 
 Phase 5 added full Kubernetes integration: a K8s client utility for managing pods, services, and PVCs; per-project Postgres database management; and a project lifecycle orchestrator that ties everything together. Project start creates a database, PVC, pod, and headless service, then waits for the pod to become ready. Project stop tears down the pod and service while preserving the PVC. Project delete cleans up all resources including the per-project database. All operations handle partial failures gracefully with AlreadyExists and 404 tolerance. Ready for Phase 6 (Reverse Proxy).
+
+---
+
+## Phase 6: Reverse Proxy
+
+**Status:** Complete
+
+### Task 6.1: Subdomain-based auth proxy
+
+Created the reverse proxy layer that routes subdomain traffic to project pods. Three new files:
+
+- `server/utils/proxy.ts` -- Shared proxy resolution logic with five functions: `getDomainFromBaseUrl` (extracts hostname from the configured base URL), `parseSubdomain` (parses Host header to extract project slug and access type -- editor or preview), `buildProxyTarget` (constructs the internal K8s service URL), `lookupProject` (queries the DB for the project, verifying ownership), and `resolveProxyTarget` (orchestrates auth, lookup, status check, and target building). Returns null for main app domain requests. Throws 401 for unauthenticated requests, 404 for unknown projects, 503 for non-running projects.
+- `server/middleware/proxy.ts` -- Nitro HTTP middleware that intercepts subdomain requests and proxies them via `h3.proxyRequest`. Forwards the original path and sets `x-forwarded-host`. Runs after the auth middleware (alphabetical ordering ensures `event.context.user` is populated).
+- `server/plugins/ws-proxy.ts` -- Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests. Manually parses the session cookie and validates it (plugins run outside the middleware chain). Proxies WebSocket connections via `httpxy.proxyUpgrade`. Destroys the socket on auth/project errors.
+
+Subdomain routing: `<slug>.domain` proxies to port 3000 (editor), `preview.<slug>.domain` proxies to port 3001 (dev server). Pods are addressed via K8s service DNS at `project-<slug>.<namespace>.svc.cluster.local`.
+
+Also renamed `baseUrl` to `appBaseUrl` in the Nuxt runtime config to avoid collision with Nuxt's built-in `app.baseURL`. Added `httpxy` as a dependency for WebSocket proxying.
+
+### Code review fixes
+
+- Fixed proxy path forwarding to append `event.path` to the target URL (was originally proxying only to the base target without preserving the request path)
+- Fixed stale `NUXT_BASE_URL` reference in README.md to use the renamed `NUXT_APP_BASE_URL`
+
+### Phase 6 summary
+
+Phase 6 added the subdomain-based reverse proxy that completes the request path from browser to project pod. HTTP requests are proxied via h3's `proxyRequest`, WebSocket connections via httpxy's `proxyUpgrade`. All proxy requests require authentication and verify project ownership and running status. The proxy layer reuses the auth middleware for HTTP requests and handles its own auth for WebSocket upgrades. Ready for Phase 7 (Pod Server).

@@ -30,12 +30,12 @@
               +----------------+    +-------------------+
               |   Postgres     |    |  Project Pod (N)  |
               |   (shared)     |    |                   |
-              |                |    |  Hono server:8080 |
+              |                |    |  Hono server:3000 |
               |  - users       |    |  - Editor SPA     |
               |  - projects    |    |  - File API       |
               |  - sessions    |    |  - Agent WS       |
               |  - per-project |    |                   |
-              |    databases   |    |  Dev server:3000  |
+              |    databases   |    |  Dev server:3001  |
               +----------------+    |  - Nuxt/Vite/etc  |
                                     |                   |
                                     |  PVC (5Gi)        |
@@ -129,6 +129,45 @@ PVC is preserved so workspace data persists across restarts.
 
 Does NOT delete the GitHub repository (user manages this manually).
 
+## Reverse Proxy
+
+The main app is the single gateway for all subdomain traffic. No per-pod Ingress resources are created. The proxy layer has two components:
+
+### HTTP Proxy (Middleware)
+
+`server/middleware/proxy.ts` is a Nitro server middleware that runs on every HTTP request. It inspects the `Host` header to determine whether the request is for a project subdomain. If so, it:
+
+1. Uses `resolveProxyTarget()` from `server/utils/proxy.ts` to authenticate the request, look up the project, verify it is running, and build the internal K8s service URL
+2. Proxies the request via `h3.proxyRequest()`, forwarding the original path and query string
+3. Sets `x-forwarded-host` to the original Host header
+
+If the host matches the main app domain (no subdomain), the middleware returns early and lets Nuxt handle the request normally.
+
+The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware due to Nitro's alphabetical middleware ordering, so `event.context.user` is already populated.
+
+### WebSocket Proxy (Plugin)
+
+`server/plugins/ws-proxy.ts` is a Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests. Nitro plugins run outside the middleware chain, so this plugin manually:
+
+1. Detects WebSocket upgrade requests via the `Upgrade: websocket` header
+2. Parses the `portable_session` cookie from the raw request headers
+3. Validates the session by calling `validateSession()` directly
+4. Calls `resolveProxyTarget()` to authenticate and resolve the target
+5. Proxies the WebSocket connection via `httpxy.proxyUpgrade()`
+6. Marks the event as handled (`event._handled = true`) so Nitro does not process it further
+
+On auth or project errors, the socket is destroyed immediately.
+
+### Shared Utilities
+
+`server/utils/proxy.ts` contains the core proxy resolution logic shared by both the HTTP middleware and the WebSocket plugin:
+
+- `getDomainFromBaseUrl(baseUrl)` -- Extracts the hostname from `NUXT_APP_BASE_URL`
+- `parseSubdomain(host, domain)` -- Parses the Host header into a `{ slug, type }` object (type is `"editor"` or `"preview"`)
+- `buildProxyTarget(slug, type, namespace)` -- Constructs the internal K8s service URL (`http://project-<slug>.<ns>.svc.cluster.local:<port>`)
+- `lookupProject(slug, userId)` -- Queries the database for the project, verifying ownership
+- `resolveProxyTarget(host, domain, namespace, user)` -- Orchestrates the full resolution pipeline, returning a target URL or throwing 401/404/503
+
 ## Data Flow
 
 ### User Request to Main App
@@ -150,7 +189,7 @@ Browser -> Ingress -> Main App (proxy middleware)
                          +-> Parse Host header: <slug>.portable.example.com
                          +-> Validate session cookie
                          +-> Look up project by slug
-                         +-> Proxy to pod: project-<slug>.default.svc.cluster.local:8080
+                         +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3000
 ```
 
 ### User Request to Project Preview
@@ -161,7 +200,7 @@ Browser -> Ingress -> Main App (proxy middleware)
                          +-> Parse Host header: preview.<slug>.portable.example.com
                          +-> Validate session cookie
                          +-> Look up project by slug
-                         +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3000
+                         +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3001
 ```
 
 ## Database Schema
@@ -254,8 +293,8 @@ A single wildcard Ingress resource (`*.portable.example.com`) sends all traffic 
 | Host pattern                          | Action                              |
 | ------------------------------------- | ----------------------------------- |
 | `portable.example.com` (bare domain)  | Serve main app UI                   |
-| `<slug>.portable.example.com`         | Proxy to pod editor (port 8080)     |
-| `preview.<slug>.portable.example.com` | Proxy to pod dev server (port 3000) |
+| `<slug>.portable.example.com`         | Proxy to pod editor (port 3000)     |
+| `preview.<slug>.portable.example.com` | Proxy to pod dev server (port 3001) |
 
 Each project pod gets a headless Service (`clusterIP: None`) named `project-<slug>` for stable DNS resolution at `project-<slug>.<namespace>.svc.cluster.local`.
 

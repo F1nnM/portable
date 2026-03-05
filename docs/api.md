@@ -218,6 +218,34 @@ Health check endpoint.
 }
 ```
 
+## Subdomain Proxy
+
+In addition to the `/api/` and `/auth/` routes above, the main app handles subdomain-based reverse proxying. This is not an API endpoint but a middleware-level routing mechanism.
+
+### How it works
+
+All traffic arrives at the main app through a single wildcard Ingress (`*.portable.example.com`). A Nitro server middleware (`server/middleware/proxy.ts`) inspects the `Host` header on every request:
+
+- **Main app domain** (e.g., `portable.example.com`): Request passes through to Nuxt normally and is handled by the API/page routes documented above.
+- **Project subdomain** (e.g., `my-project.portable.example.com`): Request is authenticated, the project is looked up by slug, and the request is proxied to the pod's editor service (port 3000).
+- **Preview subdomain** (e.g., `preview.my-project.portable.example.com`): Same as above but proxied to the pod's dev server (port 3001).
+
+### Authentication
+
+All subdomain proxy requests require a valid `portable_session` cookie. Unauthenticated requests receive a 401 response. The project must belong to the authenticated user (ownership is verified via the database).
+
+### Error responses
+
+| Condition                                   | Status | Description                               |
+| ------------------------------------------- | ------ | ----------------------------------------- |
+| No valid session cookie                     | 401    | Authentication required to access project |
+| Project slug not found or not owned by user | 404    | Project not found                         |
+| Project not in `running` status             | 503    | Project is not running                    |
+
+### WebSocket proxying
+
+WebSocket upgrade requests on subdomains are handled by a separate Nitro plugin (`server/plugins/ws-proxy.ts`) which intercepts the `request` hook before the normal HTTP pipeline. The plugin manually validates the session cookie and proxies the WebSocket connection via `httpxy`. On auth or project errors, the socket is destroyed.
+
 ---
 
-Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), settings (`/api/settings/credential`), scaffolds (`/api/scaffolds`), and project lifecycle endpoints (start/stop/delete with full K8s integration) are implemented (Phases 1-5). Project creation includes GitHub repo creation, scaffold push, and per-project database creation. Start/stop manage K8s pods, services, and PVCs. See `docs/progress.md` for current status.
+Note: All API routes, auth routes, project lifecycle endpoints, and subdomain proxy are implemented (Phases 1-6). See `docs/progress.md` for current status.

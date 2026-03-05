@@ -369,7 +369,7 @@ Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete po
 
 ---
 
-## Phase 6: Reverse Proxy
+## Phase 6: Reverse Proxy `[COMPLETE]`
 
 ### Task 6.1: Subdomain-based auth proxy `[DONE]`
 

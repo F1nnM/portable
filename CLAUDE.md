@@ -13,10 +13,10 @@ portable/
       server/
         api/          API endpoints (health, auth/me, settings/credential, projects CRUD, scaffolds)
         routes/       Route handlers (auth/github, auth/logout)
-        middleware/   Server middleware (session auth)
+        middleware/   Server middleware (session auth, subdomain proxy)
         db/           Drizzle schema and migrations
-        plugins/      Nitro plugins (auto-migration on startup)
-        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle)
+        plugins/      Nitro plugins (auto-migration on startup, WebSocket proxy)
+        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle, proxy)
       composables/    Vue composables (useAuth)
       components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)
@@ -38,7 +38,7 @@ portable/
 
 ## Tech Stack
 
-- **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth)
+- **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth), httpxy (WebSocket proxying)
 - **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, Claude Agent SDK
 - **Editor SPA:** Vue 3, Vite, CodeMirror 6
 - **Infrastructure:** Kubernetes, Helm, k3d (local), Tilt (live dev), Postgres 16
@@ -170,6 +170,26 @@ The main app manages project pods via `@kubernetes/client-node`. All K8s utiliti
 ### Per-Project Databases
 
 Each project gets its own Postgres database in the shared instance, named `portable_<slug>`. The connection string is injected into the pod as `DATABASE_URL`. Databases are created on project start and dropped on project delete.
+
+## Reverse Proxy
+
+The main app acts as a reverse proxy for all subdomain traffic. The proxy layer consists of three files:
+
+- **`server/utils/proxy.ts`** -- Shared proxy logic: `getDomainFromBaseUrl` (extracts hostname from the configured base URL), `parseSubdomain` (parses the Host header to extract project slug and access type), `buildProxyTarget` (constructs the K8s service URL), `lookupProject` (queries the DB for the project), `resolveProxyTarget` (orchestrates auth + lookup + target building). Returns null for main app domain requests so Nuxt handles them normally. Throws 401 for unauthenticated subdomain requests, 404 for unknown projects, 503 for non-running projects.
+- **`server/middleware/proxy.ts`** -- Nitro HTTP middleware that intercepts subdomain requests and proxies them via `h3.proxyRequest`. Runs after the auth middleware (which attaches `event.context.user`), so session validation is already done. Forwards the original path and sets `x-forwarded-host`.
+- **`server/plugins/ws-proxy.ts`** -- Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests before the normal HTTP pipeline. Manually parses the session cookie and validates it (since the auth middleware does not run for WebSocket upgrades in Nitro plugins). Uses `httpxy.proxyUpgrade` to proxy the WebSocket connection to the pod. Destroys the socket on auth/project errors.
+
+### Subdomain Routing
+
+| Host pattern                          | Target                                                         |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `portable.example.com` (bare domain)  | Main app (Nuxt handles normally)                               |
+| `<slug>.portable.example.com`         | Pod editor at `project-<slug>.<ns>.svc.cluster.local:3000`     |
+| `preview.<slug>.portable.example.com` | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
+
+### Middleware Ordering
+
+The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware (`server/middleware/proxy.ts`) due to Nitro's alphabetical middleware ordering. This ensures `event.context.user` is populated before the proxy middleware checks authentication. The WebSocket proxy plugin handles its own auth since Nitro plugins run outside the middleware chain.
 
 ## Architecture Summary
 
