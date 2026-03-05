@@ -7,6 +7,7 @@ export interface CreateProjectPodOptions {
   anthropicApiKey?: string;
   claudeOAuthToken?: string;
   githubToken: string;
+  repoUrl?: string;
 }
 
 export interface K8sConfig {
@@ -89,6 +90,10 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
     { name: "DATABASE_URL", value: options.databaseUrl },
     { name: "GITHUB_TOKEN", value: options.githubToken },
   ];
+
+  if (options.repoUrl) {
+    env.push({ name: "GITHUB_REPO_URL", value: options.repoUrl });
+  }
 
   if (options.claudeOAuthToken) {
     env.push({ name: "CLAUDE_CODE_OAUTH_TOKEN", value: options.claudeOAuthToken });
