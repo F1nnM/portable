@@ -8,6 +8,47 @@
 - **Ingress controller** -- nginx-ingress or similar, handling the wildcard domain
 - **cert-manager** (optional) -- For automatic wildcard TLS certificates via DNS-01 challenge
 
+## Building Container Images
+
+Before deploying, you need to build and push both container images to your registry. Both Dockerfiles use a multi-stage build and require the **repository root** as the Docker build context, since they reference workspace-level files (`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`) and multiple packages.
+
+```bash
+# Build the main app image
+docker build -t ghcr.io/YOUR_ORG/portable-app:0.1.0 -f packages/app/Dockerfile .
+
+# Build the pod server image (includes the editor SPA)
+docker build -t ghcr.io/YOUR_ORG/portable-pod-server:0.1.0 -f packages/pod-server/Dockerfile .
+
+# Push to your registry
+docker push ghcr.io/YOUR_ORG/portable-app:0.1.0
+docker push ghcr.io/YOUR_ORG/portable-pod-server:0.1.0
+```
+
+Then reference your images in Helm values:
+
+```yaml
+image:
+  repository: ghcr.io/YOUR_ORG/portable-app
+  tag: "0.1.0"
+
+podServer:
+  image:
+    repository: ghcr.io/YOUR_ORG/portable-pod-server
+    tag: "0.1.0"
+```
+
+If your registry is private, create a Kubernetes pull secret and reference it in your pod specs:
+
+```bash
+kubectl create secret docker-registry regcred \
+  --namespace portable \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_USERNAME \
+  --docker-password=YOUR_TOKEN
+```
+
+Then add `imagePullSecrets` to any pods that need to pull from the private registry. The main app deployment and each project pod will both need access. For the main app, you can patch the deployment after install or extend the Helm chart. For project pods, the main app creates them programmatically, so you would need to update the pod creation logic in `server/utils/k8s.ts` to include the pull secret.
+
 ## Installation
 
 ```bash
