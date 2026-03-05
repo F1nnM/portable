@@ -29,12 +29,12 @@ Then reference your images in Helm values:
 ```yaml
 image:
   repository: ghcr.io/YOUR_ORG/portable-app
-  tag: "0.1.0"
+  tag: 0.1.0
 
 podServer:
   image:
     repository: ghcr.io/YOUR_ORG/portable-pod-server
-    tag: "0.1.0"
+    tag: 0.1.0
 ```
 
 If your registry is private, create a Kubernetes pull secret and reference it in your pod specs:

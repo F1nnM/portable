@@ -9,7 +9,7 @@ echo "[entrypoint-dev] Starting workspace setup..."
 cd /build/packages/pod-server
 npx tsx -e "
   import { setupWorkspace } from './src/setup.ts';
-  setupWorkspace({
+  await setupWorkspace({
     workspaceDir: process.env.WORKSPACE_DIR || '/workspace',
     githubRepoUrl: process.env.GITHUB_REPO_URL,
     githubToken: process.env.GITHUB_TOKEN,
