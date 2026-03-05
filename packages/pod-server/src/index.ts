@@ -4,7 +4,7 @@ import { app } from "./app.js";
 
 const { injectWebSocket } = createNodeWebSocket({ app });
 
-const port = Number.parseInt(process.env.PORT || "8080", 10);
+const port = Number.parseInt(process.env.PORT || "3000", 10);
 
 const server = serve(
   {

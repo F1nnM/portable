@@ -9,10 +9,10 @@ describe("pod-server smoke tests", () => {
     expect(body).toEqual({ status: "ok" });
   });
 
-  it("returns 200 with text body from /", async () => {
+  it("returns 404 for / when no public directory exists", async () => {
+    // The root route serves static files from ./public.
+    // Without a public directory, it returns 404.
     const response = await app.request("/");
-    expect(response.status).toBe(200);
-    const text = await response.text();
-    expect(text).toBe("Portable Pod Server");
+    expect(response.status).toBe(404);
   });
 });

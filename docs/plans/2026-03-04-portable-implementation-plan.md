@@ -389,7 +389,7 @@ Nitro middleware: parse Host header, validate session, proxy via `h3.proxyReques
 
 > Tasks 7.1 and 7.2 can be parallelized.
 
-### Task 7.1: Hono server with file API `[ ]`
+### Task 7.1: Hono server with file API `[DONE]`
 
 Static SPA serving, file tree (fdir), file read/write, health check.
 
