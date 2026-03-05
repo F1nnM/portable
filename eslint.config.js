@@ -29,6 +29,11 @@ export default antfu(
           varsIgnorePattern: "^_",
         },
       ],
+      // Disable formatting rules that conflict with Prettier
+      "vue/singleline-html-element-content-newline": "off",
+      "vue/html-self-closing": "off",
+      "vue/html-closing-bracket-newline": "off",
+      "unicorn/number-literal-case": "off",
     },
   },
   {

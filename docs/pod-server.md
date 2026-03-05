@@ -72,8 +72,9 @@ Outbound messages (server to browser):
 { "type": "query_start" }
 ```
 
-```json
-{ "type": "sdk_event", "event": { ... } }
+```jsonc
+// event contains the full Claude Agent SDK streaming event
+{ "type": "sdk_event", "event": { "type": "text", "text": "..." } }
 ```
 
 ```json
