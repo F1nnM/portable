@@ -33,21 +33,23 @@ spec:
                   key: postgres-password
             - name: DATABASE_URL
               value: "postgres://portable:$(POSTGRES_PASSWORD)@{{ include "portable.postgres.fullname" . }}:5432/portable"
-            - name: GITHUB_CLIENT_ID
+            - name: NUXT_GITHUB_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: github-client-id
-            - name: GITHUB_CLIENT_SECRET
+            - name: NUXT_GITHUB_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: github-client-secret
-            - name: ENCRYPTION_KEY
+            - name: NUXT_ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "portable.secretName" . }}
                   key: encryption-key
+            - name: NUXT_BASE_URL
+              value: {{ printf "https://%s" .Values.domain | quote }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
