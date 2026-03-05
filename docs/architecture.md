@@ -60,22 +60,22 @@ Key responsibilities:
 
 ### Pod Server (`packages/pod-server`)
 
-Hono HTTP/WebSocket server that runs inside each project pod. Lightweight (~14KB for Hono itself).
+Hono HTTP/WebSocket server that runs inside each project pod. Built with `createApp()` factory in `src/app.ts`.
 
 Endpoints:
 
-- `GET /` -- Serves the editor SPA (static files from `packages/editor` dist)
+- `GET /` -- Serves the editor SPA (static files from `packages/editor` dist via `@hono/node-server/serve-static`)
 - `GET /health` -- Readiness probe for K8s
-- `GET /ws` -- WebSocket bridge between the browser and the Claude Agent SDK
-- `GET /api/files` -- File tree listing (via `fdir`)
-- `GET /api/files/:path` -- Read file content
-- `PUT /api/files/:path` -- Write file content
+- `GET /ws` -- WebSocket bridge between the browser and the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`)
+- `GET /api/files` -- File tree listing (via `fdir`, excludes `node_modules`, `.git`, and other build directories)
+- `GET /api/files/:path` -- Read file content (with path traversal protection)
+- `PUT /api/files/:path` -- Write file content (with path traversal protection, creates parent directories)
 
 The pod server also manages:
 
-- **Dev server supervisor:** Starts the project's dev server (e.g., Nuxt) as a child process with auto-restart on crash and backoff.
-- **Git clone:** Clones the project's GitHub repo into the PVC on first startup.
-- **npm install:** Runs when `node_modules` is missing or `package.json` has changed.
+- **Dev server supervisor** (`src/dev-server.ts`): `DevServerSupervisor` class starts the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
+- **Workspace setup** (`src/setup.ts`): On startup, clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication). Detects the package manager (pnpm/yarn/npm) and installs dependencies if `node_modules` is missing.
+- **Entrypoint** (`scripts/entrypoint.sh`): Runs workspace setup, then exec's the Hono server.
 
 ### Editor SPA (`packages/editor`)
 

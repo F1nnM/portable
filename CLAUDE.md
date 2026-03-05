@@ -24,6 +24,14 @@ portable/
       pages/          Vue pages (login, dashboard, settings, new)
       types/          Shared TypeScript interfaces (Project)
     pod-server/       Hono server that runs inside each project pod
+      src/
+        routes/       API routes (files, health, ws)
+        app.ts        Hono app factory (createApp)
+        index.ts      Entrypoint (server + dev server supervisor)
+        dev-server.ts DevServerSupervisor class
+        setup.ts      Workspace setup (git clone, dependency install)
+      scripts/
+        entrypoint.sh Pod startup script
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
   scaffolds/
     nuxt-postgres/    Project template: Nuxt 3 + Postgres (Drizzle)
@@ -39,7 +47,7 @@ portable/
 ## Tech Stack
 
 - **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth), httpxy (WebSocket proxying)
-- **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, Claude Agent SDK
+- **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, `@anthropic-ai/claude-agent-sdk`, fdir
 - **Editor SPA:** Vue 3, Vite, CodeMirror 6
 - **Infrastructure:** Kubernetes, Helm, k3d (local), Tilt (live dev), Postgres 16
 - **Tooling:** mise (tool management), pnpm (package manager), Node.js 22
@@ -190,6 +198,72 @@ The main app acts as a reverse proxy for all subdomain traffic. The proxy layer 
 ### Middleware Ordering
 
 The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware (`server/middleware/proxy.ts`) due to Nitro's alphabetical middleware ordering. This ensures `event.context.user` is populated before the proxy middleware checks authentication. The WebSocket proxy plugin handles its own auth since Nitro plugins run outside the middleware chain.
+
+## Pod Server
+
+The pod server (`packages/pod-server`) is a Hono HTTP/WebSocket server that runs inside each project pod. It is built with `createApp()` in `src/app.ts`, which returns the Hono app and a `registerWsRoute` function for injecting the WebSocket upgrade helper.
+
+### File API
+
+`src/routes/files.ts` provides three endpoints for workspace file access:
+
+- `GET /api/files` -- Returns a sorted list of relative file paths in the workspace, crawled with `fdir`. Excludes `node_modules`, `.git`, `.nuxt`, `.output`, `dist`, `coverage`, and other build directories.
+- `GET /api/files/:path` -- Returns the UTF-8 content of a single file. Returns 404 for missing files, 400 for directories, 403 for path traversal attempts.
+- `PUT /api/files/:path` -- Writes the request body to a file. Creates parent directories if needed. Returns 403 for path traversal attempts.
+
+All file operations are scoped to `WORKSPACE_DIR` (default `/workspace`). Path traversal is prevented by resolving the path and checking it starts with the workspace directory.
+
+### WebSocket Bridge
+
+`src/routes/ws.ts` bridges the browser to the Claude Agent SDK via WebSocket at `GET /ws`.
+
+**Inbound messages (browser to server):**
+
+- `{ "type": "user_message", "content": "..." }` -- Starts a new Claude query. If a query is already active, the current query is interrupted and the new message is queued as a pending prompt.
+- `{ "type": "interrupt" }` -- Interrupts the current active query.
+
+**Outbound messages (server to browser):**
+
+- `{ "type": "query_start" }` -- Sent when a query begins.
+- `{ "type": "sdk_event", "event": ... }` -- Claude Agent SDK streaming events (text deltas, tool use, etc.).
+- `{ "type": "query_end" }` -- Sent when a query finishes.
+- `{ "type": "error", "message": "..." }` -- Error messages (invalid JSON, SDK errors, unknown message types).
+
+The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"` and `settingSources: ["project"]`. The working directory is set to `WORKSPACE_DIR`.
+
+### Dev Server Supervisor
+
+`src/dev-server.ts` exports the `DevServerSupervisor` class, which manages the project's dev server (e.g., Nuxt, Vite) as a child process.
+
+- **Auto-restart:** Automatically restarts the dev server if it crashes.
+- **Exponential backoff:** Restart delay starts at 1 second and doubles on each consecutive crash, capped at 30 seconds. Backoff resets after the process runs stably for 10 seconds.
+- **Graceful shutdown:** On `stop()`, sends SIGTERM to the child process and cancels any pending restart timer.
+- **Port injection:** Sets `PORT=3001` in the child process environment.
+
+The supervisor is started in `src/index.ts` after the Hono server begins listening. The command defaults to `DEV_SERVER_COMMAND` env var (or `pnpm dev`).
+
+### Workspace Setup
+
+`src/setup.ts` exports `setupWorkspace()`, which runs two steps:
+
+1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
+2. **Dependency install** -- If `node_modules` is missing, detects the package manager (pnpm via `pnpm-lock.yaml`, yarn via `yarn.lock`, fallback to npm) and runs install.
+
+### Entrypoint
+
+`scripts/entrypoint.sh` is the pod container entrypoint. It calls `setupWorkspace()` via a Node.js one-liner, then exec's `node dist/index.js` to start the Hono server (which also starts the dev server supervisor).
+
+### Pod Server Environment Variables
+
+| Variable             | Description                                     | Default      |
+| -------------------- | ----------------------------------------------- | ------------ |
+| `WORKSPACE_DIR`      | Path to the project workspace                   | `/workspace` |
+| `GITHUB_REPO_URL`    | Git repo URL for initial clone                  | (none)       |
+| `GITHUB_TOKEN`       | GitHub token for authenticated clone            | (none)       |
+| `DEV_SERVER_COMMAND` | Command to start the project's dev server       | `pnpm dev`   |
+| `PORT`               | Hono server listen port                         | `3000`       |
+| `DATABASE_URL`       | Connection string for the project's Postgres DB | (none)       |
+| `ANTHROPIC_API_KEY`  | User's Anthropic API key (injected by main app) | (none)       |
 
 ## Architecture Summary
 

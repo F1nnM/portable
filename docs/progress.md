@@ -217,3 +217,38 @@ Also renamed `baseUrl` to `appBaseUrl` in the Nuxt runtime config to avoid colli
 ### Phase 6 summary
 
 Phase 6 added the subdomain-based reverse proxy that completes the request path from browser to project pod. HTTP requests are proxied via h3's `proxyRequest`, WebSocket connections via httpxy's `proxyUpgrade`. All proxy requests require authentication and verify project ownership and running status. The proxy layer reuses the auth middleware for HTTP requests and handles its own auth for WebSocket upgrades. Ready for Phase 7 (Pod Server).
+
+---
+
+## Phase 7: Pod Server
+
+**Status:** Complete
+
+### Task 7.1: Hono server with file API
+
+Refactored the pod-server into a `createApp()` factory pattern in `src/app.ts` to support WebSocket upgrade injection and test isolation. Created `src/routes/files.ts` with three endpoints: `GET /api/files` (file tree via `fdir` with exclusions for `node_modules`, `.git`, `.nuxt`, `dist`, etc.), `GET /api/files/:path` (read file content as UTF-8), and `PUT /api/files/:path` (write file content, auto-creating parent directories). All file operations are scoped to `WORKSPACE_DIR` with path traversal protection. Added `fdir` as a dependency.
+
+### Task 7.2: Agent SDK WebSocket bridge
+
+Created `src/routes/ws.ts` implementing a WebSocket bridge between the browser and the Claude Agent SDK. Uses `query()` from `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"` and `settingSources: ["project"]`. The bridge forwards SDK streaming events to the browser as JSON. Supports `user_message` (start query), `interrupt` (cancel active query), and automatic interrupt-and-requeue when a new message arrives during an active query. Connection cleanup calls `query.close()` on disconnect. Added `@anthropic-ai/claude-agent-sdk` and `@types/ws` as dependencies.
+
+### Task 7.3: Pod startup and dev server supervisor
+
+Created three modules:
+
+- `src/dev-server.ts` -- `DevServerSupervisor` class that manages the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
+- `src/setup.ts` -- `setupWorkspace()` function that clones the GitHub repo into the workspace if empty (with `GITHUB_TOKEN` injection for auth), then installs dependencies if `node_modules` is missing. Auto-detects the package manager (pnpm/yarn/npm) from lock files. Ignores `lost+found` on empty PVCs.
+- `scripts/entrypoint.sh` -- Pod entrypoint that runs workspace setup then exec's the Hono server.
+
+Updated `src/index.ts` to wire the dev server supervisor (starts after Hono begins listening, stops on SIGTERM/SIGINT). Changed the default port from 8080 to 3000. Updated the Dockerfile to enable pnpm via corepack in the runtime stage and use the entrypoint script as CMD.
+
+### Code review fixes
+
+- Verified path traversal protection covers all edge cases (resolved path must start with workspace dir + separator or equal workspace dir exactly)
+- Confirmed WebSocket bridge properly cleans up SDK queries on disconnect and error
+- Fixed dev server supervisor to handle both spawn errors and exit events correctly
+- Ensured Dockerfile runtime stage includes pnpm for projects that use it
+
+### Phase 7 summary
+
+Phase 7 implemented the complete pod server: a file API for workspace file access with path traversal protection, a WebSocket bridge to the Claude Agent SDK with streaming events and interrupt support, a dev server supervisor with exponential backoff restart, and a workspace setup module for git clone and dependency installation. The Hono server listens on port 3000 and the dev server on port 3001, matching the main app proxy routing. The pod entrypoint script orchestrates workspace setup before starting the server. Ready for Phase 8 (Editor SPA).
