@@ -463,7 +463,7 @@ WebSocket chat. Streaming markdown messages. Mobile keyboard input. Tool usage i
 - Create: `packages/editor/src/components/ChatMessage.vue`
 - Create: `packages/editor/src/components/ChatInput.vue`
 
-### Task 8.3: Files view `[ ]`
+### Task 8.3: Files view `[DONE]`
 
 File tree, tap opens CodeMirror 6 full-screen, back button, read-only default with edit toggle. Use the frontend-design skill.
 
