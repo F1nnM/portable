@@ -19,18 +19,37 @@ POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
 # Docker builds
 # ---------------------------------------------------------------------------
 
-# Main app (Nuxt)
+# Main app (Nuxt) — targets the dev stage for live_update with HMR
 docker_build(
     APP_IMAGE,
     context=".",
     dockerfile="packages/app/Dockerfile",
+    target="dev",
+    live_update=[
+        fall_back_on(["packages/app/package.json", "pnpm-lock.yaml"]),
+        sync("packages/app/", "/app/packages/app/"),
+    ],
 )
 
-# Pod server (Hono + editor SPA)
+# Pod server (Hono + editor SPA) — targets the dev stage for live_update with tsx watch
 docker_build(
     POD_SERVER_IMAGE,
     context=".",
     dockerfile="packages/pod-server/Dockerfile",
+    target="dev",
+    live_update=[
+        fall_back_on([
+            "packages/pod-server/package.json",
+            "packages/editor/package.json",
+            "pnpm-lock.yaml",
+        ]),
+        sync("packages/pod-server/", "/build/packages/pod-server/"),
+        sync("packages/editor/", "/build/packages/editor/"),
+        run(
+            "cd /build && pnpm --filter @portable/editor build",
+            trigger=["packages/editor/"],
+        ),
+    ],
 )
 
 # ---------------------------------------------------------------------------
