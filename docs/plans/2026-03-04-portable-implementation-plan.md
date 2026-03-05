@@ -436,11 +436,11 @@ Entrypoint: git clone (if needed), npm install, start dev server with auto-resta
 
 > Task 8.1 first, then 8.2-8.4 can be parallelized.
 
-### Task 8.1: Editor SPA scaffolding and navigation `[ ]`
+### Task 8.1: Editor SPA scaffolding and navigation `[DONE]`
 
-Vue 3 SPA, bottom tab nav (Chat, Files, Preview), VS Code dark theme, mobile layout. Use the frontend-design skill.
+Vue 3 SPA with vue-router, bottom tab nav (Chat, Files, Preview), dark theme with CSS variables (#0d1117 bg, #58a6ff accent), mobile-first 100dvh layout. SVG icons per tab, active state with top border indicator. Placeholder views with data-testid attributes. Tests: 4 navigation tests + 2 smoke tests.
 
-**Tests:** Bottom nav renders three tabs. Tab switching shows correct view. Active tab highlighted.
+**Tests:** Bottom nav renders three tabs. Tab switching shows correct view. Active tab highlighted. Default route shows ChatView.
 
 **Files:**
 
