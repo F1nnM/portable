@@ -11,16 +11,18 @@ portable/
   packages/
     app/              Nuxt 3 full-stack main app (auth, project management, proxy)
       server/
-        api/          API endpoints (health, auth/me)
+        api/          API endpoints (health, auth/me, settings/credential, projects CRUD)
         routes/       Route handlers (auth/github, auth/logout)
         middleware/   Server middleware (session auth)
         db/           Drizzle schema and migrations
         plugins/      Nitro plugins (auto-migration on startup)
-        utils/        Shared server utilities (db, auth, crypto)
+        utils/        Shared server utilities (db, auth, crypto, slug)
       composables/    Vue composables (useAuth)
+      components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)
       layouts/        App layouts (default with topbar + bottom nav)
       pages/          Vue pages (login, dashboard, settings, new)
+      types/          Shared TypeScript interfaces (Project)
     pod-server/       Hono server that runs inside each project pod
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
   scaffolds/

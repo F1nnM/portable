@@ -60,9 +60,8 @@ List all projects for the authenticated user.
     "id": "uuid",
     "name": "My Project",
     "slug": "my-project",
-    "scaffoldType": "nuxt-postgres",
-    "githubRepoUrl": "https://github.com/user/my-project",
-    "status": "running",
+    "scaffoldId": "nuxt-postgres",
+    "status": "stopped",
     "createdAt": "2026-03-04T12:00:00Z",
     "updatedAt": "2026-03-04T12:00:00Z"
   }
@@ -71,14 +70,13 @@ List all projects for the authenticated user.
 
 ### `POST /api/projects`
 
-Create a new project. Creates a GitHub repo, pushes scaffold files, creates a per-project database, allocates a PVC, and starts the pod.
+Create a new project. Generates a URL-safe slug from the project name (lowercase, hyphens, max 50 chars). GitHub repo creation, scaffold push, per-project database, and pod startup are wired in later phases.
 
 **Request:**
 
 ```json
 {
-  "name": "My Project",
-  "scaffold": "nuxt-postgres"
+  "name": "My Project"
 }
 ```
 
@@ -89,11 +87,14 @@ Create a new project. Creates a GitHub repo, pushes scaffold files, creates a pe
   "id": "uuid",
   "name": "My Project",
   "slug": "my-project",
-  "scaffoldType": "nuxt-postgres",
-  "githubRepoUrl": "https://github.com/user/my-project",
-  "status": "running"
+  "scaffoldId": "nuxt-postgres",
+  "status": "stopped",
+  "createdAt": "2026-03-04T12:00:00Z",
+  "updatedAt": "2026-03-04T12:00:00Z"
 }
 ```
+
+**Errors:** 400 if name is missing, empty, or exceeds 100 characters. 409 if the generated slug conflicts with an existing project for the same user.
 
 ### `PATCH /api/projects/:slug`
 
@@ -107,17 +108,21 @@ Rename a project.
 }
 ```
 
+**Errors:** 400 if name is missing, empty, or exceeds 100 characters. 404 if the project does not exist or does not belong to the authenticated user.
+
 ### `DELETE /api/projects/:slug`
 
-Delete a project. Stops the pod (if running), deletes the PVC, and drops the project database. Does not delete the GitHub repo.
+Delete a project. Currently deletes the database record only. Pod cleanup, PVC deletion, and database drop will be wired in Phase 5.
+
+**Errors:** 404 if the project does not exist or does not belong to the authenticated user.
 
 ### `POST /api/projects/:slug/start`
 
-Start a stopped project. Creates the pod, headless service, and (if needed) the PVC.
+Start a stopped project. Currently returns 501 (not implemented). K8s pod creation will be wired in Phase 5.
 
 ### `POST /api/projects/:slug/stop`
 
-Stop a running project. Deletes the pod and headless service. The PVC persists.
+Stop a running project. Currently returns 501 (not implemented). K8s pod deletion will be wired in Phase 5.
 
 ## Settings
 
@@ -179,4 +184,4 @@ Health check endpoint.
 
 ---
 
-Note: Authentication routes (`/auth/*`, `/api/auth/me`) and `/api/health` are implemented (Phases 1-2). Project, settings, and scaffold endpoints are planned for Phases 3-4. See `docs/progress.md` for current status.
+Note: Authentication routes (`/auth/*`, `/api/auth/me`), `/api/health`, project CRUD (`/api/projects`), and settings (`/api/settings/credential`) are implemented (Phases 1-3). Project start/stop endpoints return 501 until K8s integration in Phase 5. Scaffold endpoints are planned for Phase 4. See `docs/progress.md` for current status.

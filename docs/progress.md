@@ -104,3 +104,31 @@ Created a `useAuth()` composable providing reactive user state, `refresh()`, and
 ### Phase 2 summary
 
 Phase 2 added the complete database and authentication layer: Drizzle ORM with auto-migrations, AES-256-GCM credential encryption, GitHub OAuth via Arctic with session management, and a mobile-first UI with auth guards and a responsive layout. The main app now has working login/logout, session validation on every request, and placeholder pages for all protected routes. Ready for Phase 3 (Project Management).
+
+---
+
+## Phase 3: Project Management
+
+**Status:** Complete
+
+### Task 3.1: Anthropic credential management
+
+Added `encryptedAnthropicKey` column to the `users` table for storing a user-level default Anthropic credential. Created `PUT /api/settings/credential` (encrypts and stores the key with AES-256-GCM) and `GET /api/settings/credential` (returns `{ hasCredential: true/false }` without exposing the key). Updated the settings page with a functional credential management form. Generated the first Drizzle migration (`0000_useful_wallow.sql`).
+
+### Task 3.2: Project CRUD API
+
+Built the full project CRUD layer. Created a slug utility (`server/utils/slug.ts`) that generates URL-safe slugs (lowercase, hyphens, special character removal, 50-char max). Implemented five endpoints: `POST /api/projects` (create with auto-slug), `GET /api/projects` (list user's projects), `PATCH /api/projects/[slug]` (rename), `DELETE /api/projects/[slug]` (delete). Added `POST /api/projects/[slug]/start` and `POST /api/projects/[slug]/stop` as 501 placeholders for K8s integration in Phase 5. Extracted the shared `Project` interface to `types/project.ts`.
+
+### Task 3.3: Dashboard UI
+
+Built the dashboard page with a project list supporting loading, error, and empty states. Created the `ProjectCard` component with status badges (color-coded by project status), start/stop buttons, rename via bottom sheet dialog, and delete with confirmation. The dashboard fetches projects from the API and provides full CRUD interactions.
+
+### Code review fixes
+
+- Added auth guards to start/stop placeholder endpoints (were missing 401 checks)
+- Extracted shared `Project` interface to `types/project.ts` (was duplicated between components)
+- Added 100-character max length validation on project names in create and rename endpoints
+
+### Phase 3 summary
+
+Phase 3 added project management: Anthropic credential storage (encrypted at rest on the users table), a complete project CRUD API with slug generation, and a dashboard UI with project cards. The settings page now supports credential management. Start/stop endpoints are 501 placeholders pending K8s integration in Phase 5. Ready for Phase 4 (Scaffold System & GitHub Integration).

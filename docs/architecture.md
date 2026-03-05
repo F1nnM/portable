@@ -135,14 +135,15 @@ Defined with Drizzle ORM in `packages/app/server/db/schema.ts`. Migrations are g
 
 ```sql
 users
-  id                      UUID PRIMARY KEY (default random)
-  github_id               INTEGER UNIQUE NOT NULL
-  username                TEXT NOT NULL
-  display_name            TEXT
-  avatar_url              TEXT
-  encrypted_github_token  TEXT           -- AES-256-GCM encrypted (iv:tag:ciphertext format)
-  created_at              TIMESTAMPTZ (default now)
-  updated_at              TIMESTAMPTZ (default now)
+  id                       UUID PRIMARY KEY (default random)
+  github_id                INTEGER UNIQUE NOT NULL
+  username                 TEXT NOT NULL
+  display_name             TEXT
+  avatar_url               TEXT
+  encrypted_github_token   TEXT           -- AES-256-GCM encrypted (iv:tag:ciphertext format)
+  encrypted_anthropic_key  TEXT           -- AES-256-GCM encrypted (user-level default credential)
+  created_at               TIMESTAMPTZ (default now)
+  updated_at               TIMESTAMPTZ (default now)
 
 projects
   id                      UUID PRIMARY KEY (default random)

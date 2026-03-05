@@ -254,7 +254,7 @@ Login page (public), dashboard/settings/new (protected). Client-side auth guard.
 
 ---
 
-## Phase 3: Project Management
+## Phase 3: Project Management `[COMPLETE]`
 
 > Tasks 3.1 and 3.2 can be parallelized.
 
