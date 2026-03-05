@@ -313,9 +313,9 @@ Minimal Nuxt 3 + Postgres (Drizzle) scaffold. Includes `CLAUDE.md` for Claude Co
 
 - Create: `scaffolds/nuxt-postgres/` (all scaffold files)
 
-### Task 4.2: GitHub repo creation and scaffold push `[ ]`
+### Task 4.2: GitHub repo creation and scaffold push `[DONE]`
 
-Octokit: create repo, push scaffold via Git Data API. List available scaffolds.
+Octokit: create repo, push scaffold via Git Data API. List available scaffolds. Implemented GitHub utility module with listScaffolds, readScaffoldFiles, createGitHubRepo, pushScaffoldToRepo, and getDecryptedGithubToken. Created scaffolds listing API endpoint. Wired GitHub repo creation into project creation with error handling.
 
 **Tests:** `listScaffolds()` returns available scaffolds. `createRepo()` calls GitHub API correctly (mock Octokit). `pushScaffold()` creates initial commit with all scaffold files.
 

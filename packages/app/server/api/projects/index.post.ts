@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { projects } from "../../db/schema";
 import { useDb } from "../../utils/db";
+import { createGitHubRepo, getDecryptedGithubToken, pushScaffoldToRepo } from "../../utils/github";
 import { generateSlug } from "../../utils/slug";
 
 export default defineEventHandler(async (event) => {
@@ -48,6 +49,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Create the DB record first
   const result = await db
     .insert(projects)
     .values({
@@ -62,9 +64,36 @@ export default defineEventHandler(async (event) => {
       slug: projects.slug,
       scaffoldId: projects.scaffoldId,
       status: projects.status,
+      repoUrl: projects.repoUrl,
       createdAt: projects.createdAt,
     });
 
+  const project = result[0];
+
+  // Create GitHub repo and push scaffold files
+  try {
+    const githubToken = await getDecryptedGithubToken(user.id);
+    const repo = await createGitHubRepo(githubToken, slug);
+    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
+
+    // Update the project with the repo URL
+    await db
+      .update(projects)
+      .set({ repoUrl: repo.htmlUrl, updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+
+    project.repoUrl = repo.htmlUrl;
+  } catch (err) {
+    // If GitHub operations fail, set status to "error" but keep the DB record
+    console.error("Failed to create GitHub repo:", err);
+    await db
+      .update(projects)
+      .set({ status: "error", updatedAt: new Date() })
+      .where(eq(projects.id, project.id));
+
+    project.status = "error";
+  }
+
   setResponseStatus(event, 201);
-  return { project: result[0] };
+  return { project };
 });
