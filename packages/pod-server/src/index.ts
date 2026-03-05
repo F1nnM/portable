@@ -1,8 +1,10 @@
 import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
-import { app } from "./app.js";
+import { createApp } from "./app.js";
 
-const { injectWebSocket } = createNodeWebSocket({ app });
+const { app, registerWsRoute } = createApp();
+const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+registerWsRoute(upgradeWebSocket);
 
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 

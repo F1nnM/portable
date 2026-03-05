@@ -401,15 +401,17 @@ Static SPA serving, file tree (fdir), file read/write, health check.
 - Create: `packages/pod-server/src/routes/files.ts`
 - Create: `packages/pod-server/src/routes/health.ts`
 
-### Task 7.2: Agent SDK WebSocket bridge `[ ]`
+### Task 7.2: Agent SDK WebSocket bridge `[DONE]`
 
-WebSocket bridging browser to Claude Agent SDK. V1 `query()` with async generator for multi-turn. Forward SDK events as JSON.
+WebSocket bridging browser to Claude Agent SDK. V1 `query()` with async generator for multi-turn. Forward SDK events as JSON. Refactored app.ts to export createApp() factory for injecting upgradeWebSocket helper. Supports interrupt, disconnect cleanup, and automatic interrupt+requeue when a new message arrives during an active query.
 
-**Tests:** WebSocket connection established. User message forwarded to SDK. SDK streaming events forwarded to browser. Interrupt message cancels current query. Connection cleanup on disconnect.
+**Tests:** WebSocket connection established. User message forwarded to SDK. SDK streaming events forwarded to browser. Interrupt message cancels current query. Connection cleanup on disconnect. SDK errors forwarded as error messages. New message during active query interrupts and starts new query.
 
 **Files:**
 
 - Create: `packages/pod-server/src/routes/ws.ts`
+- Modify: `packages/pod-server/src/app.ts`
+- Modify: `packages/pod-server/src/index.ts`
 
 ### Task 7.3: Pod startup and dev server supervisor `[ ]`
 
