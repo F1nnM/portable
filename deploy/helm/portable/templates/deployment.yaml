@@ -65,8 +65,7 @@ spec:
             - configMapRef:
                 name: {{ include "portable.configMapName" . }}
           livenessProbe:
-            httpGet:
-              path: /api/health
+            tcpSocket:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 30

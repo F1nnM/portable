@@ -31,7 +31,8 @@ portable/
         dev-server.ts DevServerSupervisor class
         setup.ts      Workspace setup (git clone, dependency install)
       scripts/
-        entrypoint.sh Pod startup script
+        entrypoint.sh    Pod startup script
+        entrypoint-dev.sh Dev startup script (used by Tilt live_update)
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
       src/
         views/        Route views (ChatView, FilesView, PreviewView)
@@ -44,12 +45,14 @@ portable/
     nuxt-postgres/    Project template: Nuxt 3 + Postgres (Drizzle)
   deploy/
     helm/portable/    Helm chart for Kubernetes deployment
-      templates/      K8s resource templates (deployment, service, ingress, postgres, RBAC, certificate, NOTES.txt)
+      templates/      K8s resource templates (deployment, service, ingress, postgres, RBAC, certificate, networkpolicy, NOTES.txt)
       values.yaml     Chart values with comprehensive documentation comments
     dev-values.yaml   Development overrides for local k3d
   docs/               Architecture, development, deployment, and API docs
   ctlptl-config.yaml  Declares k3d cluster + registry for ctlptl
   Tiltfile            Live development via Tilt (builds, deploys, watches)
+  .github/
+    workflows/        CI and release workflows (ci.yml, release.yml)
   .dockerignore       Shared Docker ignore for both container builds
 ```
 
@@ -309,6 +312,19 @@ Full-screen iframe that loads the project's dev server at `preview.<hostname>`. 
 The main app (Nuxt) handles authentication (GitHub OAuth), project CRUD, Kubernetes pod lifecycle, and acts as an auth-checking reverse proxy. Each project gets its own K8s pod running the pod server (Hono) which serves the editor SPA, provides file access APIs, and bridges WebSocket connections to the Claude Agent SDK. Subdomain routing: `<project>.domain` goes to the editor, `preview.<project>.domain` goes to the dev server.
 
 See `docs/architecture.md` for the full architecture diagram and component details.
+
+## Health Checks
+
+The main app exposes `GET /api/health` which verifies database connectivity by running `SELECT 1`. Returns `{ status: "ok" }` on success or 503 when the database is unavailable. The Helm deployment uses two distinct probes:
+
+- **Liveness probe:** TCP socket check on the HTTP port. This avoids restarting the pod when only the database is temporarily unavailable.
+- **Readiness probe:** HTTP GET to `/api/health`. Removes the pod from service endpoints when the database is unreachable, so traffic is not routed to an unhealthy instance.
+
+## Security
+
+All containers run with security contexts that drop all Linux capabilities, set a read-only root filesystem, and prevent privilege escalation (`allowPrivilegeEscalation: false`, `runAsNonRoot: true`). This applies to the main app deployment, the Postgres StatefulSet, and dynamically created project pods. The Dockerfiles for both the main app and pod-server create and switch to a non-root user.
+
+A NetworkPolicy (`deploy/helm/portable/templates/networkpolicy.yaml`) isolates project pods: they can only receive ingress from the main app pod and can only make DNS queries and egress to the internet. Pod-to-pod traffic between different projects is denied.
 
 ## Key Design Decisions
 

@@ -314,3 +314,67 @@ Finalized the Helm chart at `deploy/helm/portable/`:
 ### Phase 9 summary
 
 Phase 9 finalized the Helm chart with production-readiness improvements: a conditional cert-manager Certificate resource for automatic wildcard TLS, post-install NOTES.txt with setup instructions, and thorough values.yaml documentation. All nine implementation phases are now complete.
+
+---
+
+## Post-Phase 9 Review Fixes
+
+**Status:** Complete
+
+A comprehensive review pass after Phase 9 addressed hardening, CI/CD, documentation accuracy, and operational improvements across the entire codebase.
+
+### 1. GITHUB_REPO_URL injected into project pods
+
+The `GITHUB_REPO_URL` environment variable was not being passed to project pods, so workspace cloning did not work. Fixed `server/utils/k8s.ts` to include `GITHUB_REPO_URL` in the pod container env.
+
+### 2. NUXT_APP_BASE_URL protocol derived from certManager.enabled
+
+The Helm chart previously required `NUXT_PUBLIC_DOMAIN` and hardcoded `https://` for `NUXT_APP_BASE_URL`. The protocol is now derived from `certManager.enabled` (https when TLS is enabled, http otherwise), and `NUXT_PUBLIC_DOMAIN` was removed from the ConfigMap.
+
+### 3. Security contexts on all containers
+
+Added security contexts (`runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, `drop: ALL` capabilities) to the main app Deployment, the Postgres StatefulSet, and dynamically created project pods. Both Dockerfiles were updated to create and run as a non-root user.
+
+### 4. development.md project structure updated
+
+Updated `docs/development.md` to reflect the actual directory structure and test descriptions, correcting stale references from earlier phases.
+
+### 5. deployment.md image build instructions
+
+Added container image build and push instructions to `docs/deployment.md` for both the main app and pod-server images.
+
+### 6. WebSocket annotations as defaults in values.yaml
+
+Moved the nginx WebSocket/proxy annotations (`proxy-read-timeout`, `proxy-send-timeout`, `proxy-buffering`) from optional overrides to the default `ingress.annotations` in `values.yaml`, so WebSocket connections work out of the box.
+
+### 7. NetworkPolicy for project pod isolation
+
+Added `deploy/helm/portable/templates/networkpolicy.yaml` that restricts project pod traffic: ingress only from the main app, egress only for DNS and internet. Pod-to-pod communication between different projects is denied.
+
+### 8. Health endpoint verifies DB connectivity
+
+`GET /api/health` now executes `SELECT 1` against the database and returns 503 when the database is unavailable, instead of always returning 200.
+
+### 9. Lint fixes (ESLint/Prettier conflicts resolved)
+
+Resolved all ESLint and Prettier formatting conflicts across the codebase. Fixed invalid markdown lint warnings in documentation files.
+
+### 10. CLAUDE_CODE_OAUTH_TOKEN added to CLAUDE.md
+
+Added the `CLAUDE_CODE_OAUTH_TOKEN` environment variable to the Pod Server Environment Variables table in CLAUDE.md. Also removed a stale phase reference and corrected a K8s Secret comment.
+
+### 11. Tiltfile live_update with dev stages in Dockerfiles
+
+Added `live_update` blocks to the Tiltfile so file changes sync directly into running containers without a full image rebuild. Both Dockerfiles gained dev-specific stages, and `entrypoint-dev.sh` was added to the pod-server for the dev workflow.
+
+### 12. GitHub Actions CI and release workflows
+
+Added `.github/workflows/ci.yml` (runs lint, typecheck, and tests on every push and PR) and `.github/workflows/release.yml` (builds and pushes container images on version tags).
+
+### 13. Liveness probe uses TCP
+
+Changed the Kubernetes liveness probe from HTTP (`/api/health`) to TCP socket check. This prevents pod restarts when the database is temporarily unavailable -- only the readiness probe (HTTP) removes the pod from service endpoints.
+
+### 14. entrypoint.sh/entrypoint-dev.sh: setupWorkspace() properly awaited
+
+Fixed `setupWorkspace()` calls in both entrypoint scripts to be properly awaited. Previously the promise was not awaited, so the server could start before workspace setup completed.
