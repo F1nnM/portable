@@ -150,6 +150,7 @@ export async function startProject(userId: string, slug: string): Promise<void> 
         databaseUrl,
         githubToken,
         anthropicApiKey,
+        repoUrl: project.repoUrl ?? undefined,
       });
     } catch (err: unknown) {
       if (!isK8sAlreadyExists(err)) throw err;
