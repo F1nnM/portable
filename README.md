@@ -73,6 +73,18 @@ tilt up                               # Build, deploy, watch
 # Open http://portable.127.0.0.1.nip.io
 ```
 
+### Required Environment Variables
+
+The main app requires these environment variables (set via Helm values or directly):
+
+| Variable                    | Description                                                  |
+| --------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`              | Postgres connection string                                   |
+| `NUXT_GITHUB_CLIENT_ID`     | GitHub OAuth App client ID                                   |
+| `NUXT_GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret                               |
+| `NUXT_ENCRYPTION_KEY`       | 32-byte hex key for credential encryption                    |
+| `NUXT_BASE_URL`             | Public URL of the app (e.g., `https://portable.example.com`) |
+
 See `docs/development.md` for the full development guide.
 
 ## License

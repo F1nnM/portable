@@ -38,6 +38,16 @@ helm install portable deploy/helm/portable \
 | `postgres.password`   | Password for the Postgres instance                       |
 | `encryptionKey`       | 32-byte hex string for AES-256-GCM credential encryption |
 
+These Helm values are translated into environment variables for the main app container:
+
+| Helm Value            | Environment Variable        | Nuxt Runtime Config Key |
+| --------------------- | --------------------------- | ----------------------- |
+| `github.clientId`     | `NUXT_GITHUB_CLIENT_ID`     | `githubClientId`        |
+| `github.clientSecret` | `NUXT_GITHUB_CLIENT_SECRET` | `githubClientSecret`    |
+| `encryptionKey`       | `NUXT_ENCRYPTION_KEY`       | `encryptionKey`         |
+| (from postgres)       | `DATABASE_URL`              | (direct env access)     |
+| `domain`              | `NUXT_BASE_URL`             | `baseUrl`               |
+
 ### Generating an encryption key
 
 ```bash

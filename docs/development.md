@@ -29,6 +29,36 @@ tilt up
 
 After `tilt up`, open http://portable.127.0.0.1.nip.io in your browser. Tilt builds the Docker images, pushes them to the local k3d registry, deploys via Helm, and watches for code changes.
 
+## Environment Variables
+
+The main app requires these environment variables. In the k3d dev environment, they are set via `deploy/dev-values.yaml` and injected by the Helm chart.
+
+| Variable                    | Description                                           | Dev Default                        |
+| --------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| `DATABASE_URL`              | Postgres connection string                            | Set by Helm chart                  |
+| `NUXT_GITHUB_CLIENT_ID`     | GitHub OAuth App client ID                            | `dev-client-id`                    |
+| `NUXT_GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret                        | `dev-client-secret`                |
+| `NUXT_ENCRYPTION_KEY`       | 32-byte hex key for AES-256-GCM credential encryption | `aabb...` (dummy 64 hex)           |
+| `NUXT_BASE_URL`             | Public URL of the app (for OAuth callback URLs)       | `http://portable.127.0.0.1.nip.io` |
+
+To use real GitHub OAuth locally, create a GitHub OAuth App (homepage: `http://portable.127.0.0.1.nip.io`, callback: `http://portable.127.0.0.1.nip.io/auth/github/callback`) and override the values in `deploy/dev-values.yaml`.
+
+## Database
+
+The shared Postgres instance runs inside the k3d cluster as a StatefulSet. Drizzle ORM migrations run automatically when the main app starts (via `server/plugins/migrate.ts`).
+
+To manually manage the schema during development:
+
+```bash
+# Generate migration files from schema changes
+pnpm --filter @portable/app db:generate
+
+# Push schema directly to database (skips migration files, useful for rapid iteration)
+pnpm --filter @portable/app db:push
+```
+
+The schema is defined in `packages/app/server/db/schema.ts` using Drizzle ORM. The Drizzle Kit config is in `packages/app/drizzle.config.ts`.
+
 ## How the Dev Environment Works
 
 Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and any project pods. No processes run on the host outside of K8s. This is a deliberate architectural constraint to keep networking simple and avoid discrepancies between local and production environments.
@@ -90,12 +120,35 @@ Pre-commit hooks (Husky + lint-staged) automatically run ESLint fix and Prettier
 ```
 packages/
   app/                 Nuxt 3 main app
+    composables/
+      useAuth.ts       Auth state composable (user, refresh, logout)
+    layouts/
+      default.vue      Main layout (topbar, bottom nav, content area)
+    middleware/
+      auth.global.ts   Client-side auth guard (redirects to /login)
+    pages/
+      login.vue        Login page (GitHub OAuth button, no layout)
+      index.vue        Dashboard (placeholder)
+      settings.vue     Settings page (placeholder)
+      new.vue          New project page (placeholder)
     server/
-      api/             API endpoints (currently: health.get.ts)
-    pages/             Vue pages (currently: index.vue)
-    tests/             Vitest tests (smoke.test.ts)
+      api/             API endpoints (health, auth/me)
+      routes/          Route handlers (auth/github, auth/github/callback, auth/logout)
+      middleware/
+        auth.ts        Session validation middleware (attaches user to context)
+      db/
+        schema.ts      Drizzle ORM schema (users, projects, sessions)
+        migrations/    Generated Drizzle migrations
+      plugins/
+        migrate.ts     Auto-migrate on server startup
+      utils/
+        db.ts          Database connection singleton
+        auth.ts        GitHub OAuth client, session CRUD
+        crypto.ts      AES-256-GCM encrypt/decrypt
+    drizzle.config.ts  Drizzle Kit configuration
+    tests/             Vitest tests
     Dockerfile         Multi-stage production build
-    nuxt.config.ts     Nuxt configuration
+    nuxt.config.ts     Nuxt configuration (runtimeConfig, CSS, fonts)
     vitest.config.ts   Test configuration
 
   pod-server/          Hono server for project pods

@@ -4,32 +4,47 @@ The main app (Nuxt) exposes REST API routes under `/api/` and auth routes under 
 
 ## Authentication
 
+All auth routes are implemented. Session cookies (`portable_session`) are HTTP-only, SameSite=Lax, and Secure in production.
+
 ### `GET /auth/github`
 
-Redirects to GitHub OAuth authorization page. Scopes requested: `repo`, `read:user`.
+Redirects to GitHub OAuth authorization page. Scopes requested: `repo`, `read:user`. Sets a `github_oauth_state` cookie (10-minute expiry) for CSRF protection.
 
 ### `GET /auth/github/callback`
 
-GitHub OAuth callback. Creates or updates the user record, creates a session, sets a secure HTTP-only cookie, and redirects to the dashboard.
+GitHub OAuth callback. Validates the `code` and `state` parameters against the stored state cookie. Exchanges the code for an access token, fetches the GitHub user profile, encrypts the access token with AES-256-GCM, upserts the user record, creates a 30-day session, sets the `portable_session` cookie, and redirects to `/`.
+
+Returns 400 if the OAuth state is invalid or the authorization code exchange fails.
 
 ### `POST /auth/logout`
 
-Destroys the current session and clears the cookie.
-
-### `GET /api/auth/me`
-
-Returns the authenticated user's profile.
+Destroys the current session in the database (best-effort) and clears the `portable_session` cookie.
 
 **Response:**
 
 ```json
 {
-  "id": "uuid",
-  "username": "github-username",
-  "email": "user@example.com",
-  "hasCredential": true
+  "ok": true
 }
 ```
+
+### `GET /api/auth/me`
+
+Returns the authenticated user's profile. Requires a valid session.
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid",
+  "githubId": 12345,
+  "username": "github-username",
+  "displayName": "Display Name",
+  "avatarUrl": "https://avatars.githubusercontent.com/u/12345"
+}
+```
+
+**Response (401):** Returned if no valid session exists.
 
 ## Projects
 
@@ -164,4 +179,4 @@ Health check endpoint.
 
 ---
 
-Note: Only `/api/health` is currently implemented (Phase 1). All other endpoints are planned for Phases 2-6. See `docs/progress.md` for current status.
+Note: Authentication routes (`/auth/*`, `/api/auth/me`) and `/api/health` are implemented (Phases 1-2). Project, settings, and scaffold endpoints are planned for Phases 3-4. See `docs/progress.md` for current status.

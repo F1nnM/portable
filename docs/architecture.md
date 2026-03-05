@@ -50,11 +50,13 @@ Nuxt 3 full-stack application. Serves the project management UI (dashboard, sett
 
 Key responsibilities:
 
-- **Authentication:** GitHub OAuth via Arctic. Session cookies stored in the `sessions` table.
+- **Authentication:** GitHub OAuth via Arctic. Session cookies stored in the `sessions` table. Server middleware validates cookies on every request.
 - **Project management:** CRUD operations on projects, stored in Postgres.
 - **K8s lifecycle:** Creates/deletes pods, PVCs, and headless services via `@kubernetes/client-node`.
 - **GitHub integration:** Creates repos and pushes scaffold files via Octokit.
 - **Reverse proxy:** Parses the `Host` header to route subdomain traffic to the correct pod. All requests are authenticated before proxying. HTTP via `h3.proxyRequest`, WebSocket via `httpxy`.
+- **Credential encryption:** Stores GitHub tokens and Anthropic API keys encrypted with AES-256-GCM.
+- **Auto-migration:** Drizzle ORM migrations run automatically on server startup via a Nitro plugin.
 
 ### Pod Server (`packages/pod-server`)
 
@@ -129,34 +131,85 @@ Browser -> Ingress -> Main App (proxy middleware)
 
 ## Database Schema
 
+Defined with Drizzle ORM in `packages/app/server/db/schema.ts`. Migrations are generated via `drizzle-kit generate` and applied automatically on server startup.
+
 ```sql
 users
-  id              UUID PRIMARY KEY
-  github_id       INTEGER UNIQUE
-  username        TEXT
-  email           TEXT
-  anthropic_key_encrypted  BYTEA    -- AES-256-GCM encrypted
-  anthropic_key_iv         BYTEA
-  anthropic_key_tag        BYTEA
-  created_at      TIMESTAMPTZ
+  id                      UUID PRIMARY KEY (default random)
+  github_id               INTEGER UNIQUE NOT NULL
+  username                TEXT NOT NULL
+  display_name            TEXT
+  avatar_url              TEXT
+  encrypted_github_token  TEXT           -- AES-256-GCM encrypted (iv:tag:ciphertext format)
+  created_at              TIMESTAMPTZ (default now)
+  updated_at              TIMESTAMPTZ (default now)
 
 projects
-  id              UUID PRIMARY KEY
-  user_id         UUID REFERENCES users(id)
-  name            TEXT
-  slug            TEXT UNIQUE
-  scaffold_type   TEXT
-  github_repo_url TEXT
-  status          TEXT           -- 'running' | 'stopped'
-  pod_ip          TEXT
-  created_at      TIMESTAMPTZ
-  updated_at      TIMESTAMPTZ
+  id                      UUID PRIMARY KEY (default random)
+  user_id                 UUID REFERENCES users(id) NOT NULL
+  name                    TEXT NOT NULL
+  slug                    TEXT NOT NULL
+  scaffold_id             TEXT NOT NULL (default 'nuxt-postgres')
+  status                  project_status NOT NULL (default 'stopped')
+                          -- enum: 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+  encrypted_anthropic_key TEXT           -- AES-256-GCM encrypted
+  pod_name                TEXT
+  repo_url                TEXT
+  created_at              TIMESTAMPTZ (default now)
+  updated_at              TIMESTAMPTZ (default now)
+  UNIQUE(user_id, slug)
 
 sessions
-  id              TEXT PRIMARY KEY
-  user_id         UUID REFERENCES users(id)
-  expires_at      TIMESTAMPTZ
+  id                      TEXT PRIMARY KEY (random 32-byte hex token)
+  user_id                 UUID REFERENCES users(id) NOT NULL
+  expires_at              TIMESTAMPTZ NOT NULL
+  created_at              TIMESTAMPTZ (default now)
 ```
+
+Encrypted fields use a `iv:tag:ciphertext` format where all three components are base64-encoded, separated by colons. The encryption key is a 32-byte hex string set via `NUXT_ENCRYPTION_KEY`.
+
+## Authentication Flow
+
+```
+Browser                          Main App (Nuxt)                    GitHub
+  |                                   |                                |
+  |-- GET /auth/github ------------>  |                                |
+  |                                   |-- generate state cookie        |
+  |  <---- 302 Redirect ------------- |                                |
+  |                                   |                                |
+  |-- Follow redirect --------------------------------------------->  |
+  |                                   |                                |
+  |  <---- 302 Redirect (with code) --------------------------------  |
+  |                                   |                                |
+  |-- GET /auth/github/callback --->  |                                |
+  |                                   |-- validate code + state        |
+  |                                   |-- exchange code for token ---> |
+  |                                   |  <---- access token ---------- |
+  |                                   |-- fetch /user profile -------> |
+  |                                   |  <---- user data ------------- |
+  |                                   |-- encrypt token (AES-256-GCM)  |
+  |                                   |-- upsert user in DB            |
+  |                                   |-- create session (30-day)      |
+  |                                   |-- set portable_session cookie  |
+  |  <---- 302 Redirect to / -------  |                                |
+```
+
+### Session Validation
+
+Every request passes through a server middleware (`server/middleware/auth.ts`) that:
+
+1. Reads the `portable_session` cookie
+2. Looks up the session in the `sessions` table (joined with `users`)
+3. Checks expiration (expired sessions are deleted)
+4. Attaches `event.context.user` (or `null` if invalid/missing)
+
+### Client-Side Auth Guard
+
+A global Nuxt route middleware (`middleware/auth.global.ts`) uses the `useAuth()` composable to:
+
+- Redirect unauthenticated users to `/login` for protected routes
+- Redirect authenticated users away from `/login` to `/`
+- Fetch auth state via `GET /api/auth/me` on first load
 
 ## Subdomain Routing
 
