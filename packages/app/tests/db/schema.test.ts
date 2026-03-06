@@ -154,6 +154,7 @@ describe("database schema", () => {
     it("contains all valid project statuses", () => {
       expect(projectStatusEnum.enumValues).toEqual([
         "stopped",
+        "creating",
         "starting",
         "running",
         "stopping",

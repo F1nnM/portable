@@ -15,6 +15,13 @@
       "when": 1772788915007,
       "tag": "0001_wise_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772793975804,
+      "tag": "0002_overconfident_shen",
+      "breakpoints": true
     }
   ]
 }

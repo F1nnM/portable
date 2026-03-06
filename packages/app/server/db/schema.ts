@@ -2,6 +2,7 @@ import { integer, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle
 
 export const projectStatusEnum = pgEnum("project_status", [
   "stopped",
+  "creating",
   "starting",
   "running",
   "stopping",
