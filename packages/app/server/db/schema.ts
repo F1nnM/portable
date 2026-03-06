@@ -31,7 +31,7 @@ export const projects = pgTable(
       .notNull(),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
-    scaffoldId: text("scaffold_id").notNull().default("nuxt-postgres"),
+    scaffoldId: text("scaffold_id"),
     status: projectStatusEnum("status").notNull().default("stopped"),
     encryptedAnthropicKey: text("encrypted_anthropic_key"),
     podName: text("pod_name"),

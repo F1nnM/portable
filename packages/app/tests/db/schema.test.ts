@@ -78,7 +78,7 @@ describe("database schema", () => {
 
       expect(columns.scaffoldId).toBeDefined();
       expect(columns.scaffoldId.dataType).toBe("string");
-      expect(columns.scaffoldId.notNull).toBe(true);
+      expect(columns.scaffoldId.notNull).toBe(false);
 
       expect(columns.status).toBeDefined();
       expect(columns.status.dataType).toBe("string");
@@ -108,10 +108,15 @@ describe("database schema", () => {
     it("has correct default values", () => {
       const columns = getTableColumns(projects);
       expect(columns.id.hasDefault).toBe(true);
-      expect(columns.scaffoldId.hasDefault).toBe(true);
+      expect(columns.scaffoldId.hasDefault).toBe(false);
       expect(columns.status.hasDefault).toBe(true);
       expect(columns.createdAt.hasDefault).toBe(true);
       expect(columns.updatedAt.hasDefault).toBe(true);
+    });
+
+    it("allows scaffoldId to be null", () => {
+      const columns = getTableColumns(projects);
+      expect(columns.scaffoldId.notNull).toBe(false);
     });
   });
 
