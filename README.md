@@ -43,7 +43,7 @@ Postgres (shared)                         Dev Server (per-project)
 | Pod server | Hono, Claude Agent SDK, fdir               |
 | Editor     | Vue 3, CodeMirror 6                        |
 | Infra      | Kubernetes, Helm, Postgres 16              |
-| Dev tools  | mise, pnpm, k3d, Tilt, Vitest              |
+| Dev tools  | mise, bun, k3d, Tilt, Vitest               |
 
 ## Quick Start (Deployment)
 
@@ -65,8 +65,8 @@ See `docs/deployment.md` for the full configuration reference.
 Prerequisites: Docker, mise, ctlptl.
 
 ```bash
-mise install                          # Install Node.js 22, pnpm, kubectl, helm, k3d, tilt
-pnpm install                          # Install dependencies
+mise install                          # Install Node.js 22, bun, kubectl, helm, k3d, tilt
+bun install                           # Install dependencies
 ctlptl apply -f ctlptl-config.yaml   # Create k3d cluster + registry
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 tilt up                               # Build, deploy, watch

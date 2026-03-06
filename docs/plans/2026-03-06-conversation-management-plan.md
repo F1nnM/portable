@@ -1642,17 +1642,17 @@ git commit -m "Rework Chat tab into session list + chat view with back navigatio
 
 **Step 1: Run all tests**
 
-Run: `pnpm test`
+Run: `bun run test`
 Expected: All tests pass across all packages
 
 **Step 2: Run typecheck**
 
-Run: `pnpm typecheck`
+Run: `bun run typecheck`
 Expected: No type errors
 
 **Step 3: Run lint**
 
-Run: `pnpm lint`
+Run: `bun run lint`
 Expected: No lint errors (or fix any that come up)
 
 **Step 4: Commit any fixes**

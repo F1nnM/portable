@@ -85,8 +85,7 @@ Created and maintained continuously throughout implementation.
 Set up the repository structure with mise for tool management.
 
 ```
-.mise.toml              # Node.js LTS, pnpm, kubectl, helm, k3d, tilt
-pnpm-workspace.yaml
+.mise.toml              # Node.js LTS, bun, kubectl, helm, k3d, tilt
 package.json            # Root workspace
 packages/
   app/                  # Nuxt main app
@@ -104,7 +103,7 @@ Initialize all three packages with minimal working code (hello world level).
 
 **Files:**
 
-- Create: `.mise.toml`, `pnpm-workspace.yaml`, `package.json`, `.gitignore`
+- Create: `.mise.toml`, `package.json`, `.gitignore`
 - Create: `packages/app/` (Nuxt init with minimal config)
 - Create: `packages/pod-server/` (Hono with `/health` endpoint)
 - Create: `packages/editor/` (Vue 3 + Vite, minimal App.vue)
@@ -415,9 +414,9 @@ WebSocket bridging browser to Claude Agent SDK. V1 `query()` with async generato
 
 ### Task 7.3: Pod startup and dev server supervisor `[DONE]`
 
-Entrypoint: git clone (if needed), npm install, start dev server with auto-restart, start Hono server. Implemented DevServerSupervisor class with exponential backoff (1s-30s), backoff reset after stable running, graceful shutdown. Workspace setup module with git clone, auto package manager detection, and dependency install. Entrypoint script delegates to setup module then starts Hono server. Dockerfile updated for pnpm runtime and entrypoint.
+Entrypoint: git clone (if needed), bun install, start dev server with auto-restart, start Hono server. Implemented DevServerSupervisor class with exponential backoff (1s-30s), backoff reset after stable running, graceful shutdown. Workspace setup module with git clone and dependency install via bun. Entrypoint script delegates to setup module then starts Hono server. Dockerfile updated for bun runtime and entrypoint.
 
-**Tests:** Dev server restarts after crash. Restart has backoff. Backoff resets after stable run. Stop kills child process. Git clone skipped when PVC has files. npm install runs when node_modules missing. Package manager auto-detection (pnpm/yarn/npm). lost+found ignored on empty PVC.
+**Tests:** Dev server restarts after crash. Restart has backoff. Backoff resets after stable run. Stop kills child process. Git clone skipped when PVC has files. bun install runs when node_modules missing. lost+found ignored on empty PVC.
 
 **Files:**
 

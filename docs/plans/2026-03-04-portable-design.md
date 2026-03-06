@@ -266,7 +266,7 @@ The `CLAUDE.md` in each scaffold tells Claude Code about the project setup, how 
 
 **Tool management:** mise (`.mise.toml` in repo root)
 
-- Node.js LTS, pnpm, kubectl, helm, k3d, tilt
+- Node.js LTS, bun, kubectl, helm, k3d, tilt
 
 **Local K8s:** k3d with a local container registry.
 

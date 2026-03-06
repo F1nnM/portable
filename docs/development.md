@@ -5,7 +5,7 @@
 - **Docker** -- Required for building container images and running k3d. Install from https://docs.docker.com/get-docker/
 - **mise** -- Tool version manager. Install from https://mise.jdx.dev/
 
-mise manages Node.js, pnpm, kubectl, helm, k3d, tilt, and ctlptl via the `.mise.toml` file in the repo root.
+mise manages Node.js, bun, kubectl, helm, k3d, tilt, and ctlptl via the `.mise.toml` file in the repo root.
 
 ## Initial Setup
 
@@ -14,7 +14,7 @@ mise manages Node.js, pnpm, kubectl, helm, k3d, tilt, and ctlptl via the `.mise.
 mise install
 
 # 2. Install Node.js dependencies
-pnpm install
+bun install
 
 # 3. Start the development environment (creates cluster, installs ingress, runs tilt)
 mise start
@@ -44,10 +44,10 @@ To manually manage the schema during development:
 
 ```bash
 # Generate migration files from schema changes
-pnpm --filter @portable/app db:generate
+bun run --filter @portable/app db:generate
 
 # Push schema directly to database (skips migration files, useful for rapid iteration)
-pnpm --filter @portable/app db:push
+bun run --filter @portable/app db:push
 ```
 
 The schema is defined in `packages/app/server/db/schema.ts` using Drizzle ORM. The Drizzle Kit config is in `packages/app/drizzle.config.ts`.
@@ -68,24 +68,24 @@ Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and
 2. Make code changes in `packages/app/`, `packages/pod-server/`, or `packages/editor/`
 3. Tilt detects changes and syncs/rebuilds as needed
 4. Check the Tilt UI (press `s` in the terminal, or open http://localhost:10350) for build status and logs
-5. Run tests locally: `pnpm test`
+5. Run tests locally: `bun run test`
 6. When done: press `ctrl+c` in the Tilt terminal, then `mise stop` to tear down the cluster
 
 ## Running Tests
 
 ```bash
 # Run all tests across all packages
-pnpm test
+bun run test
 
 # Run tests for a specific package
-pnpm --filter @portable/app test
-pnpm --filter @portable/pod-server test
-pnpm --filter @portable/editor test
+bun run --filter @portable/app test
+bun run --filter @portable/pod-server test
+bun run --filter @portable/editor test
 
 # Run tests in watch mode (useful during development)
-pnpm --filter @portable/app exec vitest
-pnpm --filter @portable/pod-server exec vitest
-pnpm --filter @portable/editor exec vitest
+bunx --filter @portable/app vitest
+bunx --filter @portable/pod-server vitest
+bunx --filter @portable/editor vitest
 ```
 
 ### Test setup per package
@@ -98,12 +98,12 @@ pnpm --filter @portable/editor exec vitest
 
 ```bash
 # Lint (ESLint)
-pnpm lint              # Check for issues
-pnpm lint:fix          # Fix auto-fixable issues
+bun run lint           # Check for issues
+bun run lint:fix       # Fix auto-fixable issues
 
 # Format (Prettier)
-pnpm format            # Format all files
-pnpm format:check      # Check without writing
+bun run format         # Format all files
+bun run format:check   # Check without writing
 ```
 
 Pre-commit hooks (Husky + lint-staged) automatically run ESLint fix and Prettier on staged files.
@@ -228,10 +228,10 @@ mise start
 mise stop
 
 # Type-check all packages
-pnpm typecheck
+bun run typecheck
 
 # Build a specific package
-pnpm build:app
-pnpm build:pod-server
-pnpm build:editor
+bun run build:app
+bun run build:pod-server
+bun run build:editor
 ```

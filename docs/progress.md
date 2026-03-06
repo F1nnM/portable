@@ -6,7 +6,7 @@
 
 ### Task 1.1: Monorepo structure and mise config
 
-Set up the pnpm workspace monorepo with three packages (`app`, `pod-server`, `editor`), `.mise.toml` for tool management (Node.js 22, pnpm 10, kubectl, helm, k3d, tilt), and the base directory structure including `scaffolds/` and `deploy/`.
+Set up the monorepo with three packages (`app`, `pod-server`, `editor`), `.mise.toml` for tool management (Node.js 22, bun, kubectl, helm, k3d, tilt), and the base directory structure including `scaffolds/` and `deploy/`.
 
 ### Task 1.2: Linting, formatting, and shared config
 
@@ -71,7 +71,7 @@ After the initial implementation, a code review pass addressed:
 
 ### Phase 1 summary
 
-Phase 1 established the complete development foundation: pnpm monorepo with three packages, mise for tool management, ESLint + Prettier with Husky pre-commit hooks, Vitest in all packages with smoke tests, multi-stage Dockerfiles for both containers, a full Helm chart with RBAC and Postgres, Tilt-based dev workflow with k3d and ctlptl, and comprehensive documentation. All infrastructure is ready for Phase 2 (Database and Auth).
+Phase 1 established the complete development foundation: monorepo with three packages, mise for tool management, ESLint + Prettier with Husky pre-commit hooks, Vitest in all packages with smoke tests, multi-stage Dockerfiles for both containers, a full Helm chart with RBAC and Postgres, Tilt-based dev workflow with k3d and ctlptl, and comprehensive documentation. All infrastructure is ready for Phase 2 (Database and Auth).
 
 ---
 
@@ -237,17 +237,17 @@ Created `src/routes/ws.ts` implementing a WebSocket bridge between the browser a
 Created three modules:
 
 - `src/dev-server.ts` -- `DevServerSupervisor` class that manages the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
-- `src/setup.ts` -- `setupWorkspace()` function that clones the GitHub repo into the workspace if empty (with `GITHUB_TOKEN` injection for auth), then installs dependencies if `node_modules` is missing. Auto-detects the package manager (pnpm/yarn/npm) from lock files. Ignores `lost+found` on empty PVCs.
+- `src/setup.ts` -- `setupWorkspace()` function that clones the GitHub repo into the workspace if empty (with `GITHUB_TOKEN` injection for auth), then installs dependencies via `bun install` if `node_modules` is missing. Ignores `lost+found` on empty PVCs.
 - `scripts/entrypoint.sh` -- Pod entrypoint that runs workspace setup then exec's the Hono server.
 
-Updated `src/index.ts` to wire the dev server supervisor (starts after Hono begins listening, stops on SIGTERM/SIGINT). Changed the default port from 8080 to 3000. Updated the Dockerfile to enable pnpm via corepack in the runtime stage and use the entrypoint script as CMD.
+Updated `src/index.ts` to wire the dev server supervisor (starts after Hono begins listening, stops on SIGTERM/SIGINT). Changed the default port from 8080 to 3000. Updated the Dockerfile to include bun in the runtime stage and use the entrypoint script as CMD.
 
 ### Code review fixes
 
 - Verified path traversal protection covers all edge cases (resolved path must start with workspace dir + separator or equal workspace dir exactly)
 - Confirmed WebSocket bridge properly cleans up SDK queries on disconnect and error
 - Fixed dev server supervisor to handle both spawn errors and exit events correctly
-- Ensured Dockerfile runtime stage includes pnpm for projects that use it
+- Ensured Dockerfile runtime stage includes bun for dependency installation
 
 ### Phase 7 summary
 

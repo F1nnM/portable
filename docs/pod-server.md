@@ -4,7 +4,7 @@
 
 The pod server is a lightweight Hono HTTP/WebSocket server that runs inside each project pod. It serves as the bridge between the browser-based editor UI and the project's development environment.
 
-A single container image is used for all project pods, regardless of scaffold type. The container includes Node.js 22, Git, Python 3, make, and g++ (for native npm addons), bun (for fast dependency installation), and pnpm via corepack.
+A single container image is used for all project pods, regardless of scaffold type. The container includes Node.js 22, Git, Python 3, make, and g++ (for native npm addons), and bun (for fast dependency installation and as the package manager/runtime).
 
 ## Architecture
 
@@ -151,7 +151,7 @@ Previously, the entrypoint script ran workspace setup synchronously before start
 
 ### Dependency Installation
 
-Dependencies are always installed using `bun install`, regardless of the project's lockfile format. Bun natively reads `package-lock.json`, `yarn.lock`, and `pnpm-lock.yaml`, and is significantly faster than npm/yarn/pnpm for cold installs.
+Dependencies are always installed using `bun install`, regardless of the project's lockfile format. Bun natively reads `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, and `bun.lock`, and is significantly faster than npm/yarn/pnpm for cold installs.
 
 ## Dev Server Supervisor
 
@@ -184,8 +184,8 @@ The following environment variables are available inside the pod:
 
 Built from `packages/pod-server/Dockerfile` using a multi-stage build:
 
-1. **deps** -- Install pnpm dependencies for the full workspace
+1. **deps** -- Install dependencies for the full workspace using bun
 2. **build** -- Build both `@portable/pod-server` (tsup) and `@portable/editor` (Vite)
-3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, bun (for fast dependency installation), and pnpm via corepack. Copies the pod-server dist, its node_modules, and the editor SPA dist into `/srv/public`
+3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, and bun (package manager/runtime). Copies the pod-server dist, its node_modules, and the editor SPA dist into `/srv/public`
 
 The project workspace is mounted at `/workspace` via a PersistentVolumeClaim.

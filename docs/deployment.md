@@ -10,7 +10,7 @@
 
 ## Building Container Images
 
-Before deploying, you need to build and push both container images to your registry. Both Dockerfiles use a multi-stage build and require the **repository root** as the Docker build context, since they reference workspace-level files (`package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`) and multiple packages.
+Before deploying, you need to build and push both container images to your registry. Both Dockerfiles use a multi-stage build and require the **repository root** as the Docker build context, since they reference workspace-level files (`package.json`, `bun.lock`) and multiple packages.
 
 ```bash
 # Build the main app image

@@ -63,28 +63,28 @@ portable/
 - **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, `@anthropic-ai/claude-agent-sdk`, fdir
 - **Editor SPA:** Vue 3, Vue Router, Vite, CodeMirror 6 (JS/TS/JSON/CSS/HTML/Markdown language support, One Dark theme)
 - **Infrastructure:** Kubernetes, Helm, k3d (local), Tilt (live dev), Postgres 16
-- **Tooling:** mise (tool management), pnpm (package manager), Node.js 22
+- **Tooling:** mise (tool management), bun (package manager/runtime), Node.js 22
 
 ## Commands
 
 ### Root-level commands (run from repo root)
 
 ```bash
-pnpm install          # Install all dependencies across the monorepo
-pnpm build            # Build all packages
-pnpm test             # Run tests in all packages
-pnpm lint             # Lint all files (ESLint)
-pnpm lint:fix         # Lint and auto-fix
-pnpm format           # Format all files (Prettier)
-pnpm format:check     # Check formatting without writing
-pnpm typecheck        # Type-check all packages
+bun install           # Install all dependencies across the monorepo
+bun run build         # Build all packages
+bun run test          # Run tests in all packages
+bun run lint          # Lint all files (ESLint)
+bun run lint:fix      # Lint and auto-fix
+bun run format        # Format all files (Prettier)
+bun run format:check  # Check formatting without writing
+bun run typecheck     # Type-check all packages
 ```
 
 ### Database commands (packages/app)
 
 ```bash
-pnpm --filter @portable/app db:generate   # Generate Drizzle migrations from schema
-pnpm --filter @portable/app db:push       # Push schema directly to database (dev)
+bun run --filter @portable/app db:generate   # Generate Drizzle migrations from schema
+bun run --filter @portable/app db:push       # Push schema directly to database (dev)
 ```
 
 Migrations run automatically on server startup via a Nitro plugin (`server/plugins/migrate.ts`). Use `db:generate` after changing `server/db/schema.ts` to create new migration files, or `db:push` for quick iteration during development.
@@ -93,25 +93,25 @@ Migrations run automatically on server startup via a Nitro plugin (`server/plugi
 
 ```bash
 # Main app (packages/app)
-pnpm dev:app                           # Run Nuxt dev server
-pnpm build:app                         # Build Nuxt for production
-pnpm --filter @portable/app test       # Run app tests
+bun run dev:app                              # Run Nuxt dev server
+bun run build:app                            # Build Nuxt for production
+bun run --filter @portable/app test          # Run app tests
 
 # Pod server (packages/pod-server)
-pnpm dev:pod-server                    # Run pod server with tsx watch
-pnpm build:pod-server                  # Build with tsup
-pnpm --filter @portable/pod-server test  # Run pod-server tests
+bun run dev:pod-server                       # Run pod server with tsx watch
+bun run build:pod-server                     # Build with tsup
+bun run --filter @portable/pod-server test   # Run pod-server tests
 
 # Editor SPA (packages/editor)
-pnpm dev:editor                        # Run Vite dev server
-pnpm build:editor                      # Build with Vite
-pnpm --filter @portable/editor test    # Run editor tests
+bun run dev:editor                           # Run Vite dev server
+bun run build:editor                         # Build with Vite
+bun run --filter @portable/editor test       # Run editor tests
 ```
 
 ### Local development (K8s)
 
 ```bash
-mise install                          # Install Node.js, pnpm, kubectl, helm, k3d, tilt, ctlptl
+mise install                          # Install Node.js, bun, kubectl, helm, k3d, tilt, ctlptl
 mise start                            # Create cluster, install ingress, tilt up
 # Open http://portable.127.0.0.1.nip.io
 mise stop                             # Tear down cluster
@@ -127,7 +127,7 @@ mise stop                             # Tear down cluster
 
 Test files live in `tests/` directories within each package. Name test files `*.test.ts`.
 
-Run all tests: `pnpm test`
+Run all tests: `bun run test`
 
 ## Code Conventions
 
@@ -277,7 +277,7 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 `src/setup.ts` exports `setupWorkspace()`, which is an async function that runs two steps using spawned child processes (not synchronous exec):
 
 1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, calls `setPhase("cloning")` and clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
-2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")` and runs `bun install`. Bun natively reads all lockfile formats (package-lock.json, yarn.lock, pnpm-lock.yaml).
+2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")` and runs `bun install`. Bun natively reads all lockfile formats (package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lock).
 
 ### Entrypoint
 
