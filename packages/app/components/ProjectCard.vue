@@ -24,9 +24,9 @@ let phaseInterval: ReturnType<typeof setInterval> | null = null;
 
 const phaseLabels: Record<string, string> = {
   // Creation phases
-  creating_database: "Creating database...",
+  creating_database: "Setting up database...",
   creating_repository: "Creating repository...",
-  pushing_scaffold: "Pushing code...",
+  pushing_scaffold: "Scaffolding application...",
   // Startup phases
   preparing: "Preparing...",
   initializing: "Initializing...",
@@ -87,7 +87,7 @@ const statusConfig = computed(() => {
     case "running":
       return { label: "Running", class: "status-running" };
     case "creating":
-      return { label: "Creating", class: "status-creating" };
+      return { label: "Setting up", class: "status-creating" };
     case "starting":
       return { label: "Starting", class: "status-starting" };
     case "stopping":
