@@ -340,6 +340,27 @@ describe("project lifecycle", () => {
       expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
     });
 
+    it("persists repoUrl before pushing scaffold so cleanup can find it", async () => {
+      setupCreateMocks();
+
+      // Track the order of update calls
+      const updateSetCalls: Record<string, unknown>[] = [];
+      mockDb.update.mockReturnValue({
+        set: vi.fn((data: Record<string, unknown>) => {
+          updateSetCalls.push(data);
+          return { where: vi.fn().mockResolvedValue(undefined) };
+        }),
+      });
+
+      await createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres");
+
+      // First update should persist repoUrl (before scaffold push)
+      expect(updateSetCalls.length).toBeGreaterThanOrEqual(2);
+      expect(updateSetCalls[0]).toMatchObject({ repoUrl: "https://github.com/user/my-project" });
+      // Second update should set status to stopped (after scaffold push)
+      expect(updateSetCalls[1]).toMatchObject({ status: "stopped" });
+    });
+
     it("sets status to error and clears phase on failure", async () => {
       setupCreateMocks();
       mockCreateGitHubRepo.mockRejectedValue(new Error("GitHub API error"));
@@ -349,6 +370,29 @@ describe("project lifecycle", () => {
         createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres"),
       ).rejects.toThrow("GitHub API error");
 
+      expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
+    });
+
+    it("persists repoUrl even when scaffold push fails", async () => {
+      setupCreateMocks();
+      mockPushScaffoldToRepo.mockRejectedValue(new Error("Push failed"));
+
+      const updateSetCalls: Record<string, unknown>[] = [];
+      mockDb.update.mockReturnValue({
+        set: vi.fn((data: Record<string, unknown>) => {
+          updateSetCalls.push(data);
+          return { where: vi.fn().mockResolvedValue(undefined) };
+        }),
+      });
+
+      await expect(
+        createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres"),
+      ).rejects.toThrow("Push failed");
+
+      // repoUrl should have been persisted before the push attempt
+      expect(updateSetCalls.some((c) => c.repoUrl === "https://github.com/user/my-project")).toBe(
+        true,
+      );
       expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
     });
 

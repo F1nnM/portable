@@ -139,6 +139,9 @@ async function getAnthropicKey(
 /**
  * Performs async project creation: creates per-project DB, GitHub repo, and pushes scaffold.
  * Called as fire-and-forget from the POST /api/projects endpoint.
+ *
+ * The repo URL is persisted to the DB immediately after creation so that if a later step
+ * fails, deleteProject can clean up the GitHub repo.
  */
 export async function createProject(
   userId: string,
@@ -154,14 +157,20 @@ export async function createProject(
     const githubToken = await getDecryptedGithubToken(userId);
     const repo = await createGitHubRepo(githubToken, slug);
 
-    setCreationPhase(slug, "pushing_scaffold");
-    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
-
-    // Update DB with repo URL and set status to stopped (ready to start)
+    // Persist repo URL immediately so deleteProject can clean it up on failure
     const db = useDb();
     await db
       .update(projects)
-      .set({ repoUrl: repo.htmlUrl, status: "stopped", updatedAt: new Date() })
+      .set({ repoUrl: repo.htmlUrl, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    setCreationPhase(slug, "pushing_scaffold");
+    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
+
+    // Mark creation complete
+    await db
+      .update(projects)
+      .set({ status: "stopped", updatedAt: new Date() })
       .where(eq(projects.id, projectId));
 
     clearCreationPhase(slug);
