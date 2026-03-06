@@ -268,6 +268,12 @@ Session data is stored in `~/.claude/projects/<project-name>/<sessionId>.jsonl` 
 
 The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"` and `settingSources: ["project"]`. The working directory is set to `WORKSPACE_DIR`.
 
+### Git API
+
+`src/routes/git.ts` provides a single endpoint for workspace git state:
+
+- `GET /api/git` -- Returns the current git status of the workspace. Response includes `branch` (current branch name), `commits` (last 50 commits with `hash`, `shortHash`, `message`, `author`, `date`), `staged` (files staged in the index with `path` and `status`), and `unstaged` (modified/untracked files with `path` and `status`). Status labels are human-readable: `modified`, `added`, `deleted`, `renamed`, `copied`, `untracked`. Returns 500 if the workspace is not a git repository.
+
 ### Dev Server Supervisor
 
 `src/dev-server.ts` exports the `DevServerSupervisor` class, which manages the project's dev server (e.g., Nuxt, Vite) as a child process.
@@ -309,11 +315,11 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 
 ## Editor SPA
 
-The editor SPA (`packages/editor`) is a Vue 3 single-page application served by the pod server at the root URL. It provides three views accessible via a bottom tab bar: Chat, Files, and Preview. The app uses a dark theme with CSS variables (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout.
+The editor SPA (`packages/editor`) is a Vue 3 single-page application served by the pod server at the root URL. It provides four views accessible via a bottom tab bar: Chat, Files, Git, and Preview. The app uses a dark theme with CSS variables (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout.
 
 ### Routing
 
-Vue Router with three routes: `/chat` (default), `/files`, and `/preview`. The bottom tab bar shows SVG icons for each tab with an active state indicator (top border highlight). Navigation is handled via `<router-link>`.
+Vue Router with four routes: `/chat` (default), `/files`, `/git`, and `/preview`. The bottom tab bar shows SVG icons for each tab with an active state indicator (top border highlight). Navigation is handled via `<router-link>`.
 
 ### Chat View
 
@@ -339,6 +345,10 @@ The files view provides workspace file browsing and editing via the `useFiles` c
 - **File API composable (`composables/useFiles.ts`):** Fetches the flat file list from `GET /api/files`, builds a tree structure (nested directories and files), reads file content from `GET /api/files/:path`, and writes via `PUT /api/files/:path`.
 - **FileTree component:** Recursive tree rendering with expand/collapse for directories, indent guides, and dimmed file extensions. Clicking a file selects it and triggers content loading.
 - **CodeViewer component:** CodeMirror 6 editor with the One Dark theme. Supports language detection for JavaScript, TypeScript, JSON, CSS, HTML, Vue, and Markdown files. Defaults to read-only mode with an edit toggle button. Save button appears in edit mode and calls the file write API. Back navigation returns to the file tree.
+
+### Git View
+
+The git tab displays the workspace's git state via the `useGit` composable and the pod server's `GET /api/git` endpoint. Shows the current branch name at the top, followed by staged and unstaged file changes (each clickable to navigate to the file in the Files view), and a scrollable commit history with short hash, message, author, and relative time. The composable uses module-level refs for shared state, following the same pattern as `useFiles`.
 
 ### Preview View
 

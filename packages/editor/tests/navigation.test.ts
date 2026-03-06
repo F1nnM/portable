@@ -12,7 +12,7 @@ function createTestRouter() {
 }
 
 describe("editor navigation", () => {
-  it("bottom nav renders three tabs (Chat, Files, Preview)", async () => {
+  it("bottom nav renders four tabs (Chat, Files, Git, Preview)", async () => {
     const router = createTestRouter();
     router.push("/chat");
     await router.isReady();
@@ -22,11 +22,12 @@ describe("editor navigation", () => {
     });
 
     const tabs = wrapper.findAll("[data-testid='nav-tab']");
-    expect(tabs).toHaveLength(3);
+    expect(tabs).toHaveLength(4);
 
     const labels = tabs.map((t) => t.text());
     expect(labels).toContain("Chat");
     expect(labels).toContain("Files");
+    expect(labels).toContain("Git");
     expect(labels).toContain("Preview");
   });
 

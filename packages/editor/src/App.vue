@@ -8,6 +8,7 @@ const router = useRouter();
 const tabs = [
   { name: "Chat", route: "/chat", icon: "chat" },
   { name: "Files", route: "/files", icon: "files" },
+  { name: "Git", route: "/git", icon: "git" },
   { name: "Preview", route: "/preview", icon: "preview" },
 ] as const;
 
@@ -49,6 +50,15 @@ function navigate(path: string) {
               stroke-linejoin="round"
               stroke-width="1.5"
               d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+            />
+          </template>
+          <!-- Git icon (branch) -->
+          <template v-if="tab.icon === 'git'">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 9a9 9 0 0 1-9 9"
             />
           </template>
           <!-- Preview icon -->
