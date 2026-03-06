@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
   }
 
-  const body = await readBody<{ name?: string; scaffoldId?: string }>(event);
+  const body = await readBody<{ name?: string; scaffoldId?: string; repoUrl?: string }>(event);
 
   if (!body?.name || body.name.trim().length === 0) {
     throw createError({ statusCode: 400, statusMessage: "Name is required" });
@@ -32,31 +32,75 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const scaffoldId = body.scaffoldId ?? "nuxt-postgres";
+  const hasScaffold = !!body.scaffoldId;
+  const hasRepoUrl = !!body.repoUrl;
 
-  // Validate scaffoldId against available scaffolds
-  const availableScaffolds = listScaffolds();
-  if (!availableScaffolds.some((s) => s.id === scaffoldId)) {
+  if (hasScaffold && hasRepoUrl) {
     throw createError({
       statusCode: 400,
-      statusMessage: `Invalid scaffold: "${scaffoldId}"`,
+      statusMessage: "Provide either scaffoldId or repoUrl, not both",
     });
+  }
+
+  if (!hasScaffold && !hasRepoUrl) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Either scaffoldId or repoUrl is required",
+    });
+  }
+
+  let scaffoldId: string | null = null;
+  let repoUrl: string | null = null;
+
+  if (hasScaffold) {
+    scaffoldId = body.scaffoldId!;
+    const availableScaffolds = listScaffolds();
+    if (!availableScaffolds.some((s) => s.id === scaffoldId)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Invalid scaffold: "${scaffoldId}"`,
+      });
+    }
+  } else {
+    repoUrl = body.repoUrl!;
+    if (!repoUrl.startsWith("https://github.com/")) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "Only GitHub repository URLs are supported",
+      });
+    }
   }
 
   const db = useDb();
 
   // Check if slug is unique for this user
-  const existing = await db
+  const existingSlug = await db
     .select({ id: projects.id })
     .from(projects)
     .where(and(eq(projects.userId, user.id), eq(projects.slug, slug)))
     .limit(1);
 
-  if (existing.length > 0) {
+  if (existingSlug.length > 0) {
     throw createError({
       statusCode: 409,
       statusMessage: "A project with this name already exists",
     });
+  }
+
+  // Check if repoUrl is already used by this user
+  if (repoUrl) {
+    const existingRepo = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.userId, user.id), eq(projects.repoUrl, repoUrl)))
+      .limit(1);
+
+    if (existingRepo.length > 0) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: "This repository is already linked to a project",
+      });
+    }
   }
 
   // Create the DB record with "creating" status
@@ -68,6 +112,7 @@ export default defineEventHandler(async (event) => {
       slug,
       scaffoldId,
       status: "creating",
+      repoUrl,
     })
     .returning({
       id: projects.id,

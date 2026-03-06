@@ -36,6 +36,15 @@ describe("project CRUD API", async () => {
       });
       expect(response.status).toBe(401);
     });
+
+    it("returns 401 for POST /api/projects with repoUrl when not authenticated", async () => {
+      const response = await fetch(url("/api/projects"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Test Import", repoUrl: "https://github.com/user/repo" }),
+      });
+      expect(response.status).toBe(401);
+    });
   });
 
   describe("start/stop placeholders", () => {

@@ -396,6 +396,47 @@ describe("project lifecycle", () => {
       expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
     });
 
+    it("skips GitHub repo creation and scaffold push for import (no scaffoldId)", async () => {
+      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
+      mockDb.update.mockReturnValue(makeUpdateChain());
+
+      await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
+
+      expect(mockCreateProjectDatabase).toHaveBeenCalledWith("my-import");
+      expect(mockGetDecryptedGithubToken).not.toHaveBeenCalled();
+      expect(mockCreateGitHubRepo).not.toHaveBeenCalled();
+      expect(mockPushScaffoldToRepo).not.toHaveBeenCalled();
+      expect(mockClearCreationPhase).toHaveBeenCalledWith("my-import");
+    });
+
+    it("only tracks creating_database phase for import", async () => {
+      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
+      mockDb.update.mockReturnValue(makeUpdateChain());
+
+      await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
+
+      expect(mockSetCreationPhase).toHaveBeenCalledWith("my-import", "creating_database");
+      expect(mockSetCreationPhase).not.toHaveBeenCalledWith("my-import", "creating_repository");
+      expect(mockSetCreationPhase).not.toHaveBeenCalledWith("my-import", "pushing_scaffold");
+    });
+
+    it("sets status to stopped for import flow", async () => {
+      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
+
+      const updateSetCalls: Record<string, unknown>[] = [];
+      mockDb.update.mockReturnValue({
+        set: vi.fn((data: Record<string, unknown>) => {
+          updateSetCalls.push(data);
+          return { where: vi.fn().mockResolvedValue(undefined) };
+        }),
+      });
+
+      await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
+
+      expect(updateSetCalls.length).toBe(1);
+      expect(updateSetCalls[0]).toMatchObject({ status: "stopped" });
+    });
+
     it("startProject rejects project in creating status with 409", async () => {
       const selectChain = makeSelectChain([{ ...TEST_PROJECT, status: "creating" }]);
       mockDb.select.mockReturnValue(selectChain);

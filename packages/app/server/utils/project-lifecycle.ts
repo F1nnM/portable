@@ -147,31 +147,40 @@ export async function createProject(
   userId: string,
   projectId: string,
   slug: string,
-  scaffoldId: string,
+  scaffoldId: string | null,
 ): Promise<void> {
   try {
     setCreationPhase(slug, "creating_database");
     await createProjectDatabase(slug);
 
-    setCreationPhase(slug, "creating_repository");
-    const githubToken = await getDecryptedGithubToken(userId);
-    const repo = await createGitHubRepo(githubToken, slug);
+    if (scaffoldId) {
+      setCreationPhase(slug, "creating_repository");
+      const githubToken = await getDecryptedGithubToken(userId);
+      const repo = await createGitHubRepo(githubToken, slug);
 
-    // Persist repo URL immediately so deleteProject can clean it up on failure
-    const db = useDb();
-    await db
-      .update(projects)
-      .set({ repoUrl: repo.htmlUrl, updatedAt: new Date() })
-      .where(eq(projects.id, projectId));
+      // Persist repo URL immediately so deleteProject can clean it up on failure
+      const db = useDb();
+      await db
+        .update(projects)
+        .set({ repoUrl: repo.htmlUrl, updatedAt: new Date() })
+        .where(eq(projects.id, projectId));
 
-    setCreationPhase(slug, "pushing_scaffold");
-    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
+      setCreationPhase(slug, "pushing_scaffold");
+      await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
 
-    // Mark creation complete
-    await db
-      .update(projects)
-      .set({ status: "stopped", updatedAt: new Date() })
-      .where(eq(projects.id, projectId));
+      // Mark creation complete
+      await db
+        .update(projects)
+        .set({ status: "stopped", updatedAt: new Date() })
+        .where(eq(projects.id, projectId));
+    } else {
+      // Import flow: repoUrl is already set on the project row, just mark as stopped
+      const db = useDb();
+      await db
+        .update(projects)
+        .set({ status: "stopped", updatedAt: new Date() })
+        .where(eq(projects.id, projectId));
+    }
 
     clearCreationPhase(slug);
   } catch (err: unknown) {
