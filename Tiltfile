@@ -12,6 +12,10 @@ REGISTRY = "k3d-portable-registry.localhost:5002"
 APP_IMAGE = REGISTRY + "/portable-app"
 POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
 
+# Pod-server image is used at runtime (dynamically created project pods), not in
+# static K8s manifests, so Tilt can't detect it. Suppress the unused warning.
+update_settings(suppress_unused_image_warnings=[POD_SERVER_IMAGE])
+
 # ---------------------------------------------------------------------------
 # Docker builds
 # ---------------------------------------------------------------------------
