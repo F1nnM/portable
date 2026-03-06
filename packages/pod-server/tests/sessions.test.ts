@@ -1,5 +1,7 @@
+import { readdir, unlink } from "node:fs/promises";
+import { homedir } from "node:os";
 import { getSessionMessages, listSessions } from "@anthropic-ai/claude-agent-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app.js";
 
@@ -9,10 +11,31 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   getSessionMessages: vi.fn(),
 }));
 
+vi.mock("node:os", () => ({
+  homedir: vi.fn(() => "/home/testuser"),
+}));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...original,
+    readdir: vi.fn(),
+    unlink: vi.fn(),
+  };
+});
+
 const mockListSessions = vi.mocked(listSessions);
 const mockGetSessionMessages = vi.mocked(getSessionMessages);
+const mockReaddir = vi.mocked(readdir);
+const mockUnlink = vi.mocked(unlink);
+const mockHomedir = vi.mocked(homedir);
 
 describe("sessions API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHomedir.mockReturnValue("/home/testuser");
+  });
+
   it("returns session list sorted by lastModified desc", async () => {
     mockListSessions.mockResolvedValue([
       {
@@ -109,5 +132,70 @@ describe("sessions API", () => {
 
     const body = await res.json();
     expect(body.messages).toEqual([]);
+  });
+
+  describe("dELETE /api/sessions/:id", () => {
+    const validSessionId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("removes session file and returns 204", async () => {
+      // Mock readdir to return project directories and session files
+      mockReaddir.mockImplementation(((path: string) => {
+        if (path === "/home/testuser/.claude/projects") {
+          return Promise.resolve([{ name: "-workspace", isDirectory: () => true }]);
+        }
+        if (path === "/home/testuser/.claude/projects/-workspace") {
+          return Promise.resolve([`${validSessionId}.jsonl`]);
+        }
+        return Promise.resolve([]);
+      }) as typeof readdir);
+
+      mockUnlink.mockResolvedValue(undefined);
+
+      const { app } = createApp();
+      const res = await app.request(`/api/sessions/${validSessionId}`, { method: "DELETE" });
+      expect(res.status).toBe(204);
+      expect(mockUnlink).toHaveBeenCalledWith(
+        `/home/testuser/.claude/projects/-workspace/${validSessionId}.jsonl`,
+      );
+    });
+
+    it("returns 404 for unknown session", async () => {
+      // Mock readdir to return project directories but no matching session file
+      mockReaddir.mockImplementation(((path: string) => {
+        if (path === "/home/testuser/.claude/projects") {
+          return Promise.resolve([{ name: "-workspace", isDirectory: () => true }]);
+        }
+        if (path === "/home/testuser/.claude/projects/-workspace") {
+          return Promise.resolve(["other-session.jsonl"]);
+        }
+        return Promise.resolve([]);
+      }) as typeof readdir);
+
+      const { app } = createApp();
+      const res = await app.request(`/api/sessions/${validSessionId}`, { method: "DELETE" });
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toBe("Session not found");
+    });
+
+    it("returns 404 when .claude/projects directory does not exist", async () => {
+      mockReaddir.mockImplementation((() => {
+        return Promise.reject(new Error("ENOENT"));
+      }) as typeof readdir);
+
+      const { app } = createApp();
+      const res = await app.request(`/api/sessions/${validSessionId}`, { method: "DELETE" });
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 400 for invalid session ID format", async () => {
+      const { app } = createApp();
+      const res = await app.request("/api/sessions/not-a-valid-uuid", { method: "DELETE" });
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.error).toBe("Invalid session ID");
+    });
   });
 });
