@@ -5,6 +5,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { files } from "./routes/files.js";
 import { health } from "./routes/health.js";
+import { sessions } from "./routes/sessions.js";
 import { registerWsRoute as registerWs } from "./routes/ws.js";
 
 export function createApp() {
@@ -13,6 +14,7 @@ export function createApp() {
   // API routes
   app.route("/", health);
   app.route("/", files);
+  app.route("/", sessions);
 
   function registerWsRoute(
     upgradeWebSocket: UpgradeWebSocket<NodeWebSocket, { onError: (err: unknown) => void }>,
