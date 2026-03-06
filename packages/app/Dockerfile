@@ -1,25 +1,25 @@
 # ---- Stage 1: Install dependencies ----
 FROM node:22-alpine AS deps
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
-# Copy workspace root files needed for pnpm install
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy workspace root files needed for bun install
+COPY package.json bun.lock ./
 
-# Copy all package.json files so pnpm can resolve the workspace
+# Copy all package.json files so bun can resolve the workspace
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
 COPY packages/editor/package.json packages/editor/package.json
 
-# Install all dependencies (pnpm needs the full workspace context)
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (bun needs the full workspace context)
+RUN bun install --frozen-lockfile
 
 # ---- Stage 2: Build Nuxt ----
 FROM node:22-alpine AS build
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 
@@ -28,13 +28,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/app/node_modules ./packages/app/node_modules
 
 # Copy workspace root files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json bun.lock ./
 
 # Copy app source
 COPY packages/app/ packages/app/
 
 # Build Nuxt
-RUN pnpm --filter @portable/app build
+RUN bun run --filter @portable/app build
 
 # ---- Stage 3: Production runtime ----
 FROM node:22-alpine AS runtime
