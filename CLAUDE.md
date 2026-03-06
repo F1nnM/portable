@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Portable is a mobile-first web application for using Claude Code remotely. Users create projects from scaffolds, each running in an isolated Kubernetes pod with Claude Code, a dev server, and a file browser -- all accessible through a mobile-optimized web UI.
+Portable is a mobile-first web application for using Claude Code remotely. Users create projects from scaffolds or by importing an existing GitHub repository, each running in an isolated Kubernetes pod with Claude Code, a dev server, and a file browser -- all accessible through a mobile-optimized web UI.
 
 ## Repository Structure
 
@@ -11,7 +11,7 @@ portable/
   packages/
     app/              Nuxt 3 full-stack main app (auth, project management, proxy)
       server/
-        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, projects status, scaffolds)
+        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, projects status, scaffolds, github/repos)
         routes/       Route handlers (auth/github, auth/logout)
         middleware/   Server middleware (session auth, subdomain proxy)
         db/           Drizzle schema and migrations
@@ -184,11 +184,22 @@ The main app manages project pods via `@kubernetes/client-node`. All K8s utiliti
 
 - **`k8s.ts`** -- Low-level K8s operations: `createProjectPod`, `createProjectService`, `createProjectPVC`, `waitForPodReady` (300s timeout), `deleteProjectPod`, `deleteProjectService`, `deleteProjectPVC`. Reads config from `NUXT_POD_*` env vars with sensible defaults. Uses `KubeConfig.loadFromCluster()` (expects to run inside K8s). Resources are named `project-<slug>` and labeled with `app.kubernetes.io/managed-by: portable` and `portable.dev/project: <slug>`.
 - **`project-db.ts`** -- Per-project Postgres database management: `createProjectDatabase` creates a database named `portable_<slug>`, `deleteProjectDatabase` drops it. Uses the main `DATABASE_URL` connection to run admin SQL. `buildProjectDatabaseUrl` constructs the per-project connection string.
-- **`project-lifecycle.ts`** -- High-level orchestration: `startProject` (validates state, creates DB + PVC + pod + service, waits for ready, sets status to running), `stopProject` (deletes pod + service, keeps PVC, sets status to stopped), `deleteProject` (cleans up all K8s resources + per-project DB + DB row, does NOT delete GitHub repo). Handles AlreadyExists errors for retry safety and rolls back on failure.
+- **`project-lifecycle.ts`** -- High-level orchestration: `createProject` (creates per-project DB; for scaffold projects: creates GitHub repo, pushes scaffold files; for imported repos: skips repo creation since `repoUrl` is already set), `startProject` (validates state, creates DB + PVC + pod + service, waits for ready, sets status to running), `stopProject` (deletes pod + service, keeps PVC, sets status to stopped), `deleteProject` (cleans up all K8s resources + per-project DB + DB row, does NOT delete GitHub repo). Handles AlreadyExists errors for retry safety and rolls back on failure.
 
 ### Per-Project Databases
 
 Each project gets its own Postgres database in the shared instance, named `portable_<slug>`. The connection string is injected into the pod as `DATABASE_URL`. Databases are created on project start and dropped on project delete.
+
+### Project Creation API
+
+Projects can be created in two ways via `POST /api/projects`:
+
+- **From scaffold:** `{ name, scaffoldId }` -- Creates a new GitHub repo, pushes scaffold template files, then marks the project as stopped. The `scaffoldId` references a template from the `scaffolds/` directory.
+- **Import existing repo:** `{ name, repoUrl }` -- Imports an existing GitHub repository. Only creates the per-project database (skips GitHub repo creation and scaffold push). The `repoUrl` is stored on the project row and passed to the pod as `GITHUB_REPO_URL` on start.
+
+The `scaffoldId` column in the `projects` table is nullable: `null` indicates an imported repository.
+
+`GET /api/github/repos` lists the authenticated user's GitHub repositories (up to 100, sorted by most recently updated). Supports a `search` query parameter for client-side filtering by name, full name, or description. Returns `{ repos: [{ name, fullName, description, isPrivate, language, defaultBranch, url }] }`.
 
 ## Reverse Proxy
 
