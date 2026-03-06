@@ -251,3 +251,35 @@ export async function pushScaffoldToRepo(
     sha: commit.sha,
   });
 }
+
+export interface UserRepo {
+  name: string;
+  fullName: string;
+  description: string | null;
+  isPrivate: boolean;
+  language: string | null;
+  defaultBranch: string;
+  url: string;
+}
+
+/**
+ * Lists the authenticated user's GitHub repositories, sorted by most recently updated.
+ */
+export async function listUserRepos(token: string): Promise<UserRepo[]> {
+  const octokit = new Octokit({ auth: token });
+
+  const { data } = await octokit.rest.repos.listForAuthenticatedUser({
+    per_page: 100,
+    sort: "updated",
+  });
+
+  return data.map((repo) => ({
+    name: repo.name,
+    fullName: repo.full_name,
+    description: repo.description ?? null,
+    isPrivate: repo.private,
+    language: repo.language ?? null,
+    defaultBranch: repo.default_branch,
+    url: repo.html_url,
+  }));
+}
