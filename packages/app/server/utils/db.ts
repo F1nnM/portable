@@ -20,3 +20,24 @@ export function useDb() {
   }
   return _db;
 }
+
+// Shared migration-ready signal. Nitro does not await async plugins,
+// so other startup code must await this before querying the DB.
+let _migrationsResolve: () => void;
+let _migrationsReject: (err: unknown) => void;
+const _migrationsReady = new Promise<void>((resolve, reject) => {
+  _migrationsResolve = resolve;
+  _migrationsReject = reject;
+});
+
+export function signalMigrationsComplete() {
+  _migrationsResolve();
+}
+
+export function signalMigrationsFailed(err: unknown) {
+  _migrationsReject(err);
+}
+
+export function waitForMigrations() {
+  return _migrationsReady;
+}

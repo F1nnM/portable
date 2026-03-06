@@ -1,5 +1,5 @@
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { useDb } from "../utils/db";
+import { signalMigrationsComplete, signalMigrationsFailed, useDb } from "../utils/db";
 
 const MAX_RETRIES = 10;
 const RETRY_DELAY_MS = 3_000;
@@ -29,11 +29,12 @@ async function runMigrations(): Promise<void> {
   }
 }
 
-export default defineNitroPlugin(async () => {
+export default defineNitroPlugin(() => {
   if (!process.env.DATABASE_URL) {
     console.warn("[migrate] DATABASE_URL not set, skipping migrations");
+    signalMigrationsComplete();
     return;
   }
 
-  await runMigrations();
+  runMigrations().then(signalMigrationsComplete).catch(signalMigrationsFailed);
 });
