@@ -174,11 +174,7 @@ onMounted(() => {
       >
         From Scaffold
       </button>
-      <button
-        class="tab"
-        :class="{ active: activeTab === 'import' }"
-        @click="switchTab('import')"
-      >
+      <button class="tab" :class="{ active: activeTab === 'import' }" @click="switchTab('import')">
         Import Repo
       </button>
     </div>
@@ -254,7 +250,9 @@ onMounted(() => {
             </button>
 
             <div v-if="filteredRepos.length === 0" class="repo-empty">
-              <span class="loading-text">{{ searchQuery ? "No matching repositories" : "No repositories found" }}</span>
+              <span class="loading-text">{{
+                searchQuery ? "No matching repositories" : "No repositories found"
+              }}</span>
             </div>
           </div>
         </template>
@@ -288,7 +286,15 @@ onMounted(() => {
     <!-- Create button -->
     <button class="btn-create" :disabled="!canCreate" @click="createProject">
       <div v-if="creating" class="btn-spinner" />
-      <span>{{ creating ? (activeTab === "scaffold" ? "Creating..." : "Importing...") : (activeTab === "scaffold" ? "Create Project" : "Import Project") }}</span>
+      <span>{{
+        creating
+          ? activeTab === "scaffold"
+            ? "Creating..."
+            : "Importing..."
+          : activeTab === "scaffold"
+            ? "Create Project"
+            : "Import Project"
+      }}</span>
     </button>
   </div>
 </template>
@@ -563,7 +569,9 @@ onMounted(() => {
   font-weight: 600;
   font-size: 0.9375rem;
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .tab:hover {
@@ -594,7 +602,10 @@ onMounted(() => {
   border-radius: var(--radius-md);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .repo-card:hover {
