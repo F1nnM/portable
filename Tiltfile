@@ -18,13 +18,13 @@ POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
 
 # Directories that are generated or cached and should never trigger builds/syncs.
 IGNORE_PATTERNS = [
-    "node_modules",
-    ".nuxt",
-    ".output",
-    ".nitro",
-    ".cache",
-    ".vite-temp",
-    "dist",
+    "**/node_modules",
+    "**/.nuxt",
+    "**/.output",
+    "**/.nitro",
+    "**/.cache",
+    "**/.vite-temp",
+    "**/dist",
     "**/*.tmp.*",
     "**/*.tsbuildinfo",
 ]
