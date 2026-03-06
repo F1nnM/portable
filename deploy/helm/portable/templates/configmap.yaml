@@ -10,3 +10,6 @@ data:
   NUXT_POD_RESOURCE_MEMORY_REQUEST: {{ .Values.pod.resources.requests.memory | quote }}
   NUXT_POD_RESOURCE_MEMORY_LIMIT: {{ .Values.pod.resources.limits.memory | quote }}
   NUXT_POD_STORAGE_SIZE: {{ .Values.pod.storage | quote }}
+  {{- if .Values.allowedUsers }}
+  NUXT_ALLOWED_USERS: {{ .Values.allowedUsers | join "," | quote }}
+  {{- end }}

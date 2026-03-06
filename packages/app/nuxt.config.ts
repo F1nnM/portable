@@ -131,6 +131,7 @@ export default defineNuxtConfig({
     podResourceMemoryRequest: "512Mi",
     podResourceMemoryLimit: "4Gi",
     podStorageSize: "5Gi",
+    allowedUsers: "",
   },
   vite: {
     plugins: [devSubdomainProxy()],

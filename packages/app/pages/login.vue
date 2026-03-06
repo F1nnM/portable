@@ -2,6 +2,9 @@
 definePageMeta({
   layout: false,
 });
+
+const route = useRoute();
+const error = computed(() => route.query.error as string | undefined);
 </script>
 
 <template>
@@ -19,6 +22,10 @@ definePageMeta({
           </div>
           <h1 class="brand-title">Portable</h1>
           <p class="brand-tagline">Claude Code, anywhere.</p>
+        </div>
+
+        <div v-if="error === 'not_allowed'" class="error-message">
+          Your GitHub account is not authorized to access this instance.
         </div>
 
         <a href="/auth/github" class="btn-github">
@@ -157,6 +164,19 @@ definePageMeta({
   font-size: 0.9375rem;
   color: var(--text-secondary);
   letter-spacing: -0.01em;
+}
+
+/* Error message */
+.error-message {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  border-radius: var(--radius-md);
+  color: #f85149;
+  font-size: 0.875rem;
+  text-align: center;
+  line-height: 1.5;
 }
 
 /* GitHub button */

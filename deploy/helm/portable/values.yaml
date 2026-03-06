@@ -33,6 +33,13 @@ github:
   # Generated once when creating the OAuth App. Stored in a K8s Secret.
   clientSecret: ""
 
+# -- Restrict signups to specific GitHub usernames.
+# When empty (default), all GitHub users can sign up.
+# When set, only listed usernames can authenticate.
+allowedUsers: []
+#  - finn
+#  - octocat
+
 # -- Database configuration.
 # By default, the chart deploys its own Postgres StatefulSet. Alternatively,
 # you can use an external database (e.g., CloudNative-PG) by setting

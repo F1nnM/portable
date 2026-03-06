@@ -58,6 +58,15 @@ export default defineEventHandler(async (event) => {
   const githubUser = (await githubUserResponse.json()) as GitHubUser;
 
   const config = useRuntimeConfig();
+
+  // Check allowlist
+  const allowedUsers = config.allowedUsers
+    ? config.allowedUsers.split(",").map((u: string) => u.trim().toLowerCase())
+    : [];
+  if (allowedUsers.length > 0 && !allowedUsers.includes(githubUser.login.toLowerCase())) {
+    return sendRedirect(event, "/login?error=not_allowed");
+  }
+
   const db = useDb();
 
   // Encrypt the GitHub access token
