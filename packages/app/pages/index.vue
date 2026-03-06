@@ -46,6 +46,14 @@ onUnmounted(() => {
   }
 });
 
+function handleProjectStarting(projectId: string) {
+  const idx = projects.value.findIndex((p) => p.id === projectId);
+  if (idx !== -1) {
+    projects.value[idx] = { ...projects.value[idx], status: "starting" };
+  }
+  // isAnyTransitioning watcher will start polling automatically
+}
+
 function handleProjectUpdated() {
   fetchProjects();
 }
@@ -116,6 +124,7 @@ function handleProjectDeleted() {
         v-for="project in projects"
         :key="project.id"
         :project="project"
+        @starting="handleProjectStarting(project.id)"
         @updated="handleProjectUpdated"
         @deleted="handleProjectDeleted"
       />

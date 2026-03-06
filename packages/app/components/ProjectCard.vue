@@ -8,6 +8,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   updated: [];
   deleted: [];
+  starting: [];
 }>();
 
 const isActioning = ref(false);
@@ -78,7 +79,7 @@ async function handleStart() {
   actionError.value = "";
   try {
     await $fetch(`/api/projects/${props.project.slug}/start`, { method: "POST" });
-    emit("updated");
+    emit("starting");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to start project";
     actionError.value = msg;
@@ -261,9 +262,6 @@ function handleRenameKeydown(e: KeyboardEvent) {
         </svg>
         {{ isActioning ? "Stopping..." : "Stop" }}
       </button>
-      <span v-if="isTransitioning" class="transitioning-label">
-        {{ project.status === "starting" ? "Starting..." : "Stopping..." }}
-      </span>
     </div>
 
     <!-- Rename bottom sheet -->
@@ -674,13 +672,6 @@ function handleRenameKeydown(e: KeyboardEvent) {
   background: var(--bg-elevated);
   color: var(--text-primary);
   transform: translateY(-1px);
-}
-
-.transitioning-label {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: #e6b422;
-  animation: blink 1s ease-in-out infinite;
 }
 
 /* Bottom sheet overlay */
