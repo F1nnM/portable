@@ -72,4 +72,49 @@ describe("useSessions composable", () => {
     expect(sessions.value).toHaveLength(0);
     expect(mockFetch).toHaveBeenCalledWith("/api/sessions/a", { method: "DELETE" });
   });
+
+  it("fetchSessions sets error on non-ok response", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: "Internal Server Error" }),
+    });
+
+    const { sessions, error, fetchSessions } = useSessions();
+    await fetchSessions();
+
+    expect(sessions.value).toHaveLength(0);
+    expect(error.value).toBe("Failed to fetch sessions: 500");
+  });
+
+  it("loadMessages throws on non-ok response", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+
+    const { loadMessages } = useSessions();
+    await expect(loadMessages("unknown")).rejects.toThrow("Failed to load messages: 404");
+  });
+
+  it("deleteSession throws on non-ok response and preserves local list", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sessions: [
+              { sessionId: "a", title: "First", lastModified: 2000, firstPrompt: "Hello" },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 500 });
+
+    const { sessions, fetchSessions, deleteSession } = useSessions();
+    await fetchSessions();
+    expect(sessions.value).toHaveLength(1);
+
+    await expect(deleteSession("a")).rejects.toThrow("Failed to delete session: 500");
+    expect(sessions.value).toHaveLength(1);
+  });
 });
