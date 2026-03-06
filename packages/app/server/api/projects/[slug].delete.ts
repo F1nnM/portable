@@ -1,3 +1,4 @@
+import { isError as isH3Error } from "h3";
 import { deleteProject } from "../../utils/project-lifecycle";
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +16,17 @@ export default defineEventHandler(async (event) => {
     () => ({}) as { deleteGithubRepo?: boolean },
   );
 
-  await deleteProject(user.id, slug, { deleteGithubRepo: body?.deleteGithubRepo });
+  try {
+    await deleteProject(user.id, slug, { deleteGithubRepo: body?.deleteGithubRepo });
+  } catch (err: unknown) {
+    // Re-throw H3 errors (404, 409, etc.) as-is
+    if (isH3Error(err)) {
+      throw err;
+    }
+    // Wrap unexpected errors with a user-friendly message
+    const message = err instanceof Error ? err.message : "Unknown error";
+    throw createError({ statusCode: 502, statusMessage: `Failed to delete project: ${message}` });
+  }
 
   return { ok: true };
 });

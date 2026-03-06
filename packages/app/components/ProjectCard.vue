@@ -11,7 +11,8 @@ const emit = defineEmits<{
   starting: [];
 }>();
 
-const isActioning = ref(false);
+const currentAction = ref<"starting" | "stopping" | "renaming" | "deleting" | null>(null);
+const isActioning = computed(() => currentAction.value !== null);
 const showRenameSheet = ref(false);
 const showDeleteSheet = ref(false);
 const showMenu = ref(false);
@@ -143,7 +144,7 @@ function openDelete() {
 
 async function handleStart() {
   if (isActioning.value) return;
-  isActioning.value = true;
+  currentAction.value = "starting";
   actionError.value = "";
   try {
     await $fetch(`/api/projects/${props.project.slug}/start`, { method: "POST" });
@@ -152,13 +153,13 @@ async function handleStart() {
     const msg = err instanceof Error ? err.message : "Failed to start project";
     actionError.value = msg;
   } finally {
-    isActioning.value = false;
+    currentAction.value = null;
   }
 }
 
 async function handleStop() {
   if (isActioning.value) return;
-  isActioning.value = true;
+  currentAction.value = "stopping";
   actionError.value = "";
   try {
     await $fetch(`/api/projects/${props.project.slug}/stop`, { method: "POST" });
@@ -167,7 +168,7 @@ async function handleStop() {
     const msg = err instanceof Error ? err.message : "Failed to stop project";
     actionError.value = msg;
   } finally {
-    isActioning.value = false;
+    currentAction.value = null;
   }
 }
 
@@ -178,7 +179,7 @@ async function handleRename() {
     return;
   }
   if (isActioning.value) return;
-  isActioning.value = true;
+  currentAction.value = "renaming";
   actionError.value = "";
   try {
     await $fetch(`/api/projects/${props.project.slug}`, {
@@ -191,13 +192,13 @@ async function handleRename() {
     const msg = err instanceof Error ? err.message : "Failed to rename project";
     actionError.value = msg;
   } finally {
-    isActioning.value = false;
+    currentAction.value = null;
   }
 }
 
 async function handleDelete() {
   if (isActioning.value) return;
-  isActioning.value = true;
+  currentAction.value = "deleting";
   actionError.value = "";
   try {
     await $fetch(`/api/projects/${props.project.slug}`, {
@@ -210,7 +211,7 @@ async function handleDelete() {
     const msg = err instanceof Error ? err.message : "Failed to delete project";
     actionError.value = msg;
   } finally {
-    isActioning.value = false;
+    currentAction.value = null;
   }
 }
 
@@ -318,7 +319,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
           <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
-        {{ isActioning ? "Starting..." : "Start" }}
+        {{ currentAction === "starting" ? "Starting..." : "Start" }}
       </button>
       <button
         v-if="canStop"
@@ -329,7 +330,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
           <rect x="4" y="4" width="16" height="16" rx="2" />
         </svg>
-        {{ isActioning ? "Stopping..." : "Stop" }}
+        {{ currentAction === "stopping" ? "Stopping..." : "Stop" }}
       </button>
     </div>
 
