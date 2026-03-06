@@ -33,17 +33,24 @@ interface SdkAssistantEvent {
 }
 
 interface InboundMessage {
-  type: "query_start" | "query_end" | "error" | "sdk_event";
+  type: "query_start" | "query_end" | "error" | "sdk_event" | "session_info";
   event?: SdkAssistantEvent;
   message?: string;
+  sessionId?: string;
 }
 
 const RECONNECT_DELAY_MS = 2000;
 
-export function useWebSocket() {
-  const messages = ref<ChatMessage[]>([]);
+export interface UseWebSocketOptions {
+  sessionId?: string;
+  initialMessages?: ChatMessage[];
+}
+
+export function useWebSocket(options?: UseWebSocketOptions) {
+  const messages = ref<ChatMessage[]>(options?.initialMessages ? [...options.initialMessages] : []);
   const isConnected = ref(false);
   const isStreaming = ref(false);
+  const sessionId = ref<string | null>(options?.sessionId ?? null);
 
   let socket: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -55,7 +62,11 @@ export function useWebSocket() {
 
   function buildWsUrl(): string {
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${location.host}/ws`;
+    const base = `${protocol}//${location.host}/ws`;
+    if (options?.sessionId) {
+      return `${base}?session=${encodeURIComponent(options.sessionId)}`;
+    }
+    return base;
   }
 
   function processContentBlocks(blocks: SdkContentBlock[]) {
@@ -110,6 +121,12 @@ export function useWebSocket() {
       case "query_end":
         finalizeAssistantMessage();
         isStreaming.value = false;
+        break;
+
+      case "session_info":
+        if (parsed.sessionId) {
+          sessionId.value = parsed.sessionId;
+        }
         break;
 
       case "error":
@@ -190,6 +207,7 @@ export function useWebSocket() {
     messages,
     isConnected,
     isStreaming,
+    sessionId,
     send,
     interrupt,
     close,

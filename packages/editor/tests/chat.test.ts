@@ -187,6 +187,43 @@ describe("chat", () => {
       );
       ws.close();
     });
+
+    it("connects with session query param when sessionId provided", () => {
+      const ws = useWebSocket({ sessionId: "test-session" });
+      expect(MockWebSocket.instances[0].url).toContain("/ws?session=test-session");
+      ws.close();
+    });
+
+    it("connects without session param when no sessionId", () => {
+      const ws = useWebSocket();
+      expect(MockWebSocket.instances[0].url).toMatch(/\/ws$/);
+      ws.close();
+    });
+
+    it("captures sessionId from session_info message", () => {
+      const ws = useWebSocket();
+      MockWebSocket.instances[0].simulateOpen();
+
+      MockWebSocket.instances[0].simulateMessage({
+        type: "session_info",
+        sessionId: "new-session-id",
+      });
+
+      expect(ws.sessionId.value).toBe("new-session-id");
+      ws.close();
+    });
+
+    it("accepts initial messages to pre-populate history", () => {
+      const initial = [
+        { role: "user" as const, content: "Hello" },
+        { role: "assistant" as const, content: "Hi there!" },
+      ];
+      const ws = useWebSocket({ initialMessages: initial });
+
+      expect(ws.messages.value).toHaveLength(2);
+      expect(ws.messages.value[0].content).toBe("Hello");
+      ws.close();
+    });
   });
 
   describe("chatMessage component", () => {
