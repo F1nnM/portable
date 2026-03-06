@@ -78,9 +78,8 @@ RUN chmod +x ./scripts/entrypoint.sh
 # Project workspace will be mounted here via PVC
 RUN mkdir -p /workspace
 
-# Create non-root user for running the pod server
-RUN addgroup -S app && adduser -S -G app -u 1000 app \
-    && chown -R app:app /srv /workspace
+# Use the existing 'node' user (uid 1000) from the base image
+RUN chown -R node:node /srv /workspace
 VOLUME /workspace
 
 ENV NODE_ENV=production
@@ -89,5 +88,5 @@ ENV PORT=3000
 EXPOSE 3000
 EXPOSE 3001
 
-USER app
+USER node
 CMD ["./scripts/entrypoint.sh"]
