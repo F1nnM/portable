@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { readdir, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -14,12 +15,9 @@ async function findSessionFile(sessionId: string): Promise<string | null> {
     "projects",
   );
 
-  let projectDirs: { name: string; isDirectory: () => boolean }[];
+  let projectDirs: Dirent[];
   try {
-    projectDirs = (await readdir(claudeProjectsDir, { withFileTypes: true })) as {
-      name: string;
-      isDirectory: () => boolean;
-    }[];
+    projectDirs = await readdir(claudeProjectsDir, { withFileTypes: true });
   } catch {
     return null;
   }
@@ -31,7 +29,7 @@ async function findSessionFile(sessionId: string): Promise<string | null> {
     const projectPath = join(claudeProjectsDir, entry.name);
     let files: string[];
     try {
-      files = (await readdir(projectPath)) as string[];
+      files = await readdir(projectPath);
     } catch {
       continue;
     }

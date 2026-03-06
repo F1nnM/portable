@@ -16,6 +16,7 @@ vi.mock("node:os", () => ({
 }));
 
 vi.mock("node:fs/promises", async (importOriginal) => {
+  // eslint-disable-next-line ts/consistent-type-imports -- vitest importOriginal requires typeof import()
   const original = await importOriginal<typeof import("node:fs/promises")>();
   return {
     ...original,
