@@ -44,6 +44,9 @@ WORKDIR /app
 # Copy the Nuxt build output (standalone server)
 COPY --from=build /app/packages/app/.output .output
 
+# Copy database migrations (read at runtime by the migrate plugin)
+COPY --from=build /app/packages/app/server/db/migrations server/db/migrations
+
 # Copy scaffolds (read at runtime by the scaffolds API)
 COPY scaffolds/ scaffolds/
 
