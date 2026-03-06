@@ -53,14 +53,11 @@ docker_build(
 # Pod server (Hono + editor SPA) — Dockerfile.dev.
 #
 # Project pods are created dynamically at runtime (not by Tilt), so there is
-# no static K8s manifest that references this image directly. match_in_env_vars
-# tells Tilt to treat env vars containing this image name as image references:
-# it will build the image, push it, and rewrite the NUXT_POD_SERVER_IMAGE env
-# var in the main app Deployment to the actual pushed image reference. Project
-# pods created at runtime inherit the correct image from that env var.
-# custom_build with a fixed tag so the NUXT_POD_SERVER_IMAGE env var never
-# changes, which prevents the app Deployment from rolling out on every
-# pod-server rebuild.
+# no static K8s manifest that references this image directly. The Helm set[]
+# above injects the image ref into NUXT_POD_SERVER_IMAGE statically, so we
+# do NOT use match_in_env_vars (which would cause Tilt to re-apply the app
+# Deployment on every pod-server rebuild, triggering a rollout). New project
+# pods pick up the latest image via imagePullPolicy: Always on the :dev tag.
 custom_build(
     POD_SERVER_IMAGE,
     "docker build -t $EXPECTED_REF -f packages/pod-server/Dockerfile.dev .",
@@ -73,7 +70,6 @@ custom_build(
     ],
     ignore=IGNORE_PATTERNS,
     tag="dev",
-    match_in_env_vars=True,
 )
 
 # ---------------------------------------------------------------------------
