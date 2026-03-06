@@ -1,11 +1,25 @@
 <script setup lang="ts">
+import type { ChatMessage as ChatMessageType } from "../composables/useWebSocket";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import ChatInput from "../components/ChatInput.vue";
 import ChatMessage from "../components/ChatMessage.vue";
+import SessionList from "../components/SessionList.vue";
+import { useSessions } from "../composables/useSessions";
 import { useWebSocket } from "../composables/useWebSocket";
 
-const ws = useWebSocket();
+type ViewState = "list" | "chat";
+
+const viewState = ref<ViewState>("list");
+const activeSessionId = ref<string | null>(null);
+
+let ws: ReturnType<typeof useWebSocket> | null = null;
 const messageListRef = ref<HTMLDivElement | null>(null);
+const { loadMessages } = useSessions();
+
+// Reactive proxies for the template
+const messages = ref<ChatMessageType[]>([]);
+const isStreaming = ref(false);
+const isConnected = ref(false);
 
 function scrollToBottom() {
   nextTick(() => {
@@ -16,56 +30,118 @@ function scrollToBottom() {
   });
 }
 
-watch(
-  () => ws.messages.value.length,
-  () => {
-    scrollToBottom();
-  },
-);
+async function openSession(sessionId: string) {
+  activeSessionId.value = sessionId;
+  const history = await loadMessages(sessionId);
+  startChat(history, sessionId);
+}
 
-watch(
-  () => ws.isStreaming.value,
-  () => {
-    scrollToBottom();
-  },
-);
+function startNewSession() {
+  activeSessionId.value = null;
+  startChat([], undefined);
+}
+
+function startChat(initialMessages: ChatMessageType[], sessionId?: string) {
+  ws = useWebSocket({ sessionId, initialMessages });
+  messages.value = ws.messages.value;
+  isStreaming.value = ws.isStreaming.value;
+  isConnected.value = ws.isConnected.value;
+
+  watch(
+    () => ws!.messages.value,
+    (val) => {
+      messages.value = val;
+      scrollToBottom();
+    },
+    { deep: true },
+  );
+
+  watch(
+    () => ws!.isStreaming.value,
+    (val) => {
+      isStreaming.value = val;
+      scrollToBottom();
+    },
+  );
+
+  watch(
+    () => ws!.isConnected.value,
+    (val) => {
+      isConnected.value = val;
+    },
+  );
+
+  watch(
+    () => ws!.sessionId.value,
+    (val) => {
+      if (val) activeSessionId.value = val;
+    },
+  );
+
+  viewState.value = "chat";
+  scrollToBottom();
+}
+
+function goBack() {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  messages.value = [];
+  isStreaming.value = false;
+  isConnected.value = false;
+  activeSessionId.value = null;
+  viewState.value = "list";
+}
 
 function handleSend(content: string) {
-  ws.send(content);
+  ws?.send(content);
   scrollToBottom();
 }
 
 function handleInterrupt() {
-  ws.interrupt();
+  ws?.interrupt();
 }
 
 onBeforeUnmount(() => {
-  ws.close();
+  ws?.close();
 });
 </script>
 
 <template>
   <div class="view chat-view" data-testid="chat-view">
-    <div ref="messageListRef" class="message-list">
-      <div v-if="ws.messages.value.length === 0" class="empty-state">
-        <span class="empty-label">Start a conversation</span>
+    <!-- Session List State -->
+    <SessionList v-if="viewState === 'list'" @select="openSession" @new-session="startNewSession" />
+
+    <!-- Chat State -->
+    <template v-else>
+      <div class="chat-header">
+        <button class="back-button" data-testid="back-button" @click="goBack">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="back-icon">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
+        <span class="chat-label">Chat</span>
       </div>
-      <ChatMessage v-for="(msg, index) in ws.messages.value" :key="index" :message="msg" />
-      <div
-        v-if="ws.isStreaming.value"
-        class="streaming-indicator"
-        data-testid="streaming-indicator"
-      >
-        <span class="streaming-dot" />
-        <span class="streaming-dot" />
-        <span class="streaming-dot" />
+
+      <div ref="messageListRef" class="message-list">
+        <div v-if="messages.length === 0" class="empty-state">
+          <span class="empty-label">Start a conversation</span>
+        </div>
+        <ChatMessage v-for="(msg, index) in messages" :key="index" :message="msg" />
+        <div v-if="isStreaming" class="streaming-indicator" data-testid="streaming-indicator">
+          <span class="streaming-dot" />
+          <span class="streaming-dot" />
+          <span class="streaming-dot" />
+        </div>
       </div>
-    </div>
-    <ChatInput
-      :is-streaming="ws.isStreaming.value"
-      @send="handleSend"
-      @interrupt="handleInterrupt"
-    />
+      <ChatInput :is-streaming="isStreaming" @send="handleSend" @interrupt="handleInterrupt" />
+    </template>
   </div>
 </template>
 
@@ -75,6 +151,47 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.back-button:active {
+  background: var(--color-bg-surface);
+}
+
+.back-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.chat-label {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .message-list {

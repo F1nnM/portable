@@ -304,13 +304,169 @@ describe("chat", () => {
     });
   });
 
-  describe("chatView integration", () => {
-    it("connects to WebSocket on mount", async () => {
+  describe("chatView session management", () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ sessions: [] }),
+        }),
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.stubGlobal("WebSocket", MockWebSocket);
+    });
+
+    it("shows session list by default when entering chat tab", async () => {
       const router = createTestRouter();
       router.push("/chat");
       await router.isReady();
 
-      mount(App, { global: { plugins: [router] } });
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      expect(wrapper.find("[data-testid='new-session-button']").exists()).toBe(true);
+    });
+
+    it("switches to chat view when new-session is clicked", async () => {
+      vi.stubGlobal("WebSocket", MockWebSocket);
+
+      const router = createTestRouter();
+      router.push("/chat");
+      await router.isReady();
+
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
+      await flushPromises();
+
+      // Should now show chat input instead of session list
+      expect(wrapper.find("textarea").exists()).toBe(true);
+    });
+
+    it("shows back button in chat view that returns to session list", async () => {
+      vi.stubGlobal("WebSocket", MockWebSocket);
+
+      const router = createTestRouter();
+      router.push("/chat");
+      await router.isReady();
+
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      // Enter chat view
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
+      await flushPromises();
+
+      // Click back
+      await wrapper.find("[data-testid='back-button']").trigger("click");
+      await flushPromises();
+
+      // Should be back to session list
+      expect(wrapper.find("[data-testid='new-session-button']").exists()).toBe(true);
+    });
+
+    it("loads messages and opens WebSocket when selecting existing session", async () => {
+      vi.stubGlobal("WebSocket", MockWebSocket);
+
+      const mockFetch = vi.fn();
+      // First call: session list
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sessions: [
+              {
+                sessionId: "sess1",
+                title: "Test session",
+                lastModified: Date.now(),
+                firstPrompt: "Hello",
+              },
+            ],
+          }),
+      });
+      // Second call: load messages for the selected session
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            messages: [
+              { role: "user", content: "Hello" },
+              { role: "assistant", content: "Hi there!" },
+            ],
+          }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const router = createTestRouter();
+      router.push("/chat");
+      await router.isReady();
+
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      // Click on the session card
+      await wrapper.find("[data-testid='session-card']").trigger("click");
+      await flushPromises();
+
+      // Should show chat view with loaded messages
+      expect(wrapper.find("textarea").exists()).toBe(true);
+      const chatMessages = wrapper.findAll("[data-testid='chat-message']");
+      expect(chatMessages.length).toBe(2);
+
+      // WebSocket should connect with session param
+      const wsInstance = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+      expect(wsInstance.url).toContain("/ws?session=sess1");
+    });
+
+    it("closes WebSocket when going back from chat to session list", async () => {
+      vi.stubGlobal("WebSocket", MockWebSocket);
+
+      const router = createTestRouter();
+      router.push("/chat");
+      await router.isReady();
+
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      // Enter chat view
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
+      await flushPromises();
+
+      const wsInstance = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+
+      // Click back
+      await wrapper.find("[data-testid='back-button']").trigger("click");
+      await flushPromises();
+
+      expect(wsInstance.close).toHaveBeenCalled();
+    });
+  });
+
+  describe("chatView integration", () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ sessions: [] }),
+        }),
+      );
+    });
+
+    it("connects to WebSocket after clicking new session", async () => {
+      const router = createTestRouter();
+      router.push("/chat");
+      await router.isReady();
+
+      const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
       await flushPromises();
 
       expect(MockWebSocket.instances.length).toBeGreaterThanOrEqual(1);
@@ -322,6 +478,10 @@ describe("chat", () => {
       await router.isReady();
 
       const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      // First click new session to enter chat mode
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
       await flushPromises();
 
       const mock = MockWebSocket.instances[MockWebSocket.instances.length - 1];
@@ -358,6 +518,10 @@ describe("chat", () => {
       await router.isReady();
 
       const wrapper = mount(App, { global: { plugins: [router] } });
+      await flushPromises();
+
+      // First click new session to enter chat mode
+      await wrapper.find("[data-testid='new-session-button']").trigger("click");
       await flushPromises();
 
       const mock = MockWebSocket.instances[MockWebSocket.instances.length - 1];
