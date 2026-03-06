@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { projects } from "../../../db/schema";
+import { getCreationPhase } from "../../../utils/creation-phase";
 import { useDb } from "../../../utils/db";
 import { getK8sConfig } from "../../../utils/k8s";
 
@@ -26,6 +27,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const project = result[0];
+
+  if (project.status === "creating") {
+    const phase = getCreationPhase(slug);
+    return { status: "creating", phase: phase ?? "creating_database" };
+  }
 
   if (project.status === "starting") {
     const config = getK8sConfig();
