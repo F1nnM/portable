@@ -37,14 +37,14 @@ securityContext: null
 # Single replica for local dev
 replicaCount: 1
 
-# Lower resources for main app in dev
+# Resources for main app in dev (Nuxt dev mode needs ~1Gi for Vite + Nitro builds)
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
     memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1536Mi
 
 # Use nginx ingress class (installed separately into the k3d cluster)
 ingress:
