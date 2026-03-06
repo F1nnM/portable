@@ -269,6 +269,7 @@ describe("k8s utilities", () => {
       expect(arg.namespace).toBe("test-ns");
       expect(arg.body.metadata.name).toBe("project-my-project");
       expect(arg.body.spec.clusterIP).toBe("None");
+      expect(arg.body.spec.publishNotReadyAddresses).toBe(true);
       expect(arg.body.metadata.labels).toEqual(
         expect.objectContaining({
           "app.kubernetes.io/managed-by": "portable",

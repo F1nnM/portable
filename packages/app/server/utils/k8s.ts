@@ -192,6 +192,7 @@ export async function createProjectService(slug: string, namespace?: string): Pr
       },
       spec: {
         clusterIP: "None",
+        publishNotReadyAddresses: true,
         selector: {
           "portable.dev/project": slug,
         },

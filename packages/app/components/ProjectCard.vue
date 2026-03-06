@@ -28,8 +28,8 @@ const phaseLabels: Record<string, string> = {
   creating_repository: "Creating repository...",
   pushing_scaffold: "Scaffolding application...",
   // Startup phases
-  preparing: "Preparing...",
-  initializing: "Initializing...",
+  preparing: "Launching container...",
+  initializing: "Initializing workspace...",
   cloning: "Cloning repository...",
   installing: "Installing dependencies...",
   starting_server: "Starting server...",

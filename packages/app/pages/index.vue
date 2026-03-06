@@ -8,8 +8,10 @@ const error = ref("");
 const projects = ref<Project[]>([]);
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-async function fetchProjects() {
-  loading.value = true;
+async function fetchProjects(opts?: { showLoading?: boolean }) {
+  if (opts?.showLoading) {
+    loading.value = true;
+  }
   error.value = "";
   try {
     const data = await $fetch<{ projects: Project[] }>("/api/projects");
@@ -38,7 +40,7 @@ watch(isAnyTransitioning, (transitioning) => {
 });
 
 onMounted(() => {
-  fetchProjects();
+  fetchProjects({ showLoading: true });
 });
 
 onUnmounted(() => {
@@ -104,7 +106,7 @@ function handleProjectDeleted() {
       <p class="error-text">
         {{ error }}
       </p>
-      <button class="btn-retry" @click="fetchProjects">Try again</button>
+      <button class="btn-retry" @click="fetchProjects({ showLoading: true })">Try again</button>
     </div>
 
     <!-- Empty state -->
