@@ -7,6 +7,10 @@ import { deleteProjectPod, deleteProjectService } from "../utils/k8s";
  * On startup, reset any projects left in transitional states from a previous server run.
  */
 export default defineNitroPlugin(async () => {
+  if (!process.env.DATABASE_URL) {
+    return;
+  }
+
   const db = useDb();
 
   // Projects stuck in "creating" get set to "error" (they may lack repo/DB)
