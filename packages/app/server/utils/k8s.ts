@@ -137,6 +137,16 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
                 memory: config.podResourceMemoryLimit,
               },
             },
+            readinessProbe: {
+              httpGet: {
+                path: "/health",
+                port: 3000,
+              },
+              initialDelaySeconds: 5,
+              periodSeconds: 5,
+              failureThreshold: 60, // allow up to 5 min for setup (clone + install)
+              timeoutSeconds: 5,
+            },
             volumeMounts: [
               {
                 name: "workspace",
