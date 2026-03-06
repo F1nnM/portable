@@ -63,9 +63,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /srv
 
-# Copy pod-server build output and its production dependencies
+# Copy pod-server build output (all dependencies are bundled by tsup)
 COPY --from=build /build/packages/pod-server/dist ./dist
-COPY --from=build /build/packages/pod-server/node_modules ./node_modules
 COPY --from=build /build/packages/pod-server/package.json ./package.json
 
 # Copy editor SPA dist into a known location the pod-server can serve
