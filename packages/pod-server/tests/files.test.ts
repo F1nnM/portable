@@ -31,11 +31,11 @@ afterAll(() => {
 });
 
 describe("health route (after refactor)", () => {
-  it("returns 200 with { status: 'ok' } from /health", async () => {
+  it("returns 503 with setting_up phase when not ready", async () => {
     const response = await app.request("/health");
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     const body = await response.json();
-    expect(body).toEqual({ status: "ok" });
+    expect(body).toEqual({ status: "setting_up", phase: "initializing" });
   });
 });
 

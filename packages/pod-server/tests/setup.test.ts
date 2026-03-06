@@ -1,5 +1,5 @@
 import type { existsSync, readdirSync } from "node:fs";
-import type { ExecFileSyncFn } from "../src/setup.js";
+import type { ExecFn } from "../src/setup.js";
 import { describe, expect, it, vi } from "vitest";
 import { setupWorkspace } from "../src/setup.js";
 
@@ -10,7 +10,7 @@ function createMocks(options: {
 }) {
   const { files = [], nodeModulesExists = false, lockFiles = [] } = options;
 
-  const mockExecFileSync = vi.fn();
+  const mockExecFn = vi.fn().mockResolvedValue(undefined);
 
   const mockExistsSync = vi.fn((path: string) => {
     if (typeof path === "string" && path.endsWith("/node_modules")) {
@@ -33,12 +33,12 @@ function createMocks(options: {
     return files;
   });
 
-  return { mockExecFileSync, mockExistsSync, mockReaddirSync };
+  return { mockExecFn, mockExistsSync, mockReaddirSync };
 }
 
 describe("setupWorkspace", () => {
-  it("clones repo when workspace is empty and GITHUB_REPO_URL is set", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("clones repo when workspace is empty and GITHUB_REPO_URL is set", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: [],
       nodeModulesExists: false,
     });
@@ -49,23 +49,23 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
       githubRepoUrl: "https://github.com/user/repo.git",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
+    expect(mockExecFn).toHaveBeenCalledWith(
       "git",
       ["clone", "https://github.com/user/repo.git", "."],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
 
-  it("injects GitHub token into clone URL when provided", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("injects GitHub token into clone URL when provided", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: [],
       nodeModulesExists: false,
     });
@@ -75,24 +75,24 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
       githubRepoUrl: "https://github.com/user/repo.git",
       githubToken: "ghp_test123",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
+    expect(mockExecFn).toHaveBeenCalledWith(
       "git",
       ["clone", "https://x-access-token:ghp_test123@github.com/user/repo.git", "."],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
 
-  it("skips clone when workspace already has files", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("skips clone when workspace already has files", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json", "src"],
       nodeModulesExists: true,
     });
@@ -103,21 +103,21 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
       githubRepoUrl: "https://github.com/user/repo.git",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
     // Should NOT have called git clone
-    const cloneCalls = mockExecFileSync.mock.calls.filter((call: unknown[]) => call[0] === "git");
+    const cloneCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
     expect(cloneCalls).toHaveLength(0);
   });
 
-  it("skips clone when no GITHUB_REPO_URL is set", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("skips clone when no GITHUB_REPO_URL is set", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: [],
       nodeModulesExists: false,
     });
@@ -127,21 +127,21 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
       // No githubRepoUrl
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
     // No clone call
-    const cloneCalls = mockExecFileSync.mock.calls.filter((call: unknown[]) => call[0] === "git");
+    const cloneCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
     expect(cloneCalls).toHaveLength(0);
   });
 
-  it("runs npm install when node_modules is missing", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("runs npm install when node_modules is missing", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json"],
       nodeModulesExists: false,
     });
@@ -152,22 +152,22 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
+    expect(mockExecFn).toHaveBeenCalledWith(
       "npm",
       ["install"],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
 
-  it("skips install when node_modules exists", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("skips install when node_modules exists", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json", "node_modules"],
       nodeModulesExists: true,
     });
@@ -178,19 +178,19 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
     // No install call
-    expect(mockExecFileSync).not.toHaveBeenCalled();
+    expect(mockExecFn).not.toHaveBeenCalled();
   });
 
-  it("detects pnpm from pnpm-lock.yaml", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("detects pnpm from pnpm-lock.yaml", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json"],
       nodeModulesExists: false,
     });
@@ -202,22 +202,22 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
+    expect(mockExecFn).toHaveBeenCalledWith(
       "pnpm",
       ["install"],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
 
-  it("detects yarn from yarn.lock", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("detects yarn from yarn.lock", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json"],
       nodeModulesExists: false,
     });
@@ -230,22 +230,22 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
+    expect(mockExecFn).toHaveBeenCalledWith(
       "yarn",
       ["install"],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
 
-  it("ignores lost+found when checking if workspace has files", () => {
-    const { mockExecFileSync, mockExistsSync, mockReaddirSync } = createMocks({
+  it("ignores lost+found when checking if workspace has files", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["lost+found"],
       nodeModulesExists: false,
     });
@@ -256,16 +256,16 @@ describe("setupWorkspace", () => {
       return false;
     });
 
-    setupWorkspace({
+    await setupWorkspace({
       workspaceDir: "/workspace",
       githubRepoUrl: "https://github.com/user/repo.git",
-      execFileSyncFn: mockExecFileSync as unknown as ExecFileSyncFn,
+      execFn: mockExecFn as unknown as ExecFn,
       existsSyncFn: mockExistsSync as unknown as typeof existsSync,
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
     // Should clone because lost+found doesn't count as real files
-    const cloneCalls = mockExecFileSync.mock.calls.filter((call: unknown[]) => call[0] === "git");
+    const cloneCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
     expect(cloneCalls).toHaveLength(1);
   });
 });

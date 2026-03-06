@@ -239,7 +239,7 @@ export async function createProjectPVC(slug: string, namespace?: string): Promis
 export async function waitForPodReady(
   slug: string,
   namespace?: string,
-  timeoutMs: number = 120_000,
+  timeoutMs: number = 300_000,
 ): Promise<void> {
   const config = getK8sConfig();
   const kc = getKubeConfig();

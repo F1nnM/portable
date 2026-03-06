@@ -153,8 +153,14 @@ describe("project lifecycle", () => {
       // User credentials lookup (select encryptedAnthropicKey from users)
       const userSelectChain = makeSelectChain([{ encryptedAnthropicKey: userAnthropicKey }]);
 
-      // First select = project lookup, second = user anthropic key lookup (if needed)
-      mockDb.select.mockReturnValueOnce(projectSelectChain).mockReturnValueOnce(userSelectChain);
+      // AGE key lookup (select encryptedAgeKey from users)
+      const ageKeySelectChain = makeSelectChain([{ encryptedAgeKey: null }]);
+
+      // First select = project lookup, second = user anthropic key lookup, third = AGE key lookup
+      mockDb.select
+        .mockReturnValueOnce(projectSelectChain)
+        .mockReturnValueOnce(userSelectChain)
+        .mockReturnValueOnce(ageKeySelectChain);
 
       // Status updates
       mockDb.update.mockReturnValue(makeUpdateChain());

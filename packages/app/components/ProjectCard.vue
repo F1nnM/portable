@@ -19,6 +19,64 @@ const renameInput = ref(props.project.name);
 const deleteGithubRepo = ref(false);
 const actionError = ref("");
 
+const startupPhase = ref<string | null>(null);
+let phaseInterval: ReturnType<typeof setInterval> | null = null;
+
+const phaseLabels: Record<string, string> = {
+  preparing: "Preparing...",
+  initializing: "Initializing...",
+  cloning: "Cloning repository...",
+  installing: "Installing dependencies...",
+  starting_server: "Starting server...",
+  ready: "Almost ready...",
+};
+
+const phaseDisplay = computed(() => {
+  if (!startupPhase.value) return null;
+  return phaseLabels[startupPhase.value] ?? startupPhase.value;
+});
+
+async function pollPhase() {
+  try {
+    const data = await $fetch<{ status: string; phase: string | null }>(
+      `/api/projects/${props.project.slug}/status`,
+    );
+    startupPhase.value = data.phase;
+  } catch {
+    // Ignore errors during polling
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  pollPhase();
+  phaseInterval = setInterval(pollPhase, 2000);
+}
+
+function stopPolling() {
+  if (phaseInterval) {
+    clearInterval(phaseInterval);
+    phaseInterval = null;
+  }
+  startupPhase.value = null;
+}
+
+watch(
+  () => props.project.status,
+  (status) => {
+    if (status === "starting") {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  stopPolling();
+});
+
 const statusConfig = computed(() => {
   switch (props.project.status) {
     case "running":
@@ -161,6 +219,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
           {{ project.name }}
         </h3>
         <span class="project-slug">{{ project.slug }}</span>
+        <span v-if="phaseDisplay" class="startup-phase">{{ phaseDisplay }}</span>
       </div>
       <div class="card-actions-area">
         <span class="status-badge" :class="statusConfig.class">
@@ -420,6 +479,13 @@ function handleRenameKeydown(e: KeyboardEvent) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.startup-phase {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: #e6b422;
+  animation: blink 1s ease-in-out infinite;
 }
 
 .card-actions-area {
