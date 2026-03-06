@@ -120,9 +120,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set short SHA
+      - name: Set short SHA and lowercase owner
         id: sha
-        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Extract version from release
         if: github.event_name == 'release'
@@ -138,26 +140,28 @@ jobs:
       - name: Bake image refs into values.yaml
         run: |
           TAG="${{ steps.sha.outputs.short }}"
-          sed -i 's|repository: portable/app|repository: ghcr.io/${{ github.repository_owner }}/portable-app|' deploy/helm/portable/values.yaml
-          sed -i 's|repository: portable/pod-server|repository: ghcr.io/${{ github.repository_owner }}/portable-pod-server|' deploy/helm/portable/values.yaml
-          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-app/,/tag:/s|tag: ".*"|tag: "'"$TAG"'"|' deploy/helm/portable/values.yaml
-          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-pod-server/,/tag:/s|tag: ".*"|tag: "'"$TAG"'"|' deploy/helm/portable/values.yaml
+          OWNER="${{ steps.sha.outputs.owner }}"
+          sed -i "s|repository: portable/app|repository: ghcr.io/${OWNER}/portable-app|" deploy/helm/portable/values.yaml
+          sed -i "s|repository: portable/pod-server|repository: ghcr.io/${OWNER}/portable-pod-server|" deploy/helm/portable/values.yaml
+          sed -i "/ghcr.io\/${OWNER}\/portable-app/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
+          sed -i "/ghcr.io\/${OWNER}\/portable-pod-server/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
 
       - name: Package and push SHA chart
         run: |
           helm package deploy/helm/portable --version "0.0.0-${{ steps.sha.outputs.short }}" --app-version "${{ steps.sha.outputs.short }}"
-          helm push portable-0.0.0-${{ steps.sha.outputs.short }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          helm push portable-0.0.0-${{ steps.sha.outputs.short }}.tgz oci://ghcr.io/${{ steps.sha.outputs.owner }}/charts
 
       - name: Package and push rolling latest chart
         run: |
           helm package deploy/helm/portable --version "0.0.0" --app-version "${{ steps.sha.outputs.short }}"
-          helm push portable-0.0.0.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          helm push portable-0.0.0.tgz oci://ghcr.io/${{ steps.sha.outputs.owner }}/charts
 
       - name: Package and push versioned chart
         if: github.event_name == 'release'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-app/,/tag:/s|tag: ".*"|tag: "'"$VERSION"'"|' deploy/helm/portable/values.yaml
-          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-pod-server/,/tag:/s|tag: ".*"|tag: "'"$VERSION"'"|' deploy/helm/portable/values.yaml
+          OWNER="${{ steps.sha.outputs.owner }}"
+          sed -i "/ghcr.io\/${OWNER}\/portable-app/,/tag:/s|tag: \".*\"|tag: \"${VERSION}\"|" deploy/helm/portable/values.yaml
+          sed -i "/ghcr.io\/${OWNER}\/portable-pod-server/,/tag:/s|tag: \".*\"|tag: \"${VERSION}\"|" deploy/helm/portable/values.yaml
           helm package deploy/helm/portable --version "$VERSION" --app-version "$VERSION"
-          helm push portable-$VERSION.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          helm push portable-$VERSION.tgz oci://ghcr.io/${{ steps.sha.outputs.owner }}/charts
