@@ -23,7 +23,9 @@ async function fetchProjects() {
 }
 
 const isAnyTransitioning = computed(() =>
-  projects.value.some((p) => p.status === "starting" || p.status === "stopping"),
+  projects.value.some(
+    (p) => p.status === "creating" || p.status === "starting" || p.status === "stopping",
+  ),
 );
 
 watch(isAnyTransitioning, (transitioning) => {

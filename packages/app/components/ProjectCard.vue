@@ -18,10 +18,74 @@ const renameInput = ref(props.project.name);
 const deleteGithubRepo = ref(false);
 const actionError = ref("");
 
+const phaseLabels: Record<string, string> = {
+  // Creation phases
+  creating_database: "Creating database...",
+  creating_repository: "Creating repository...",
+  pushing_scaffold: "Pushing code...",
+  // Startup phases
+  preparing: "Preparing...",
+  initializing: "Initializing...",
+  cloning: "Cloning repository...",
+  installing: "Installing dependencies...",
+  starting_server: "Starting server...",
+  ready: "Almost ready...",
+};
+
+const phaseText = ref("");
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+async function pollStatus() {
+  try {
+    const data = await $fetch<{ status: string; phase?: string }>(
+      `/api/projects/${props.project.slug}/status`,
+    );
+    if (data.phase && phaseLabels[data.phase]) {
+      phaseText.value = phaseLabels[data.phase];
+    } else {
+      phaseText.value = "";
+    }
+  } catch {
+    phaseText.value = "";
+  }
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollStatus();
+  pollTimer = setInterval(pollStatus, 2000);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  phaseText.value = "";
+}
+
+watch(
+  () => props.project.status,
+  (status) => {
+    if (status === "starting" || status === "creating") {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  stopPolling();
+});
+
 const statusConfig = computed(() => {
   switch (props.project.status) {
     case "running":
       return { label: "Running", class: "status-running" };
+    case "creating":
+      return { label: "Creating", class: "status-creating" };
     case "starting":
       return { label: "Starting", class: "status-starting" };
     case "stopping":
@@ -35,7 +99,10 @@ const statusConfig = computed(() => {
 });
 
 const isTransitioning = computed(
-  () => props.project.status === "starting" || props.project.status === "stopping",
+  () =>
+    props.project.status === "creating" ||
+    props.project.status === "starting" ||
+    props.project.status === "stopping",
 );
 
 const canStart = computed(
@@ -262,7 +329,15 @@ function handleRenameKeydown(e: KeyboardEvent) {
         {{ isActioning ? "Stopping..." : "Stop" }}
       </button>
       <span v-if="isTransitioning" class="transitioning-label">
-        {{ project.status === "starting" ? "Starting..." : "Stopping..." }}
+        {{
+          phaseText
+            ? phaseText
+            : project.status === "creating"
+              ? "Creating..."
+              : project.status === "starting"
+                ? "Starting..."
+                : "Stopping..."
+        }}
       </span>
     </div>
 
@@ -455,6 +530,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   color: var(--accent);
 }
 
+.status-creating,
 .status-starting,
 .status-stopping {
   background: rgba(255, 200, 50, 0.12);
