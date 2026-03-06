@@ -55,7 +55,10 @@ FROM node:22-alpine AS runtime
 #   make, g++ - compile native npm addons
 RUN apk add --no-cache git python3 make g++
 
-# Enable pnpm so projects using pnpm can install dependencies
+# Install bun for fast dependency installation in user projects
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
+
+# Enable pnpm so projects using pnpm can run dev scripts
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /srv

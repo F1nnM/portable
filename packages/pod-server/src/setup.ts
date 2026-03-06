@@ -82,11 +82,9 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
   const hasNodeModules = existsSyncFn(nodeModulesPath);
 
   if (!hasNodeModules) {
-    // Detect package manager
-    const packageManager = detectPackageManager(workspaceDir, existsSyncFn);
     setPhase("installing");
-    console.log(`[setup] Installing dependencies with ${packageManager}...`);
-    await execFn(packageManager, ["install"], execOpts);
+    console.log("[setup] Installing dependencies with bun...");
+    await execFn("bun", ["install"], execOpts);
     console.log("[setup] Install complete.");
   } else {
     console.log("[setup] node_modules exists, skipping install.");
@@ -102,10 +100,4 @@ function hasFiles(
   const entries = readdirSyncFn(dir);
   // Filter out common hidden/system entries that might be on an empty PVC
   return entries.filter((e) => e !== "." && e !== ".." && e !== "lost+found").length > 0;
-}
-
-function detectPackageManager(dir: string, existsSyncFn: typeof existsSync): string {
-  if (existsSyncFn(join(dir, "pnpm-lock.yaml"))) return "pnpm";
-  if (existsSyncFn(join(dir, "yarn.lock"))) return "yarn";
-  return "npm";
 }

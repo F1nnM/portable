@@ -251,7 +251,7 @@ The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `per
 - **Graceful shutdown:** On `stop()`, sends SIGTERM to the child process and cancels any pending restart timer.
 - **Port injection:** Sets `PORT=3001` in the child process environment.
 
-The supervisor is started in `src/index.ts` after the Hono server begins listening and async workspace setup completes. The startup order is: start HTTP server (health endpoint available immediately), run async setup (cloning, installing), set phase to `starting_server`, start dev server supervisor, set phase to `ready`. The command defaults to `DEV_SERVER_COMMAND` env var (or `pnpm dev`).
+The supervisor is started in `src/index.ts` after the Hono server begins listening and async workspace setup completes. The startup order is: start HTTP server (health endpoint available immediately), run async setup (cloning, installing), set phase to `starting_server`, start dev server supervisor, set phase to `ready`. The command defaults to `DEV_SERVER_COMMAND` env var (or `bun run dev`).
 
 ### Setup Phase Tracking
 
@@ -262,7 +262,7 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 `src/setup.ts` exports `setupWorkspace()`, which is an async function that runs two steps using spawned child processes (not synchronous exec):
 
 1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, calls `setPhase("cloning")` and clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
-2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")`, detects the package manager (pnpm via `pnpm-lock.yaml`, yarn via `yarn.lock`, fallback to npm), and runs install.
+2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")` and runs `bun install`. Bun natively reads all lockfile formats (package-lock.json, yarn.lock, pnpm-lock.yaml).
 
 ### Entrypoint
 
@@ -270,16 +270,16 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 
 ### Pod Server Environment Variables
 
-| Variable                  | Description                                     | Default      |
-| ------------------------- | ----------------------------------------------- | ------------ |
-| `WORKSPACE_DIR`           | Path to the project workspace                   | `/workspace` |
-| `GITHUB_REPO_URL`         | Git repo URL for initial clone                  | (none)       |
-| `GITHUB_TOKEN`            | GitHub token for authenticated clone            | (none)       |
-| `DEV_SERVER_COMMAND`      | Command to start the project's dev server       | `pnpm dev`   |
-| `PORT`                    | Hono server listen port                         | `3000`       |
-| `DATABASE_URL`            | Connection string for the project's Postgres DB | (none)       |
-| `ANTHROPIC_API_KEY`       | User's Anthropic API key (injected by main app) | (none)       |
-| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude (alternative to API key) | (none)       |
+| Variable                  | Description                                     | Default       |
+| ------------------------- | ----------------------------------------------- | ------------- |
+| `WORKSPACE_DIR`           | Path to the project workspace                   | `/workspace`  |
+| `GITHUB_REPO_URL`         | Git repo URL for initial clone                  | (none)        |
+| `GITHUB_TOKEN`            | GitHub token for authenticated clone            | (none)        |
+| `DEV_SERVER_COMMAND`      | Command to start the project's dev server       | `bun run dev` |
+| `PORT`                    | Hono server listen port                         | `3000`        |
+| `DATABASE_URL`            | Connection string for the project's Postgres DB | (none)        |
+| `ANTHROPIC_API_KEY`       | User's Anthropic API key (injected by main app) | (none)        |
+| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude (alternative to API key) | (none)        |
 
 ## Editor SPA
 

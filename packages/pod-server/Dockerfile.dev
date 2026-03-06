@@ -1,6 +1,7 @@
 FROM node:22-alpine
 
 RUN apk add --no-cache git python3 make g++
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /build

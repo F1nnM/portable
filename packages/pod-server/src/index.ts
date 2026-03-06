@@ -36,7 +36,7 @@ async function startup() {
   setPhase("starting_server");
 
   const supervisor = new DevServerSupervisor({
-    command: process.env.DEV_SERVER_COMMAND || "pnpm dev",
+    command: process.env.DEV_SERVER_COMMAND || "bun run dev",
     cwd: workspaceDir,
     port: 3001,
   });

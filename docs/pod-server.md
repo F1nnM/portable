@@ -4,7 +4,7 @@
 
 The pod server is a lightweight Hono HTTP/WebSocket server that runs inside each project pod. It serves as the bridge between the browser-based editor UI and the project's development environment.
 
-A single container image is used for all project pods, regardless of scaffold type. The container includes Node.js 22, Git, Python 3, make, and g++ (for native npm addons), plus pnpm via corepack.
+A single container image is used for all project pods, regardless of scaffold type. The container includes Node.js 22, Git, Python 3, make, and g++ (for native npm addons), bun (for fast dependency installation), and pnpm via corepack.
 
 ## Architecture
 
@@ -143,19 +143,15 @@ The pod entrypoint script (`scripts/entrypoint.sh`) exec's `node dist/index.js` 
 1. **Start Hono server** -- The HTTP server starts immediately on port 3000. The `/health` endpoint is available right away, returning `{ "status": "setting_up", "phase": "initializing" }` with a 503 status code. This allows the main app to poll for setup progress from the moment the pod starts.
 2. **Workspace setup** (async) -- `setupWorkspace()` runs asynchronously, updating the phase as it progresses:
    - **Cloning** (`phase: "cloning"`) -- If the PVC (`/workspace`) is empty (ignoring `lost+found`), clone the project's GitHub repo using `GITHUB_REPO_URL`. If `GITHUB_TOKEN` is set, it is injected into the clone URL for authentication.
-   - **Installing** (`phase: "installing"`) -- If `node_modules/` is missing, detect the package manager and run install.
+   - **Installing** (`phase: "installing"`) -- If `node_modules/` is missing, run `bun install`.
 3. **Start dev server** (`phase: "starting_server"`) -- Creates a `DevServerSupervisor` and calls `start()`, launching the project's dev server on port 3001.
 4. **Signal readiness** (`phase: "ready"`) -- The `/health` endpoint now returns 200 with `{ "status": "ok", "phase": "ready" }`, satisfying the K8s readiness probe.
 
 Previously, the entrypoint script ran workspace setup synchronously before starting the HTTP server, so the health endpoint was unavailable during the longest phases (cloning and installing). The current design starts the server first to provide real-time visibility into setup progress.
 
-### Package Manager Detection
+### Dependency Installation
 
-The workspace setup module detects the package manager by checking for lock files:
-
-- `pnpm-lock.yaml` present -> `pnpm install`
-- `yarn.lock` present -> `yarn install`
-- Otherwise -> `npm install`
+Dependencies are always installed using `bun install`, regardless of the project's lockfile format. Bun natively reads `package-lock.json`, `yarn.lock`, and `pnpm-lock.yaml`, and is significantly faster than npm/yarn/pnpm for cold installs.
 
 ## Dev Server Supervisor
 
@@ -171,16 +167,16 @@ The dev server runs as a child process managed by the `DevServerSupervisor` clas
 
 The following environment variables are available inside the pod:
 
-| Variable                  | Description                                     | Default      |
-| ------------------------- | ----------------------------------------------- | ------------ |
-| `WORKSPACE_DIR`           | Path to the project workspace                   | `/workspace` |
-| `GITHUB_REPO_URL`         | Git repo URL for initial clone                  | (none)       |
-| `GITHUB_TOKEN`            | GitHub access token for authenticated clone     | (none)       |
-| `DEV_SERVER_COMMAND`      | Command to start the project's dev server       | `pnpm dev`   |
-| `PORT`                    | Hono server listen port                         | `3000`       |
-| `DATABASE_URL`            | Connection string for the project's Postgres DB | (none)       |
-| `ANTHROPIC_API_KEY`       | User's Anthropic API key (if set)               | (none)       |
-| `CLAUDE_CODE_OAUTH_TOKEN` | User's Claude Code OAuth token (if set)         | (none)       |
+| Variable                  | Description                                     | Default       |
+| ------------------------- | ----------------------------------------------- | ------------- |
+| `WORKSPACE_DIR`           | Path to the project workspace                   | `/workspace`  |
+| `GITHUB_REPO_URL`         | Git repo URL for initial clone                  | (none)        |
+| `GITHUB_TOKEN`            | GitHub access token for authenticated clone     | (none)        |
+| `DEV_SERVER_COMMAND`      | Command to start the project's dev server       | `bun run dev` |
+| `PORT`                    | Hono server listen port                         | `3000`        |
+| `DATABASE_URL`            | Connection string for the project's Postgres DB | (none)        |
+| `ANTHROPIC_API_KEY`       | User's Anthropic API key (if set)               | (none)        |
+| `CLAUDE_CODE_OAUTH_TOKEN` | User's Claude Code OAuth token (if set)         | (none)        |
 
 `DATABASE_URL`, `ANTHROPIC_API_KEY`/`CLAUDE_CODE_OAUTH_TOKEN`, `GITHUB_TOKEN`, and `GITHUB_REPO_URL` are injected by the main app when creating the pod (see `server/utils/k8s.ts`).
 
@@ -190,6 +186,6 @@ Built from `packages/pod-server/Dockerfile` using a multi-stage build:
 
 1. **deps** -- Install pnpm dependencies for the full workspace
 2. **build** -- Build both `@portable/pod-server` (tsup) and `@portable/editor` (Vite)
-3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, and pnpm via corepack. Copies the pod-server dist, its node_modules, and the editor SPA dist into `/srv/public`
+3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, bun (for fast dependency installation), and pnpm via corepack. Copies the pod-server dist, its node_modules, and the editor SPA dist into `/srv/public`
 
 The project workspace is mounted at `/workspace` via a PersistentVolumeClaim.

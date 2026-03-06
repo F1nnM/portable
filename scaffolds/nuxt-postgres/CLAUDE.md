@@ -7,7 +7,7 @@ Nuxt 3 full-stack web application with Postgres database using Drizzle ORM.
 Start the dev server:
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 The app runs at http://localhost:3000 by default.
@@ -22,13 +22,13 @@ The app runs at http://localhost:3000 by default.
 
 ```bash
 # Push schema directly to database (quick iteration)
-npx drizzle-kit push
+bun run drizzle-kit push
 
 # Generate migration files from schema changes
-npm run db:generate
+bun run db:generate
 
 # Apply generated migrations
-npx drizzle-kit migrate
+bun run drizzle-kit migrate
 ```
 
 ### Environment Variables
@@ -65,6 +65,6 @@ drizzle.config.ts   Drizzle Kit configuration
 ## Build
 
 ```bash
-npm run build     # Build for production
-npm run preview   # Preview production build locally
+bun run build     # Build for production
+bun run preview   # Preview production build locally
 ```

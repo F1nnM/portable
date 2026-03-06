@@ -75,7 +75,7 @@ The pod server also manages:
 
 - **Dev server supervisor** (`src/dev-server.ts`): `DevServerSupervisor` class starts the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
 - **Setup phase tracking** (`src/setup-state.ts`): Tracks the current setup phase (`initializing` -> `cloning` -> `installing` -> `starting_server` -> `ready`) as module-level state. The health endpoint reads this to report progress.
-- **Workspace setup** (`src/setup.ts`): Async function that clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication), and installs dependencies if `node_modules` is missing. Uses spawned child processes and calls `setPhase()` before each step.
+- **Workspace setup** (`src/setup.ts`): Async function that clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication), and installs dependencies via `bun install` if `node_modules` is missing. Uses spawned child processes and calls `setPhase()` before each step.
 - **Entrypoint** (`scripts/entrypoint.sh`): Exec's the Hono server directly. Workspace setup runs asynchronously within the server process, so the health endpoint is available immediately for progress polling.
 
 ### Editor SPA (`packages/editor`)
@@ -227,7 +227,7 @@ projects
   slug                    TEXT NOT NULL
   scaffold_id             TEXT NOT NULL (default 'nuxt-postgres')
   status                  project_status NOT NULL (default 'stopped')
-                          -- enum: 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+                          -- enum: 'stopped' | 'creating' | 'starting' | 'running' | 'stopping' | 'error'
   encrypted_anthropic_key TEXT           -- AES-256-GCM encrypted
   pod_name                TEXT
   repo_url                TEXT

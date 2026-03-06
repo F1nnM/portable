@@ -3,24 +3,14 @@ import type { ExecFn } from "../src/setup.js";
 import { describe, expect, it, vi } from "vitest";
 import { setupWorkspace } from "../src/setup.js";
 
-function createMocks(options: {
-  files?: string[];
-  nodeModulesExists?: boolean;
-  lockFiles?: string[];
-}) {
-  const { files = [], nodeModulesExists = false, lockFiles = [] } = options;
+function createMocks(options: { files?: string[]; nodeModulesExists?: boolean }) {
+  const { files = [], nodeModulesExists = false } = options;
 
   const mockExecFn = vi.fn().mockResolvedValue(undefined);
 
   const mockExistsSync = vi.fn((path: string) => {
     if (typeof path === "string" && path.endsWith("/node_modules")) {
       return nodeModulesExists;
-    }
-    // Check for lock files
-    for (const lock of lockFiles) {
-      if (typeof path === "string" && path.endsWith(`/${lock}`)) {
-        return true;
-      }
     }
     // Workspace directory exists if it has files
     if (path === "/workspace") {
@@ -140,7 +130,7 @@ describe("setupWorkspace", () => {
     expect(cloneCalls).toHaveLength(0);
   });
 
-  it("runs npm install when node_modules is missing", async () => {
+  it("runs bun install when node_modules is missing", async () => {
     const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
       files: ["package.json"],
       nodeModulesExists: false,
@@ -160,7 +150,7 @@ describe("setupWorkspace", () => {
     });
 
     expect(mockExecFn).toHaveBeenCalledWith(
-      "npm",
+      "bun",
       ["install"],
       expect.objectContaining({ cwd: "/workspace" }),
     );
@@ -187,61 +177,6 @@ describe("setupWorkspace", () => {
 
     // No install call
     expect(mockExecFn).not.toHaveBeenCalled();
-  });
-
-  it("detects pnpm from pnpm-lock.yaml", async () => {
-    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
-      files: ["package.json"],
-      nodeModulesExists: false,
-    });
-
-    mockExistsSync.mockImplementation((path: string) => {
-      if (path === "/workspace") return true;
-      if (typeof path === "string" && path.endsWith("/node_modules")) return false;
-      if (typeof path === "string" && path.endsWith("/pnpm-lock.yaml")) return true;
-      return false;
-    });
-
-    await setupWorkspace({
-      workspaceDir: "/workspace",
-      execFn: mockExecFn as unknown as ExecFn,
-      existsSyncFn: mockExistsSync as unknown as typeof existsSync,
-      readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
-    });
-
-    expect(mockExecFn).toHaveBeenCalledWith(
-      "pnpm",
-      ["install"],
-      expect.objectContaining({ cwd: "/workspace" }),
-    );
-  });
-
-  it("detects yarn from yarn.lock", async () => {
-    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
-      files: ["package.json"],
-      nodeModulesExists: false,
-    });
-
-    mockExistsSync.mockImplementation((path: string) => {
-      if (path === "/workspace") return true;
-      if (typeof path === "string" && path.endsWith("/node_modules")) return false;
-      if (typeof path === "string" && path.endsWith("/pnpm-lock.yaml")) return false;
-      if (typeof path === "string" && path.endsWith("/yarn.lock")) return true;
-      return false;
-    });
-
-    await setupWorkspace({
-      workspaceDir: "/workspace",
-      execFn: mockExecFn as unknown as ExecFn,
-      existsSyncFn: mockExistsSync as unknown as typeof existsSync,
-      readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
-    });
-
-    expect(mockExecFn).toHaveBeenCalledWith(
-      "yarn",
-      ["install"],
-      expect.objectContaining({ cwd: "/workspace" }),
-    );
   });
 
   it("ignores lost+found when checking if workspace has files", async () => {
