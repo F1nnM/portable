@@ -2,22 +2,63 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  release:
+    types: [published]
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  release:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Extract version from tag
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm chart
+        run: helm lint deploy/helm/portable
+
+  docker:
+    needs: ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract version from release
+        if: github.event_name == 'release'
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
@@ -31,15 +72,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Docker meta for app
+        id: meta-app
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/portable-app
+          tags: |
+            type=raw,value=${{ steps.sha.outputs.short }}
+            type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' }}
+
       - name: Build and push app image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: packages/app/Dockerfile
           push: true
+          tags: ${{ steps.meta-app.outputs.tags }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+      - name: Docker meta for pod-server
+        id: meta-pod
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/portable-pod-server
           tags: |
-            ghcr.io/${{ github.repository_owner }}/portable-app:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/portable-app:latest
+            type=raw,value=${{ steps.sha.outputs.short }}
+            type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' }}
 
       - name: Build and push pod-server image
         uses: docker/build-push-action@v6
@@ -47,9 +108,26 @@ jobs:
           context: .
           file: packages/pod-server/Dockerfile
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/portable-pod-server:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/portable-pod-server:latest
+          tags: ${{ steps.meta-pod.outputs.tags }}
+          cache-from: type=gha,scope=pod-server
+          cache-to: type=gha,mode=max,scope=pod-server
+
+  helm:
+    needs: docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract version from release
+        if: github.event_name == 'release'
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -57,8 +135,29 @@ jobs:
       - name: Login Helm to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
 
-      - name: Package Helm chart
-        run: helm package deploy/helm/portable --version "${{ steps.version.outputs.version }}" --app-version "${{ steps.version.outputs.version }}"
+      - name: Bake image refs into values.yaml
+        run: |
+          TAG="${{ steps.sha.outputs.short }}"
+          sed -i 's|repository: portable/app|repository: ghcr.io/${{ github.repository_owner }}/portable-app|' deploy/helm/portable/values.yaml
+          sed -i 's|repository: portable/pod-server|repository: ghcr.io/${{ github.repository_owner }}/portable-pod-server|' deploy/helm/portable/values.yaml
+          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-app/,/tag:/s|tag: ".*"|tag: "'"$TAG"'"|' deploy/helm/portable/values.yaml
+          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-pod-server/,/tag:/s|tag: ".*"|tag: "'"$TAG"'"|' deploy/helm/portable/values.yaml
 
-      - name: Push Helm chart to GHCR
-        run: helm push portable-${{ steps.version.outputs.version }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+      - name: Package and push SHA chart
+        run: |
+          helm package deploy/helm/portable --version "0.0.0-${{ steps.sha.outputs.short }}" --app-version "${{ steps.sha.outputs.short }}"
+          helm push portable-0.0.0-${{ steps.sha.outputs.short }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+
+      - name: Package and push rolling latest chart
+        run: |
+          helm package deploy/helm/portable --version "0.0.0" --app-version "${{ steps.sha.outputs.short }}"
+          helm push portable-0.0.0.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+
+      - name: Package and push versioned chart
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-app/,/tag:/s|tag: ".*"|tag: "'"$VERSION"'"|' deploy/helm/portable/values.yaml
+          sed -i '/ghcr.io\/${{ github.repository_owner }}\/portable-pod-server/,/tag:/s|tag: ".*"|tag: "'"$VERSION"'"|' deploy/helm/portable/values.yaml
+          helm package deploy/helm/portable --version "$VERSION" --app-version "$VERSION"
+          helm push portable-$VERSION.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
