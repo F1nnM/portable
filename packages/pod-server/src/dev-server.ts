@@ -82,6 +82,7 @@ export class DevServerSupervisor {
     const env = {
       ...process.env,
       PORT: String(this.port),
+      HOST: "0.0.0.0",
     };
 
     console.log(
