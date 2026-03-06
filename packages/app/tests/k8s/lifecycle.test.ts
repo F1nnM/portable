@@ -67,11 +67,30 @@ vi.mock("../../server/utils/db", () => ({
   useDb: () => mockDb,
 }));
 
-// -- Mock for GitHub token retrieval --
+// -- Mocks for creation phase --
+const mockSetCreationPhase = vi.fn();
+const mockClearCreationPhase = vi.fn();
+
+vi.mock("../../server/utils/creation-phase", () => ({
+  setCreationPhase: mockSetCreationPhase,
+  clearCreationPhase: mockClearCreationPhase,
+}));
+
+// -- Mock for GitHub --
 const mockGetDecryptedGithubToken = vi.fn();
+const mockCreateGitHubRepo = vi.fn();
+const mockPushScaffoldToRepo = vi.fn();
 
 vi.mock("../../server/utils/github", () => ({
   getDecryptedGithubToken: mockGetDecryptedGithubToken,
+  createGitHubRepo: mockCreateGitHubRepo,
+  pushScaffoldToRepo: mockPushScaffoldToRepo,
+  deleteGitHubRepo: vi.fn(),
+  parseGitHubRepoUrl: vi.fn((url: string) => {
+    const match = url.match(/github\.com\/([^/]+)\/([^/.]+)/);
+    if (!match) return null;
+    return { owner: match[1], repo: match[2] };
+  }),
 }));
 
 // -- Mock for crypto --
@@ -103,7 +122,7 @@ vi.stubGlobal(
 );
 
 // Import the functions under test
-const { startProject, stopProject, deleteProject } =
+const { createProject, startProject, stopProject, deleteProject } =
   await import("../../server/utils/project-lifecycle");
 
 // --- Test data ---
@@ -277,6 +296,69 @@ describe("project lifecycle", () => {
 
       // Pod should still be created after PVC 409
       expect(mockCreateProjectPod).toHaveBeenCalled();
+    });
+  });
+
+  describe("createProject", () => {
+    function setupCreateMocks() {
+      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-project");
+      mockGetDecryptedGithubToken.mockResolvedValue("ghp_decrypted_token");
+      mockCreateGitHubRepo.mockResolvedValue({
+        owner: "user",
+        repo: "my-project",
+        cloneUrl: "https://github.com/user/my-project.git",
+        htmlUrl: "https://github.com/user/my-project",
+      });
+      mockPushScaffoldToRepo.mockResolvedValue(undefined);
+      mockDb.update.mockReturnValue(makeUpdateChain());
+    }
+
+    it("creates DB, GitHub repo, pushes scaffold, updates status to stopped", async () => {
+      setupCreateMocks();
+
+      await createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres");
+
+      expect(mockCreateProjectDatabase).toHaveBeenCalledWith("my-project");
+      expect(mockGetDecryptedGithubToken).toHaveBeenCalledWith(TEST_USER_ID);
+      expect(mockCreateGitHubRepo).toHaveBeenCalledWith("ghp_decrypted_token", "my-project");
+      expect(mockPushScaffoldToRepo).toHaveBeenCalledWith(
+        "ghp_decrypted_token",
+        "user",
+        "my-project",
+        "nuxt-postgres",
+      );
+    });
+
+    it("tracks creation phases correctly", async () => {
+      setupCreateMocks();
+
+      await createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres");
+
+      expect(mockSetCreationPhase).toHaveBeenCalledWith("my-project", "creating_database");
+      expect(mockSetCreationPhase).toHaveBeenCalledWith("my-project", "creating_repository");
+      expect(mockSetCreationPhase).toHaveBeenCalledWith("my-project", "pushing_scaffold");
+      expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
+    });
+
+    it("sets status to error and clears phase on failure", async () => {
+      setupCreateMocks();
+      mockCreateGitHubRepo.mockRejectedValue(new Error("GitHub API error"));
+      mockDb.update.mockReturnValue(makeUpdateChain());
+
+      await expect(
+        createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres"),
+      ).rejects.toThrow("GitHub API error");
+
+      expect(mockClearCreationPhase).toHaveBeenCalledWith("my-project");
+    });
+
+    it("startProject rejects project in creating status with 409", async () => {
+      const selectChain = makeSelectChain([{ ...TEST_PROJECT, status: "creating" }]);
+      mockDb.select.mockReturnValue(selectChain);
+
+      await expect(startProject(TEST_USER_ID, "my-project")).rejects.toMatchObject({
+        statusCode: 409,
+      });
     });
   });
 

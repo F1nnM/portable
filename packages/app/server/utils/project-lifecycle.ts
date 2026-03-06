@@ -1,8 +1,15 @@
 import { and, eq } from "drizzle-orm";
 import { projects, users } from "../db/schema";
+import { clearCreationPhase, setCreationPhase } from "./creation-phase";
 import { decrypt } from "./crypto";
 import { useDb } from "./db";
-import { deleteGitHubRepo, getDecryptedGithubToken, parseGitHubRepoUrl } from "./github";
+import {
+  createGitHubRepo,
+  deleteGitHubRepo,
+  getDecryptedGithubToken,
+  parseGitHubRepoUrl,
+  pushScaffoldToRepo,
+} from "./github";
 import {
   createProjectPod,
   createProjectPVC,
@@ -30,7 +37,7 @@ function isK8sAlreadyExists(err: unknown): boolean {
  */
 async function updateProjectStatus(
   projectId: string,
-  status: "stopped" | "starting" | "running" | "stopping" | "error",
+  status: "stopped" | "creating" | "starting" | "running" | "stopping" | "error",
   podName?: string | null,
 ): Promise<void> {
   const db = useDb();
@@ -127,6 +134,43 @@ async function getAnthropicKey(
   }
 
   return undefined;
+}
+
+/**
+ * Performs async project creation: creates per-project DB, GitHub repo, and pushes scaffold.
+ * Called as fire-and-forget from the POST /api/projects endpoint.
+ */
+export async function createProject(
+  userId: string,
+  projectId: string,
+  slug: string,
+  scaffoldId: string,
+): Promise<void> {
+  try {
+    setCreationPhase(slug, "creating_database");
+    await createProjectDatabase(slug);
+
+    setCreationPhase(slug, "creating_repository");
+    const githubToken = await getDecryptedGithubToken(userId);
+    const repo = await createGitHubRepo(githubToken, slug);
+
+    setCreationPhase(slug, "pushing_scaffold");
+    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
+
+    // Update DB with repo URL and set status to stopped (ready to start)
+    const db = useDb();
+    await db
+      .update(projects)
+      .set({ repoUrl: repo.htmlUrl, status: "stopped", updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+
+    clearCreationPhase(slug);
+  } catch (err: unknown) {
+    // Set status to error on failure
+    await updateProjectStatus(projectId, "error").catch(() => {});
+    clearCreationPhase(slug);
+    throw err;
+  }
 }
 
 /**
