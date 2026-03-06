@@ -10,7 +10,7 @@ echo "[entrypoint] Starting workspace setup..."
 # - Installing dependencies if node_modules is missing
 node -e "
   import { setupWorkspace } from './dist/setup.js';
-  await setupWorkspace({
+  setupWorkspace({
     workspaceDir: process.env.WORKSPACE_DIR || '/workspace',
     githubRepoUrl: process.env.GITHUB_REPO_URL,
     githubToken: process.env.GITHUB_TOKEN,
