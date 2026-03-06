@@ -82,6 +82,24 @@ function getEncryptionKey(): string {
 }
 
 /**
+ * Retrieves the decrypted AGE private key for a user.
+ */
+async function getAgeKey(userId: string): Promise<string | undefined> {
+  const db = useDb();
+  const result = await db
+    .select({ encryptedAgeKey: users.encryptedAgeKey })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (result.length > 0 && result[0].encryptedAgeKey) {
+    return decrypt(result[0].encryptedAgeKey, getEncryptionKey());
+  }
+
+  return undefined;
+}
+
+/**
  * Retrieves the decrypted Anthropic API key for a project.
  * Checks the project-level key first, then falls back to the user-level key.
  */
@@ -133,6 +151,7 @@ export async function startProject(userId: string, slug: string): Promise<void> 
     // Get credentials
     const githubToken = await getDecryptedGithubToken(userId);
     const anthropicApiKey = await getAnthropicKey(userId, project.encryptedAnthropicKey);
+    const ageKey = await getAgeKey(userId);
 
     // Create per-project database
     const databaseUrl = await createProjectDatabase(slug);
@@ -151,6 +170,7 @@ export async function startProject(userId: string, slug: string): Promise<void> 
         databaseUrl,
         githubToken,
         anthropicApiKey,
+        ageKey,
         repoUrl: project.repoUrl ?? undefined,
       });
     } catch (err: unknown) {

@@ -8,6 +8,7 @@ export interface CreateProjectPodOptions {
   claudeOAuthToken?: string;
   githubToken: string;
   repoUrl?: string;
+  ageKey?: string;
 }
 
 export interface K8sConfig {
@@ -99,6 +100,10 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
     env.push({ name: "CLAUDE_CODE_OAUTH_TOKEN", value: options.claudeOAuthToken });
   } else if (options.anthropicApiKey) {
     env.push({ name: "ANTHROPIC_API_KEY", value: options.anthropicApiKey });
+  }
+
+  if (options.ageKey) {
+    env.push({ name: "SOPS_AGE_KEY", value: options.ageKey });
   }
 
   await api.createNamespacedPod({

@@ -49,6 +49,55 @@ async function removeCredential() {
     isLoading.value = false;
   }
 }
+
+const ageKeyInput = ref("");
+const isAgeKeyLoading = ref(false);
+const ageKeyStatusMessage = ref<{ type: "success" | "error"; text: string } | null>(null);
+
+const { data: ageKeyStatus, refresh: refreshAgeKeyStatus } = useFetch<{
+  hasAgeKey: boolean;
+}>("/api/settings/age-key");
+
+const hasAgeKey = computed(() => ageKeyStatus.value?.hasAgeKey ?? false);
+
+async function saveAgeKey() {
+  if (!ageKeyInput.value.trim()) return;
+
+  isAgeKeyLoading.value = true;
+  ageKeyStatusMessage.value = null;
+
+  try {
+    await $fetch("/api/settings/age-key", {
+      method: "PUT",
+      body: { key: ageKeyInput.value.trim() },
+    });
+    ageKeyInput.value = "";
+    ageKeyStatusMessage.value = { type: "success", text: "AGE key saved" };
+    await refreshAgeKeyStatus();
+  } catch {
+    ageKeyStatusMessage.value = { type: "error", text: "Failed to save AGE key" };
+  } finally {
+    isAgeKeyLoading.value = false;
+  }
+}
+
+async function removeAgeKey() {
+  isAgeKeyLoading.value = true;
+  ageKeyStatusMessage.value = null;
+
+  try {
+    await $fetch("/api/settings/age-key", {
+      method: "PUT",
+      body: { key: "" },
+    });
+    ageKeyStatusMessage.value = { type: "success", text: "AGE key removed" };
+    await refreshAgeKeyStatus();
+  } catch {
+    ageKeyStatusMessage.value = { type: "error", text: "Failed to remove AGE key" };
+  } finally {
+    isAgeKeyLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -109,6 +158,53 @@ async function removeCredential() {
               class="btn btn-danger"
               :disabled="isLoading"
               @click="removeCredential"
+            >
+              Remove
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="section-title">AGE Key</h2>
+      <div class="settings-card">
+        <p class="setting-description">
+          Add your AGE private key to enable SOPS decryption of encrypted secrets in your projects.
+        </p>
+
+        <div class="setting-row">
+          <span class="setting-label">Status</span>
+          <span v-if="hasAgeKey" class="setting-badge configured">Configured</span>
+          <span v-else class="setting-badge not-set">Not configured</span>
+        </div>
+
+        <div v-if="ageKeyStatusMessage" class="status-message" :class="ageKeyStatusMessage.type">
+          {{ ageKeyStatusMessage.text }}
+        </div>
+
+        <form class="credential-form" @submit.prevent="saveAgeKey">
+          <input
+            v-model="ageKeyInput"
+            type="password"
+            class="credential-input"
+            :placeholder="hasAgeKey ? 'Enter new key to replace' : 'AGE-SECRET-KEY-1...'"
+            autocomplete="off"
+          />
+          <div class="credential-actions">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="isAgeKeyLoading || !ageKeyInput.trim()"
+            >
+              {{ isAgeKeyLoading ? "Saving..." : "Save" }}
+            </button>
+            <button
+              v-if="hasAgeKey"
+              type="button"
+              class="btn btn-danger"
+              :disabled="isAgeKeyLoading"
+              @click="removeAgeKey"
             >
               Remove
             </button>

@@ -11,7 +11,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "Slug is required" });
   }
 
-  const body = await readBody<{ deleteGithubRepo?: boolean }>(event).catch(() => ({}));
+  const body = await readBody<{ deleteGithubRepo?: boolean }>(event).catch(
+    () => ({}) as { deleteGithubRepo?: boolean },
+  );
 
   await deleteProject(user.id, slug, { deleteGithubRepo: body?.deleteGithubRepo });
 
