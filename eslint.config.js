@@ -47,12 +47,6 @@ export default antfu(
     },
   },
   {
-    files: ["**/*.yaml", "**/*.yml"],
-    rules: {
-      "pnpm/yaml-enforce-settings": "off",
-    },
-  },
-  {
     files: ["**/*.md"],
     rules: {
       "markdown/fenced-code-language": "off",

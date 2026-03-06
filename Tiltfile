@@ -22,7 +22,7 @@ docker_build(
     context=".",
     dockerfile="packages/app/Dockerfile.dev",
     live_update=[
-        fall_back_on(["packages/app/package.json", "pnpm-lock.yaml"]),
+        fall_back_on(["packages/app/package.json", "bun.lock"]),
         sync("packages/app/", "/app/packages/app/"),
     ],
 )
