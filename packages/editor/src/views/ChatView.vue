@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { WatchStopHandle } from "vue";
 import type { ChatMessage as ChatMessageType } from "../composables/useWebSocket";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import ChatInput from "../components/ChatInput.vue";
@@ -13,6 +14,7 @@ const viewState = ref<ViewState>("list");
 const activeSessionId = ref<string | null>(null);
 
 let ws: ReturnType<typeof useWebSocket> | null = null;
+let stopHandles: WatchStopHandle[] = [];
 const messageListRef = ref<HTMLDivElement | null>(null);
 const { loadMessages } = useSessions();
 
@@ -42,40 +44,52 @@ function startNewSession() {
 }
 
 function startChat(initialMessages: ChatMessageType[], sessionId?: string) {
+  // Clean up any previous watchers
+  for (const stop of stopHandles) stop();
+  stopHandles = [];
+
   ws = useWebSocket({ sessionId, initialMessages });
   messages.value = ws.messages.value;
   isStreaming.value = ws.isStreaming.value;
   isConnected.value = ws.isConnected.value;
 
-  watch(
-    () => ws!.messages.value,
-    (val) => {
-      messages.value = val;
-      scrollToBottom();
-    },
-    { deep: true },
+  stopHandles.push(
+    watch(
+      () => ws!.messages.value,
+      (val) => {
+        messages.value = val;
+        scrollToBottom();
+      },
+      { deep: true },
+    ),
   );
 
-  watch(
-    () => ws!.isStreaming.value,
-    (val) => {
-      isStreaming.value = val;
-      scrollToBottom();
-    },
+  stopHandles.push(
+    watch(
+      () => ws!.isStreaming.value,
+      (val) => {
+        isStreaming.value = val;
+        scrollToBottom();
+      },
+    ),
   );
 
-  watch(
-    () => ws!.isConnected.value,
-    (val) => {
-      isConnected.value = val;
-    },
+  stopHandles.push(
+    watch(
+      () => ws!.isConnected.value,
+      (val) => {
+        isConnected.value = val;
+      },
+    ),
   );
 
-  watch(
-    () => ws!.sessionId.value,
-    (val) => {
-      if (val) activeSessionId.value = val;
-    },
+  stopHandles.push(
+    watch(
+      () => ws!.sessionId.value,
+      (val) => {
+        if (val) activeSessionId.value = val;
+      },
+    ),
   );
 
   viewState.value = "chat";
@@ -83,6 +97,8 @@ function startChat(initialMessages: ChatMessageType[], sessionId?: string) {
 }
 
 function goBack() {
+  for (const stop of stopHandles) stop();
+  stopHandles = [];
   if (ws) {
     ws.close();
     ws = null;
@@ -104,6 +120,8 @@ function handleInterrupt() {
 }
 
 onBeforeUnmount(() => {
+  for (const stop of stopHandles) stop();
+  stopHandles = [];
   ws?.close();
 });
 </script>

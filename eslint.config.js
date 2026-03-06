@@ -16,6 +16,7 @@ export default antfu(
       "**/.cache/**",
       "**/scaffolds/**",
       "**/deploy/**",
+      "docs/plans/**",
     ],
 
     rules: {
