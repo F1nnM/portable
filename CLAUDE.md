@@ -306,12 +306,19 @@ Vue Router with three routes: `/chat` (default), `/files`, and `/preview`. The b
 
 ### Chat View
 
-The chat view connects to the pod server's WebSocket bridge at `/ws` via the `useWebSocket` composable. Features:
+The chat tab has two states: a session list (default) and an active chat conversation.
 
-- **WebSocket composable (`composables/useWebSocket.ts`):** Manages connection lifecycle, sends `user_message` and `interrupt` messages, processes incoming `query_start`, `sdk_event`, `query_end`, `session_info`, and `error` messages. Reconnects automatically after 2 seconds on disconnect. Accepts optional `sessionId` and `initialMessages` parameters to resume previous conversations. Exposes reactive `sessionId` ref that updates when the server responds with session info.
+**Session list state:**
+
+- **SessionList component:** Displays saved conversation sessions in a scrollable list sorted by most recent. Each session shows the title (derived from custom title or first prompt), last modified time in relative format (e.g., "2m ago"), and a delete button. A "Conversations" header with a "+" button allows starting a new conversation. Empty state shows "No conversations yet" with a call-to-action button.
+
+**Chat state:**
+
+- **WebSocket composable (`composables/useWebSocket.ts`):** Manages connection lifecycle to the pod server's WebSocket bridge at `/ws`. Sends `user_message` and `interrupt` messages, processes incoming `query_start`, `sdk_event`, `query_end`, `session_info`, and `error` messages. Reconnects automatically after 2 seconds on disconnect. Accepts optional `sessionId` and `initialMessages` parameters to resume previous conversations. Exposes reactive `sessionId` ref that updates when the server responds with session info.
 - **Sessions composable (`composables/useSessions.ts`):** Fetches and manages conversation sessions via the pod server's sessions API. Provides `sessions` reactive array (sorted by most recent), `fetchSessions()` to load sessions, `loadMessages(sessionId)` to retrieve messages from a specific session, and `deleteSession(sessionId)` to remove a session. Each session includes `sessionId`, `title` (derived from custom title or first prompt), `lastModified` timestamp, and `firstPrompt` (initial user message or null).
 - **ChatMessage component:** Renders user messages and assistant messages. Assistant messages include collapsible tool use blocks (showing tool name + input). Distinguishes between text content and tool use events from the SDK stream.
 - **ChatInput component:** Auto-growing `<textarea>` with send and interrupt buttons. Enter sends the message (Shift+Enter for newlines). Shows interrupt button during active queries.
+- **Back button:** Top-left button returns to the session list, closes the WebSocket connection, and clears messages.
 - **Auto-scroll:** Scrolls to the bottom on new messages. Streaming indicator shows pulsing dots while the assistant is responding.
 
 ### Files View
