@@ -59,21 +59,6 @@ describe("websocket bridge", () => {
   let server: ServerType;
   let received: Array<Record<string, unknown>>;
 
-  function waitForMessage(timeout = 2000): Promise<Record<string, unknown>> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Timed out waiting for message")), timeout);
-      const check = () => {
-        if (received.length > 0) {
-          clearTimeout(timer);
-          resolve(received.shift()!);
-        } else {
-          setTimeout(check, 10);
-        }
-      };
-      check();
-    });
-  }
-
   function waitForMessages(count: number, timeout = 3000): Promise<Array<Record<string, unknown>>> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
