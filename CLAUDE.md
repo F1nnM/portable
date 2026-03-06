@@ -11,7 +11,7 @@ portable/
   packages/
     app/              Nuxt 3 full-stack main app (auth, project management, proxy)
       server/
-        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, scaffolds)
+        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, projects status, scaffolds)
         routes/       Route handlers (auth/github, auth/logout)
         middleware/   Server middleware (session auth, subdomain proxy)
         db/           Drizzle schema and migrations
@@ -27,11 +27,12 @@ portable/
       src/
         routes/       API routes (files, health, ws)
         app.ts        Hono app factory (createApp)
-        index.ts      Entrypoint (server + dev server supervisor)
+        index.ts      Entrypoint (server + async setup + dev server supervisor)
         dev-server.ts DevServerSupervisor class
-        setup.ts      Workspace setup (git clone, dependency install)
+        setup.ts      Workspace setup (async git clone, dependency install)
+        setup-state.ts Setup phase tracking (initializing -> cloning -> installing -> starting_server -> ready)
       scripts/
-        entrypoint.sh    Pod startup script
+        entrypoint.sh    Pod startup script (exec's server directly)
         entrypoint-dev.sh Dev startup script (used by Tilt live_update)
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
       src/
@@ -181,7 +182,7 @@ Sensitive credentials (GitHub tokens, Anthropic API keys) are encrypted at rest 
 
 The main app manages project pods via `@kubernetes/client-node`. All K8s utilities are in `server/utils/`:
 
-- **`k8s.ts`** -- Low-level K8s operations: `createProjectPod`, `createProjectService`, `createProjectPVC`, `waitForPodReady`, `deleteProjectPod`, `deleteProjectService`, `deleteProjectPVC`. Reads config from `NUXT_POD_*` env vars with sensible defaults. Uses `KubeConfig.loadFromCluster()` (expects to run inside K8s). Resources are named `project-<slug>` and labeled with `app.kubernetes.io/managed-by: portable` and `portable.dev/project: <slug>`.
+- **`k8s.ts`** -- Low-level K8s operations: `createProjectPod`, `createProjectService`, `createProjectPVC`, `waitForPodReady` (300s timeout), `deleteProjectPod`, `deleteProjectService`, `deleteProjectPVC`. Reads config from `NUXT_POD_*` env vars with sensible defaults. Uses `KubeConfig.loadFromCluster()` (expects to run inside K8s). Resources are named `project-<slug>` and labeled with `app.kubernetes.io/managed-by: portable` and `portable.dev/project: <slug>`.
 - **`project-db.ts`** -- Per-project Postgres database management: `createProjectDatabase` creates a database named `portable_<slug>`, `deleteProjectDatabase` drops it. Uses the main `DATABASE_URL` connection to run admin SQL. `buildProjectDatabaseUrl` constructs the per-project connection string.
 - **`project-lifecycle.ts`** -- High-level orchestration: `startProject` (validates state, creates DB + PVC + pod + service, waits for ready, sets status to running), `stopProject` (deletes pod + service, keeps PVC, sets status to stopped), `deleteProject` (cleans up all K8s resources + per-project DB + DB row, does NOT delete GitHub repo). Handles AlreadyExists errors for retry safety and rolls back on failure.
 
@@ -250,18 +251,22 @@ The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `per
 - **Graceful shutdown:** On `stop()`, sends SIGTERM to the child process and cancels any pending restart timer.
 - **Port injection:** Sets `PORT=3001` in the child process environment.
 
-The supervisor is started in `src/index.ts` after the Hono server begins listening. The command defaults to `DEV_SERVER_COMMAND` env var (or `pnpm dev`).
+The supervisor is started in `src/index.ts` after the Hono server begins listening and async workspace setup completes. The startup order is: start HTTP server (health endpoint available immediately), run async setup (cloning, installing), set phase to `starting_server`, start dev server supervisor, set phase to `ready`. The command defaults to `DEV_SERVER_COMMAND` env var (or `pnpm dev`).
+
+### Setup Phase Tracking
+
+`src/setup-state.ts` maintains the current setup phase as module-level state. The `getPhase()` and `setPhase()` functions track progress through five phases: `initializing`, `cloning`, `installing`, `starting_server`, and `ready`. The health endpoint reads the current phase to report setup progress.
 
 ### Workspace Setup
 
-`src/setup.ts` exports `setupWorkspace()`, which runs two steps:
+`src/setup.ts` exports `setupWorkspace()`, which is an async function that runs two steps using spawned child processes (not synchronous exec):
 
-1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
-2. **Dependency install** -- If `node_modules` is missing, detects the package manager (pnpm via `pnpm-lock.yaml`, yarn via `yarn.lock`, fallback to npm) and runs install.
+1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, calls `setPhase("cloning")` and clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
+2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")`, detects the package manager (pnpm via `pnpm-lock.yaml`, yarn via `yarn.lock`, fallback to npm), and runs install.
 
 ### Entrypoint
 
-`scripts/entrypoint.sh` is the pod container entrypoint. It calls `setupWorkspace()` via a Node.js one-liner, then exec's `node dist/index.js` to start the Hono server (which also starts the dev server supervisor).
+`scripts/entrypoint.sh` is the pod container entrypoint. It exec's `node dist/index.js` directly -- workspace setup is handled asynchronously by the server process itself (in `src/index.ts`), not by the entrypoint script.
 
 ### Pod Server Environment Variables
 
@@ -313,10 +318,14 @@ See `docs/architecture.md` for the full architecture diagram and component detai
 
 ## Health Checks
 
-The main app exposes `GET /api/health` which verifies database connectivity by running `SELECT 1`. Returns `{ status: "ok" }` on success or 503 when the database is unavailable. The Helm deployment uses two distinct probes:
+**Main app:** `GET /api/health` verifies database connectivity by running `SELECT 1`. Returns `{ status: "ok" }` on success or 503 when the database is unavailable. The Helm deployment uses two distinct probes:
 
 - **Liveness probe:** TCP socket check on the HTTP port. This avoids restarting the pod when only the database is temporarily unavailable.
 - **Readiness probe:** HTTP GET to `/api/health`. Removes the pod from service endpoints when the database is unreachable, so traffic is not routed to an unhealthy instance.
+
+**Pod server:** `GET /health` reports the pod's setup phase. During setup, returns 503 with `{ status: "setting_up", phase: "<current_phase>" }` where phase is one of `initializing`, `cloning`, `installing`, or `starting_server`. Once setup completes, returns 200 with `{ status: "ok", phase: "ready" }`. The HTTP server starts immediately on pod creation (before workspace setup), so the health endpoint is available throughout the entire startup process. This enables the main app to poll for setup progress and display it on the dashboard.
+
+**Startup progress on dashboard:** The main app exposes `GET /api/projects/:slug/status` which queries the pod's `/health` endpoint and returns the current setup phase. The `ProjectCard` component polls this endpoint every 2 seconds when a project's status is `starting`, displaying human-readable phase text (e.g., "Cloning repository...", "Installing dependencies...").
 
 ## Security
 

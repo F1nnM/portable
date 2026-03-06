@@ -48,7 +48,12 @@ Serves the editor SPA. The built static files from `packages/editor` are copied 
 
 ### `GET /health`
 
-Kubernetes readiness probe. Returns `200` with `{ "status": "ok" }` when the server is ready to accept traffic. The main app's proxy only routes to pods that pass this check.
+Setup-aware health endpoint. Returns the current setup phase:
+
+- During setup: `503` with `{ "status": "setting_up", "phase": "<current_phase>" }` where phase is one of `initializing`, `cloning`, `installing`, or `starting_server`.
+- After setup: `200` with `{ "status": "ok", "phase": "ready" }`.
+
+The HTTP server starts immediately on pod creation (before workspace setup completes), so this endpoint is available throughout the entire startup process. The main app polls this endpoint via `GET /api/projects/:slug/status` to display real-time setup progress on the dashboard. Kubernetes uses this as the readiness probe -- the pod only receives proxied traffic once setup is complete.
 
 ### `GET /ws`
 
@@ -133,14 +138,16 @@ Writes the request body (plain text) to a file. Creates parent directories if ne
 
 ## Startup Sequence
 
-The pod entrypoint script (`scripts/entrypoint.sh`) runs the following steps:
+The pod entrypoint script (`scripts/entrypoint.sh`) exec's `node dist/index.js` directly. All setup is handled asynchronously by the server process:
 
-1. **Workspace setup** -- Calls `setupWorkspace()` from `src/setup.ts` via a Node.js one-liner:
-   - If the PVC (`/workspace`) is empty (ignoring `lost+found`), clone the project's GitHub repo using `GITHUB_REPO_URL`. If `GITHUB_TOKEN` is set, it is injected into the clone URL for authentication.
-   - If `node_modules/` is missing, detect the package manager and run install.
-2. **Start Hono server** -- `exec node dist/index.js` starts the HTTP/WebSocket server on port 3000.
-3. **Start dev server** -- The Hono entrypoint creates a `DevServerSupervisor` and calls `start()`, launching the project's dev server on port 3001.
-4. **Signal readiness** -- The `/health` endpoint returns 200, satisfying the K8s readiness probe.
+1. **Start Hono server** -- The HTTP server starts immediately on port 3000. The `/health` endpoint is available right away, returning `{ "status": "setting_up", "phase": "initializing" }` with a 503 status code. This allows the main app to poll for setup progress from the moment the pod starts.
+2. **Workspace setup** (async) -- `setupWorkspace()` runs asynchronously, updating the phase as it progresses:
+   - **Cloning** (`phase: "cloning"`) -- If the PVC (`/workspace`) is empty (ignoring `lost+found`), clone the project's GitHub repo using `GITHUB_REPO_URL`. If `GITHUB_TOKEN` is set, it is injected into the clone URL for authentication.
+   - **Installing** (`phase: "installing"`) -- If `node_modules/` is missing, detect the package manager and run install.
+3. **Start dev server** (`phase: "starting_server"`) -- Creates a `DevServerSupervisor` and calls `start()`, launching the project's dev server on port 3001.
+4. **Signal readiness** (`phase: "ready"`) -- The `/health` endpoint now returns 200 with `{ "status": "ok", "phase": "ready" }`, satisfying the K8s readiness probe.
+
+Previously, the entrypoint script ran workspace setup synchronously before starting the HTTP server, so the health endpoint was unavailable during the longest phases (cloning and installing). The current design starts the server first to provide real-time visibility into setup progress.
 
 ### Package Manager Detection
 

@@ -141,6 +141,7 @@ packages/
           [slug]/
             start.post.ts   Start a project pod
             stop.post.ts    Stop a project pod
+            status.get.ts   Get pod setup phase (polls pod /health)
         scaffolds/
           index.get.ts       List available scaffolds
         settings/
@@ -180,9 +181,10 @@ packages/
   pod-server/                Hono server for project pods
     src/
       app.ts                 Hono app factory (createApp)
-      index.ts               Server entry point (Hono + node-ws + dev server supervisor)
+      index.ts               Server entry point (Hono + async setup + dev server supervisor)
       dev-server.ts          DevServerSupervisor (auto-restart, backoff, graceful shutdown)
-      setup.ts               Workspace setup (git clone, dependency install)
+      setup.ts               Workspace setup (async git clone, dependency install)
+      setup-state.ts         Setup phase tracking (initializing -> cloning -> installing -> starting_server -> ready)
       routes/
         health.ts            Health check route
         files.ts             File list, read, and write API

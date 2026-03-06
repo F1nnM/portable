@@ -128,9 +128,35 @@ Delete a project and all associated resources. Cleans up the K8s pod, service, a
 
 **Errors:** 404 if the project does not exist or does not belong to the authenticated user.
 
+### `GET /api/projects/:slug/status`
+
+Get the current setup status of a project's pod. Queries the pod's `/health` endpoint to determine the setup phase.
+
+**Response (pod setting up):**
+
+```json
+{
+  "status": "setting_up",
+  "phase": "cloning"
+}
+```
+
+**Response (pod ready):**
+
+```json
+{
+  "status": "ok",
+  "phase": "ready"
+}
+```
+
+Phases progress through: `initializing` -> `cloning` -> `installing` -> `starting_server` -> `ready`. The dashboard's `ProjectCard` component polls this endpoint every 2 seconds when a project is in the `starting` state, displaying human-readable phase text (e.g., "Cloning repository...", "Installing dependencies...").
+
+**Errors:** 401 if not authenticated. 404 if the project does not exist or does not belong to the authenticated user.
+
 ### `POST /api/projects/:slug/start`
 
-Start a stopped or errored project. Creates the per-project Postgres database (if it does not already exist), a PersistentVolumeClaim, a pod with the pod-server image, and a headless service. Waits for the pod to reach the Ready condition (up to 120 seconds). Injects `DATABASE_URL`, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, and `GITHUB_TOKEN` as environment variables into the pod.
+Start a stopped or errored project. Creates the per-project Postgres database (if it does not already exist), a PersistentVolumeClaim, a pod with the pod-server image, and a headless service. Waits for the pod to reach the Ready condition (up to 300 seconds). Injects `DATABASE_URL`, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, and `GITHUB_TOKEN` as environment variables into the pod.
 
 **State transitions:** `stopped` or `error` -> `starting` -> `running`. On failure, rolls back to `error` and cleans up partially created resources.
 

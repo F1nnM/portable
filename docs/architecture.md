@@ -65,7 +65,7 @@ Hono HTTP/WebSocket server that runs inside each project pod. Built with `create
 Endpoints:
 
 - `GET /` -- Serves the editor SPA (static files from `packages/editor` dist via `@hono/node-server/serve-static`)
-- `GET /health` -- Readiness probe for K8s
+- `GET /health` -- Setup-aware readiness probe: returns 503 with `{ status: "setting_up", phase }` during setup, 200 with `{ status: "ok", phase: "ready" }` when ready
 - `GET /ws` -- WebSocket bridge between the browser and the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`)
 - `GET /api/files` -- File tree listing (via `fdir`, excludes `node_modules`, `.git`, and other build directories)
 - `GET /api/files/:path` -- Read file content (with path traversal protection)
@@ -74,8 +74,9 @@ Endpoints:
 The pod server also manages:
 
 - **Dev server supervisor** (`src/dev-server.ts`): `DevServerSupervisor` class starts the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
-- **Workspace setup** (`src/setup.ts`): On startup, clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication). Detects the package manager (pnpm/yarn/npm) and installs dependencies if `node_modules` is missing.
-- **Entrypoint** (`scripts/entrypoint.sh`): Runs workspace setup, then exec's the Hono server.
+- **Setup phase tracking** (`src/setup-state.ts`): Tracks the current setup phase (`initializing` -> `cloning` -> `installing` -> `starting_server` -> `ready`) as module-level state. The health endpoint reads this to report progress.
+- **Workspace setup** (`src/setup.ts`): Async function that clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication), and installs dependencies if `node_modules` is missing. Uses spawned child processes and calls `setPhase()` before each step.
+- **Entrypoint** (`scripts/entrypoint.sh`): Exec's the Hono server directly. Workspace setup runs asynchronously within the server process, so the health endpoint is available immediately for progress polling.
 
 ### Editor SPA (`packages/editor`)
 
@@ -107,7 +108,7 @@ Project pods are managed through three lifecycle operations, each with defined s
 5. Create PersistentVolumeClaim (5Gi ReadWriteOnce) -- idempotent, ignores AlreadyExists
 6. Create pod with pod-server image, injecting `DATABASE_URL`, credential, and `GITHUB_TOKEN` -- idempotent
 7. Create headless service (`clusterIP: None`) for DNS at `project-<slug>.<namespace>.svc.cluster.local` -- idempotent
-8. Watch pod until Ready condition is true (120s timeout)
+8. Watch pod until Ready condition is true (300s timeout)
 9. Set status to `running` with `podName`
 
 On failure at any step: set status to `error`, attempt cleanup of pod and service, re-throw the error.
