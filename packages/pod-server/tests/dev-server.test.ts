@@ -65,7 +65,7 @@ describe("devServerSupervisor", () => {
 
   function createSupervisor(overrides?: Record<string, unknown>) {
     return new DevServerSupervisor({
-      command: "pnpm dev",
+      command: "bun run dev",
       cwd: "/workspace",
       port: 3001,
       spawnFn: mockSpawn as unknown as typeof spawn,
@@ -88,7 +88,7 @@ describe("devServerSupervisor", () => {
     supervisor.start();
 
     expect(mockSpawn).toHaveBeenCalledOnce();
-    expect(mockSpawn).toHaveBeenCalledWith("pnpm", ["dev"], {
+    expect(mockSpawn).toHaveBeenCalledWith("bun", ["run", "dev"], {
       cwd: "/workspace",
       env: expect.objectContaining({ PORT: "3001" }),
       stdio: "inherit",
@@ -265,8 +265,8 @@ describe("devServerSupervisor", () => {
     supervisor.start();
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      "pnpm",
-      ["dev"],
+      "bun",
+      ["run", "dev"],
       expect.objectContaining({
         env: expect.objectContaining({ PORT: "4000" }),
       }),

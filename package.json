@@ -2,25 +2,26 @@
   "name": "portable",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.30.3",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
-    "node": ">=22",
-    "pnpm": ">=10"
+    "node": ">=22"
   },
   "scripts": {
-    "dev:app": "pnpm --filter @portable/app dev",
-    "dev:pod-server": "pnpm --filter @portable/pod-server dev",
-    "dev:editor": "pnpm --filter @portable/editor dev",
-    "build:app": "pnpm --filter @portable/app build",
-    "build:pod-server": "pnpm --filter @portable/pod-server build",
-    "build:editor": "pnpm --filter @portable/editor build",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "dev:app": "bun run --filter @portable/app dev",
+    "dev:pod-server": "bun run --filter @portable/pod-server dev",
+    "dev:editor": "bun run --filter @portable/editor dev",
+    "build:app": "bun run --filter @portable/app build",
+    "build:pod-server": "bun run --filter @portable/pod-server build",
+    "build:editor": "bun run --filter @portable/editor build",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm -r run test",
+    "test": "bun run --filter '*' test",
     "prepare": "husky"
   },
   "devDependencies": {
