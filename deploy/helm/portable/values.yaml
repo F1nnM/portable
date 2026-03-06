@@ -33,13 +33,33 @@ github:
   # Generated once when creating the OAuth App. Stored in a K8s Secret.
   clientSecret: ""
 
-# -- Postgres configuration for the shared database instance.
-# A single Postgres StatefulSet is deployed within the chart. The main app uses
-# it for user/session/project data, and each project gets its own database
+# -- Database configuration.
+# By default, the chart deploys its own Postgres StatefulSet. Alternatively,
+# you can use an external database (e.g., CloudNative-PG) by setting
+# database.existingSecret and disabling the built-in Postgres.
+database:
+  # -- Reference an existing Kubernetes Secret for the database connection URL.
+  # When set, DATABASE_URL is read from this secret instead of being constructed
+  # from the built-in Postgres credentials.
+  # The secret must contain a key with a full Postgres connection URI
+  # (e.g., postgresql://user:pass@host:5432/dbname).
+  existingSecret:
+    # -- Name of the existing Secret. Leave empty to use the built-in Postgres.
+    name: ""
+    # -- Key within the Secret that contains the connection URI.
+    key: uri
+
+# -- Built-in Postgres configuration.
+# Deploys a Postgres StatefulSet within the chart. The main app uses it for
+# user/session/project data, and each project gets its own database
 # (portable_<slug>) within the same instance.
+# Disable this when using an external database (e.g., CloudNative-PG).
 postgres:
+  # -- Enable the built-in Postgres StatefulSet.
+  # Set to false when using database.existingSecret with an external database.
+  enabled: true
   # -- Postgres superuser password.
-  # Used for the 'portable' user. Required. Choose a strong random password.
+  # Used for the 'portable' user. Required when postgres.enabled is true.
   # Example: openssl rand -base64 32
   password: ""
   # -- Persistent volume size for Postgres data.
@@ -64,6 +84,13 @@ postgres:
       cpu: 1000m
       # -- Maximum memory Postgres can use. OOM-killed if exceeded.
       memory: 1Gi
+
+# -- Explicit base URL for the application.
+# When set, overrides the auto-generated URL (which derives protocol from
+# certManager.enabled). Use this when TLS is terminated externally (e.g.,
+# Cloudflare Tunnel) and certManager is not used but HTTPS is still needed.
+# Example: https://portable.example.com
+baseUrl: ""
 
 # -- AES-256-GCM encryption key for credential storage.
 # Used to encrypt sensitive data at rest (GitHub tokens, Anthropic API keys).
