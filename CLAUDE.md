@@ -25,7 +25,7 @@ portable/
       types/          Shared TypeScript interfaces (Project)
     pod-server/       Hono server that runs inside each project pod
       src/
-        routes/       API routes (files, health, ws)
+        routes/       API routes (files, sessions, health, ws)
         app.ts        Hono app factory (createApp)
         index.ts      Entrypoint (server + async setup + dev server supervisor)
         dev-server.ts DevServerSupervisor class
@@ -223,6 +223,16 @@ The pod server (`packages/pod-server`) is a Hono HTTP/WebSocket server that runs
 - `PUT /api/files/:path` -- Writes the request body to a file. Creates parent directories if needed. Returns 403 for path traversal attempts.
 
 All file operations are scoped to `WORKSPACE_DIR` (default `/workspace`). Path traversal is prevented by resolving the path and checking it starts with the workspace directory.
+
+### Sessions API
+
+`src/routes/sessions.ts` provides three endpoints for conversation session management, powered by the Claude Agent SDK:
+
+- `GET /api/sessions` -- Lists all conversation sessions stored in the workspace, sorted by most recent first. Each session includes `sessionId`, `title` (derived from custom title, summary, or first prompt), `lastModified` (Unix timestamp), and `firstPrompt` (the initial user message or null).
+- `GET /api/sessions/:id/messages` -- Retrieves all messages in a session, filtered to user and assistant messages only. Each message includes `role` (`"user"` or `"assistant"`), `content` (concatenated text blocks), and optional `toolUse` array containing tool calls with `name` and `input` (JSON-formatted). Extracts and structures content from the Claude Agent SDK message format.
+- `DELETE /api/sessions/:id` -- Deletes a session file. Validates the session ID format (UUID) and checks that the session exists before deletion. Returns 204 on success, 400 if the ID is invalid, or 404 if the session is not found.
+
+Session data is stored in `~/.claude/projects/<project-name>/<sessionId>.jsonl` (or `$CLAUDE_CONFIG_DIR/projects/...` if configured). The API searches across all project directories to locate session files by ID. All operations use the Claude Agent SDK's `listSessions()` and `getSessionMessages()` functions.
 
 ### WebSocket Bridge
 
