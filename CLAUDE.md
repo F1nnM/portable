@@ -238,6 +238,8 @@ Session data is stored in `~/.claude/projects/<project-name>/<sessionId>.jsonl` 
 
 `src/routes/ws.ts` bridges the browser to the Claude Agent SDK via WebSocket at `GET /ws`.
 
+**Connection URL:** `GET /ws` or `GET /ws?session=<sessionId>` to resume a previous session. When a `sessionId` query parameter is provided, the first query on the connection uses `resume` mode to restore the session state.
+
 **Inbound messages (browser to server):**
 
 - `{ "type": "user_message", "content": "..." }` -- Starts a new Claude query. If a query is already active, the current query is interrupted and the new message is queued as a pending prompt.
@@ -248,7 +250,10 @@ Session data is stored in `~/.claude/projects/<project-name>/<sessionId>.jsonl` 
 - `{ "type": "query_start" }` -- Sent when a query begins.
 - `{ "type": "sdk_event", "event": ... }` -- Claude Agent SDK streaming events (text deltas, tool use, etc.).
 - `{ "type": "query_end" }` -- Sent when a query finishes.
+- `{ "type": "session_info", "sessionId": "..." }` -- Sent after the first query completes (if a session was created or resumed). Contains the session ID for resuming future conversations.
 - `{ "type": "error", "message": "..." }` -- Error messages (invalid JSON, SDK errors, unknown message types).
+
+**Session handling:** The connection tracks session state internally. The first query uses `resume` mode if a `sessionId` was provided in the URL query parameter, or starts fresh otherwise. Subsequent queries on the same connection use `continue` mode to extend the conversation history within the session. The `session_info` message is sent after the first query completes, containing the session ID for persistence and future resumption.
 
 The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"` and `settingSources: ["project"]`. The working directory is set to `WORKSPACE_DIR`.
 
