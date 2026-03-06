@@ -1,4 +1,6 @@
+import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import SessionList from "../src/components/SessionList.vue";
 import { useSessions } from "../src/composables/useSessions";
 
 const mockFetch = vi.fn();
@@ -116,5 +118,78 @@ describe("useSessions composable", () => {
 
     await expect(deleteSession("a")).rejects.toThrow("Failed to delete session: 500");
     expect(sessions.value).toHaveLength(1);
+  });
+});
+
+describe("sessionList component", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders session cards with title and relative time", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          sessions: [
+            {
+              sessionId: "a",
+              title: "Fix the login bug",
+              lastModified: Date.now() - 3600000,
+              firstPrompt: "Fix the login bug",
+            },
+          ],
+        }),
+    });
+
+    const wrapper = mount(SessionList);
+    await flushPromises();
+
+    expect(wrapper.find("[data-testid='session-card']").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Fix the login bug");
+  });
+
+  it("emits select with sessionId when card is tapped", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          sessions: [
+            { sessionId: "a", title: "Chat 1", lastModified: Date.now(), firstPrompt: "Hello" },
+          ],
+        }),
+    });
+
+    const wrapper = mount(SessionList);
+    await flushPromises();
+
+    await wrapper.find("[data-testid='session-card']").trigger("click");
+    expect(wrapper.emitted("select")).toBeTruthy();
+    expect(wrapper.emitted("select")![0]).toEqual(["a"]);
+  });
+
+  it("emits newSession when new conversation button is clicked", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ sessions: [] }),
+    });
+
+    const wrapper = mount(SessionList);
+    await flushPromises();
+
+    await wrapper.find("[data-testid='new-session-button']").trigger("click");
+    expect(wrapper.emitted("newSession")).toBeTruthy();
+  });
+
+  it("shows empty state when no sessions exist", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ sessions: [] }),
+    });
+
+    const wrapper = mount(SessionList);
+    await flushPromises();
+
+    expect(wrapper.find("[data-testid='empty-state']").exists()).toBe(true);
   });
 });
