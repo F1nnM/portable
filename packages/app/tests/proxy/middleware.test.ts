@@ -152,7 +152,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     const result = await resolveProxyTarget(
-      "preview.my-project.portable.127.0.0.1.nip.io",
+      "my-project--preview.portable.127.0.0.1.nip.io",
       DOMAIN,
       NAMESPACE,
       TEST_USER,

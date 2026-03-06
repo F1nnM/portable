@@ -31,7 +31,7 @@ export function getDomainFromBaseUrl(baseUrl: string): string {
  *
  * Examples (domain = "portable.127.0.0.1.nip.io"):
  *   "my-project.portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "editor" }
- *   "preview.my-project.portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "preview" }
+ *   "my-project--preview.portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "preview" }
  *   "portable.127.0.0.1.nip.io" -> null (main app)
  */
 export function parseSubdomain(host: string, domain: string): SubdomainInfo | null {
@@ -48,14 +48,16 @@ export function parseSubdomain(host: string, domain: string): SubdomainInfo | nu
 
   // Extract the subdomain prefix (everything before the domain)
   // e.g., "my-project.portable.127.0.0.1.nip.io" -> "my-project"
-  // e.g., "preview.my-project.portable.127.0.0.1.nip.io" -> "preview.my-project"
+  // e.g., "my-project--preview.portable.127.0.0.1.nip.io" -> "my-project--preview"
   const prefix = hostname.slice(0, -(domain.length + 1)); // +1 for the trailing dot
 
   if (!prefix) return null;
 
-  // Check if it's a preview subdomain: "preview.<slug>"
-  if (prefix.startsWith("preview.")) {
-    const slug = prefix.slice("preview.".length);
+  // Check if it's a preview subdomain: "<slug>--preview"
+  // Uses "--" suffix so the entire subdomain stays in a single DNS label,
+  // which is required for wildcard ingress matching (*.domain).
+  if (prefix.endsWith("--preview")) {
+    const slug = prefix.slice(0, -"--preview".length);
     if (!slug) return null;
     return { slug, type: "preview" };
   }

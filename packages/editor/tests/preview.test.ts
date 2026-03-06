@@ -51,7 +51,7 @@ describe("preview view", () => {
 
     const iframe = wrapper.find("iframe");
     expect(iframe.exists()).toBe(true);
-    expect(iframe.attributes("src")).toBe("https://preview.myproject.portable.dev");
+    expect(iframe.attributes("src")).toBe("https://myproject--preview.portable.dev");
   });
 
   it("constructs iframe src with non-standard port", async () => {
@@ -67,7 +67,7 @@ describe("preview view", () => {
 
     const iframe = wrapper.find("iframe");
     expect(iframe.exists()).toBe(true);
-    expect(iframe.attributes("src")).toBe("http://preview.myproject.portable.dev:8080");
+    expect(iframe.attributes("src")).toBe("http://myproject--preview.portable.dev:8080");
   });
 
   it("renders iframe element", async () => {
@@ -95,7 +95,7 @@ describe("preview view", () => {
 
     const iframe = wrapper.find("iframe");
     const originalSrc = iframe.attributes("src");
-    expect(originalSrc).toBe("https://preview.myproject.portable.dev");
+    expect(originalSrc).toBe("https://myproject--preview.portable.dev");
 
     const refreshBtn = wrapper.find("[data-testid='preview-refresh']");
     expect(refreshBtn.exists()).toBe(true);
@@ -106,7 +106,7 @@ describe("preview view", () => {
     // After refresh, iframe src should still point to the same URL
     // (implementation resets src to trigger reload)
     const newSrc = wrapper.find("iframe").attributes("src");
-    expect(newSrc).toBe("https://preview.myproject.portable.dev");
+    expect(newSrc).toBe("https://myproject--preview.portable.dev");
   });
 
   it("shows preview URL in header", async () => {
@@ -120,7 +120,7 @@ describe("preview view", () => {
 
     const urlDisplay = wrapper.find("[data-testid='preview-url']");
     expect(urlDisplay.exists()).toBe(true);
-    expect(urlDisplay.text()).toContain("preview.myproject.portable.dev");
+    expect(urlDisplay.text()).toContain("myproject--preview.portable.dev");
   });
 
   it("shows header bar with Preview label", async () => {

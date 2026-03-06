@@ -5,13 +5,22 @@ const hostname = window.location.hostname;
 const protocol = window.location.protocol;
 const port = window.location.port;
 
+// Build preview hostname by appending "--preview" to the project slug.
+// e.g. "my-project.portable.example.com" -> "my-project--preview.portable.example.com"
+// This keeps the preview within a single subdomain level so wildcard ingress (*.domain) matches.
+const previewHostname = computed(() => {
+  const firstDot = hostname.indexOf(".");
+  const slug = hostname.substring(0, firstDot);
+  const domain = hostname.substring(firstDot + 1);
+  return `${slug}--preview.${domain}`;
+});
+
 const previewHost = computed(() => {
-  const base = `preview.${hostname}`;
-  return port ? `${base}:${port}` : base;
+  return port ? `${previewHostname.value}:${port}` : previewHostname.value;
 });
 
 const previewUrl = computed(() => {
-  return `${protocol}//preview.${hostname}${port ? `:${port}` : ""}`;
+  return `${protocol}//${previewHostname.value}${port ? `:${port}` : ""}`;
 });
 
 const iframeKey = ref(0);

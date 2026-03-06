@@ -15,7 +15,7 @@ describe("parseSubdomain", () => {
   });
 
   it("extracts slug and type 'preview' for preview subdomain", () => {
-    const result = parseSubdomain("preview.my-project.portable.127.0.0.1.nip.io", domain);
+    const result = parseSubdomain("my-project--preview.portable.127.0.0.1.nip.io", domain);
     expect(result).toEqual({ slug: "my-project", type: "preview" });
   });
 
@@ -30,7 +30,7 @@ describe("parseSubdomain", () => {
   });
 
   it("handles preview subdomain with port", () => {
-    const result = parseSubdomain("preview.my-project.portable.127.0.0.1.nip.io:8080", domain);
+    const result = parseSubdomain("my-project--preview.portable.127.0.0.1.nip.io:8080", domain);
     expect(result).toEqual({ slug: "my-project", type: "preview" });
   });
 
@@ -45,7 +45,7 @@ describe("parseSubdomain", () => {
   });
 
   it("handles preview with a different base domain", () => {
-    const result = parseSubdomain("preview.my-app.example.com", "example.com");
+    const result = parseSubdomain("my-app--preview.example.com", "example.com");
     expect(result).toEqual({ slug: "my-app", type: "preview" });
   });
 
