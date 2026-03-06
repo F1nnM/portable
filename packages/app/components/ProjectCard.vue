@@ -23,6 +23,11 @@ const startupPhase = ref<string | null>(null);
 let phaseInterval: ReturnType<typeof setInterval> | null = null;
 
 const phaseLabels: Record<string, string> = {
+  // Creation phases
+  creating_database: "Creating database...",
+  creating_repository: "Creating repository...",
+  pushing_scaffold: "Pushing code...",
+  // Startup phases
   preparing: "Preparing...",
   initializing: "Initializing...",
   cloning: "Cloning repository...",
@@ -64,7 +69,7 @@ function stopPolling() {
 watch(
   () => props.project.status,
   (status) => {
-    if (status === "starting") {
+    if (status === "starting" || status === "creating") {
       startPolling();
     } else {
       stopPolling();
@@ -81,6 +86,8 @@ const statusConfig = computed(() => {
   switch (props.project.status) {
     case "running":
       return { label: "Running", class: "status-running" };
+    case "creating":
+      return { label: "Creating", class: "status-creating" };
     case "starting":
       return { label: "Starting", class: "status-starting" };
     case "stopping":
@@ -94,7 +101,10 @@ const statusConfig = computed(() => {
 });
 
 const isTransitioning = computed(
-  () => props.project.status === "starting" || props.project.status === "stopping",
+  () =>
+    props.project.status === "creating" ||
+    props.project.status === "starting" ||
+    props.project.status === "stopping",
 );
 
 const canStart = computed(
@@ -519,6 +529,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   color: var(--accent);
 }
 
+.status-creating,
 .status-starting,
 .status-stopping {
   background: rgba(255, 200, 50, 0.12);
