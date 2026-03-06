@@ -1,13 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { projects } from "../../db/schema";
 import { useDb } from "../../utils/db";
-import {
-  createGitHubRepo,
-  getDecryptedGithubToken,
-  listScaffolds,
-  pushScaffoldToRepo,
-} from "../../utils/github";
-import { createProjectDatabase } from "../../utils/project-db";
+import { listScaffolds } from "../../utils/github";
+import { createProject } from "../../utils/project-lifecycle";
 import { generateSlug } from "../../utils/slug";
 
 export default defineEventHandler(async (event) => {
@@ -64,7 +59,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Create the DB record first
+  // Create the DB record with "creating" status
   const result = await db
     .insert(projects)
     .values({
@@ -72,6 +67,7 @@ export default defineEventHandler(async (event) => {
       name,
       slug,
       scaffoldId,
+      status: "creating",
     })
     .returning({
       id: projects.id,
@@ -86,31 +82,11 @@ export default defineEventHandler(async (event) => {
 
   const project = result[0];
 
-  // Create per-project database and GitHub repo
-  try {
-    await createProjectDatabase(slug);
-
-    const githubToken = await getDecryptedGithubToken(user.id);
-    const repo = await createGitHubRepo(githubToken, slug);
-    await pushScaffoldToRepo(githubToken, repo.owner, repo.repo, scaffoldId);
-
-    // Update the project with the repo URL
-    await db
-      .update(projects)
-      .set({ repoUrl: repo.htmlUrl, updatedAt: new Date() })
-      .where(eq(projects.id, project.id));
-
-    project.repoUrl = repo.htmlUrl;
-  } catch (err) {
-    // If operations fail, set status to "error" but keep the DB record
-    console.error("Failed to set up project:", err);
-    await db
-      .update(projects)
-      .set({ status: "error", updatedAt: new Date() })
-      .where(eq(projects.id, project.id));
-
-    project.status = "error";
-  }
+  // Fire and forget — status transitions (creating → stopped / error) happen via DB.
+  // The client polls for status changes while transitioning.
+  createProject(user.id, project.id, slug, scaffoldId).catch((err: unknown) => {
+    console.error(`Failed to create project ${slug}:`, err);
+  });
 
   setResponseStatus(event, 201);
   return { project };
