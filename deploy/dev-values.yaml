@@ -60,6 +60,17 @@ podServer:
     repository: k3d-portable-registry.localhost:5000/portable-pod-server
     tag: dev
 
+# Longer probe delays for dev mode (Nitro takes ~10s to build)
+probes:
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+
 # Lower default pod resources for local dev
 pod:
   resources:

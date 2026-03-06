@@ -190,6 +190,19 @@ pod:
 # -- Pod server container image.
 # The Hono server that runs inside each project pod, serving the editor SPA,
 # file APIs, and the Claude Agent SDK WebSocket bridge.
+# -- Health probe configuration for the main app container.
+# In dev mode (nuxt dev), Nitro takes ~10s to build so probes need longer delays.
+# Override in dev-values.yaml for local development.
+probes:
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+
 podServer:
   image:
     # -- Image repository for the pod server.
