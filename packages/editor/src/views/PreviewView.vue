@@ -164,5 +164,6 @@ function onIframeLoad() {
   height: 100%;
   border: none;
   display: block;
+  background: #fff;
 }
 </style>
