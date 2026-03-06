@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Plugin } from "vite";
+import type { Connect, Plugin, ViteDevServer } from "vite";
 
 import { createProxyServer } from "httpxy";
 import postgres from "postgres";
@@ -22,26 +22,30 @@ function devSubdomainProxy(): Plugin {
 
   return {
     name: "dev-subdomain-proxy",
-    configureServer(server) {
+    configureServer(server: ViteDevServer) {
       const proxy = createProxyServer();
       const sql = postgres(process.env.DATABASE_URL!);
 
-      server.middlewares.use((req, res, next) => {
-        const host = req.headers.host;
-        if (!host) return next();
+      server.middlewares.use(
+        (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
+          const host = req.headers.host;
+          if (!host) return next();
 
-        const subdomain = parseSubdomain(host, domain);
-        if (!subdomain) return next();
+          const subdomain = parseSubdomain(host, domain);
+          if (!subdomain) return next();
 
-        // Authenticate via session cookie before proxying
-        handleAuthenticatedProxy(req, res, subdomain, sql, namespace, proxy, host).catch((err) => {
-          console.error(`[dev-proxy] Error:`, err);
-          if (!res.headersSent) {
-            res.writeHead(500, { "Content-Type": "text/plain" });
-            res.end("Internal Server Error");
-          }
-        });
-      });
+          // Authenticate via session cookie before proxying
+          handleAuthenticatedProxy(req, res, subdomain, sql, namespace, proxy, host).catch(
+            (err) => {
+              console.error(`[dev-proxy] Error:`, err);
+              if (!res.headersSent) {
+                res.writeHead(500, { "Content-Type": "text/plain" });
+                res.end("Internal Server Error");
+              }
+            },
+          );
+        },
+      );
 
       console.log(`[dev-proxy] Subdomain proxy installed (domain: ${domain})`);
     },
