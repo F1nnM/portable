@@ -203,8 +203,13 @@ export async function startProject(userId: string, slug: string): Promise<void> 
   try {
     // Get credentials
     const githubToken = await getDecryptedGithubToken(userId);
-    const anthropicApiKey = await getAnthropicKey(userId, project.encryptedAnthropicKey);
+    const claudeKey = await getAnthropicKey(userId, project.encryptedAnthropicKey);
     const ageKey = await getAgeKey(userId);
+
+    // Detect whether the key is an OAuth token or a regular API key
+    const isOAuthToken = claudeKey?.startsWith("sk-ant-oat");
+    const anthropicApiKey = isOAuthToken ? undefined : claudeKey;
+    const claudeOAuthToken = isOAuthToken ? claudeKey : undefined;
 
     // Create per-project database
     const databaseUrl = await createProjectDatabase(slug);
@@ -223,6 +228,7 @@ export async function startProject(userId: string, slug: string): Promise<void> 
         databaseUrl,
         githubToken,
         anthropicApiKey,
+        claudeOAuthToken,
         ageKey,
         repoUrl: project.repoUrl ?? undefined,
       });

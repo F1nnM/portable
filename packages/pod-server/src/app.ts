@@ -14,19 +14,21 @@ export function createApp() {
   app.route("/", health);
   app.route("/", files);
 
-  // Serve the editor SPA from ./public
-  app.use("/*", serveStatic({ root: "./public" }));
-
-  // SPA fallback: serve index.html for all non-API, non-file routes
-  app.use("/*", serveStatic({ root: "./public", path: "index.html" }));
-
   function registerWsRoute(
     upgradeWebSocket: UpgradeWebSocket<NodeWebSocket, { onError: (err: unknown) => void }>,
   ) {
     registerWs(app, upgradeWebSocket);
   }
 
-  return { app, registerWsRoute };
+  function registerStaticFiles() {
+    // Serve the editor SPA from ./public
+    app.use("/*", serveStatic({ root: "./public" }));
+
+    // SPA fallback: serve index.html for all non-API, non-file routes
+    app.use("/*", serveStatic({ root: "./public", path: "index.html" }));
+  }
+
+  return { app, registerWsRoute, registerStaticFiles };
 }
 
 // Convenience export: a pre-built app instance for tests and simple usage

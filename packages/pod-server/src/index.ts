@@ -5,9 +5,10 @@ import { DevServerSupervisor } from "./dev-server.js";
 import { setPhase } from "./setup-state.js";
 import { setupWorkspace } from "./setup.js";
 
-const { app, registerWsRoute } = createApp();
+const { app, registerWsRoute, registerStaticFiles } = createApp();
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 registerWsRoute(upgradeWebSocket);
+registerStaticFiles();
 
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 const workspaceDir = process.env.WORKSPACE_DIR || "/workspace";
