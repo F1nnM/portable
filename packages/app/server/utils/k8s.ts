@@ -119,6 +119,7 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
           {
             name: "pod-server",
             image: config.podServerImage,
+            imagePullPolicy: config.podServerImage.endsWith(":dev") ? "Always" : "IfNotPresent",
             ports: [
               { containerPort: 3000, name: "editor" },
               { containerPort: 3001, name: "preview" },

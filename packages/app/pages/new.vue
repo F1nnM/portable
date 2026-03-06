@@ -7,18 +7,36 @@ interface Scaffold {
   description: string;
 }
 
-const selectedScaffold = ref<string>("");
+interface GitHubRepo {
+  name: string;
+  fullName: string;
+  description: string | null;
+  isPrivate: boolean;
+  language: string | null;
+  defaultBranch: string;
+  url: string;
+}
+
+const activeTab = ref<"scaffold" | "import">("scaffold");
+
+// Shared state
 const projectName = ref("");
 const creating = ref(false);
 const errorMsg = ref("");
 
+// Scaffold state
+const selectedScaffold = ref<string>("");
 const scaffolds = ref<Scaffold[]>([]);
 const scaffoldsLoading = ref(true);
 const scaffoldsError = ref("");
 
-/**
- * Client-side slug preview -- must match the server-side generateSlug in server/utils/slug.ts.
- */
+// Import state
+const selectedRepo = ref<GitHubRepo | null>(null);
+const repos = ref<GitHubRepo[]>([]);
+const reposLoading = ref(false);
+const reposError = ref("");
+const searchQuery = ref("");
+
 function generateSlugPreview(name: string): string {
   return name
     .toLowerCase()
@@ -32,13 +50,27 @@ function generateSlugPreview(name: string): string {
 
 const slugPreview = computed(() => generateSlugPreview(projectName.value));
 
-const canCreate = computed(
-  () =>
-    projectName.value.trim().length > 0 &&
-    projectName.value.trim().length <= 100 &&
-    selectedScaffold.value !== "" &&
-    !creating.value,
-);
+const filteredRepos = computed(() => {
+  if (!searchQuery.value) return repos.value;
+  const q = searchQuery.value.toLowerCase();
+  return repos.value.filter(
+    (r) =>
+      r.name.toLowerCase().includes(q) ||
+      r.fullName.toLowerCase().includes(q) ||
+      (r.description && r.description.toLowerCase().includes(q)),
+  );
+});
+
+const canCreate = computed(() => {
+  if (creating.value) return false;
+  if (projectName.value.trim().length === 0 || projectName.value.trim().length > 100) return false;
+
+  if (activeTab.value === "scaffold") {
+    return selectedScaffold.value !== "";
+  } else {
+    return selectedRepo.value !== null;
+  }
+});
 
 async function fetchScaffolds() {
   scaffoldsLoading.value = true;
@@ -57,6 +89,27 @@ async function fetchScaffolds() {
   }
 }
 
+async function fetchRepos() {
+  reposLoading.value = true;
+  reposError.value = "";
+  try {
+    const data = await $fetch<{ repos: GitHubRepo[] }>("/api/github/repos");
+    repos.value = data.repos;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed to load repositories";
+    reposError.value = msg;
+  } finally {
+    reposLoading.value = false;
+  }
+}
+
+function selectRepo(repo: GitHubRepo) {
+  selectedRepo.value = repo;
+  if (!projectName.value) {
+    projectName.value = repo.name;
+  }
+}
+
 async function createProject() {
   if (!canCreate.value) return;
 
@@ -64,12 +117,19 @@ async function createProject() {
   errorMsg.value = "";
 
   try {
+    const body: Record<string, string> = {
+      name: projectName.value.trim(),
+    };
+
+    if (activeTab.value === "scaffold") {
+      body.scaffoldId = selectedScaffold.value;
+    } else {
+      body.repoUrl = selectedRepo.value!.url;
+    }
+
     await $fetch<{ project: Project }>("/api/projects", {
       method: "POST",
-      body: {
-        name: projectName.value.trim(),
-        scaffoldId: selectedScaffold.value,
-      },
+      body,
     });
     await navigateTo("/");
   } catch (err: unknown) {
@@ -85,6 +145,14 @@ async function createProject() {
   }
 }
 
+function switchTab(tab: "scaffold" | "import") {
+  activeTab.value = tab;
+  errorMsg.value = "";
+  if (tab === "import" && repos.value.length === 0 && !reposLoading.value) {
+    fetchRepos();
+  }
+}
+
 onMounted(() => {
   fetchScaffolds();
 });
@@ -97,35 +165,101 @@ onMounted(() => {
       <p class="page-subtitle">Create an isolated dev environment with Claude Code</p>
     </div>
 
-    <!-- Scaffold picker -->
-    <div class="form-section">
-      <label class="form-label">Template</label>
-
-      <div v-if="scaffoldsLoading" class="scaffolds-loading">
-        <div class="loading-spinner" />
-        <span class="loading-text">Loading templates...</span>
-      </div>
-
-      <div v-else-if="scaffoldsError" class="scaffolds-error">
-        <p class="error-text">
-          {{ scaffoldsError }}
-        </p>
-        <button class="btn-retry" @click="fetchScaffolds">Try again</button>
-      </div>
-
-      <div v-else class="scaffold-grid">
-        <button
-          v-for="scaffold in scaffolds"
-          :key="scaffold.id"
-          class="scaffold-card"
-          :class="{ selected: selectedScaffold === scaffold.id }"
-          @click="selectedScaffold = scaffold.id"
-        >
-          <span class="scaffold-name">{{ scaffold.name }}</span>
-          <span class="scaffold-description">{{ scaffold.description }}</span>
-        </button>
-      </div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'scaffold' }"
+        @click="switchTab('scaffold')"
+      >
+        From Scaffold
+      </button>
+      <button
+        class="tab"
+        :class="{ active: activeTab === 'import' }"
+        @click="switchTab('import')"
+      >
+        Import Repo
+      </button>
     </div>
+
+    <!-- Scaffold tab -->
+    <template v-if="activeTab === 'scaffold'">
+      <div class="form-section">
+        <label class="form-label">Template</label>
+
+        <div v-if="scaffoldsLoading" class="scaffolds-loading">
+          <div class="loading-spinner" />
+          <span class="loading-text">Loading templates...</span>
+        </div>
+
+        <div v-else-if="scaffoldsError" class="scaffolds-error">
+          <p class="error-text">{{ scaffoldsError }}</p>
+          <button class="btn-retry" @click="fetchScaffolds">Try again</button>
+        </div>
+
+        <div v-else class="scaffold-grid">
+          <button
+            v-for="scaffold in scaffolds"
+            :key="scaffold.id"
+            class="scaffold-card"
+            :class="{ selected: selectedScaffold === scaffold.id }"
+            @click="selectedScaffold = scaffold.id"
+          >
+            <span class="scaffold-name">{{ scaffold.name }}</span>
+            <span class="scaffold-description">{{ scaffold.description }}</span>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Import tab -->
+    <template v-if="activeTab === 'import'">
+      <div class="form-section">
+        <label class="form-label">Repository</label>
+
+        <div v-if="reposLoading" class="scaffolds-loading">
+          <div class="loading-spinner" />
+          <span class="loading-text">Loading repositories...</span>
+        </div>
+
+        <div v-else-if="reposError" class="scaffolds-error">
+          <p class="error-text">{{ reposError }}</p>
+          <button class="btn-retry" @click="fetchRepos">Try again</button>
+        </div>
+
+        <template v-else>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="form-input"
+            placeholder="Search repositories..."
+            autocomplete="off"
+          />
+
+          <div class="repo-list">
+            <button
+              v-for="repo in filteredRepos"
+              :key="repo.fullName"
+              class="repo-card"
+              :class="{ selected: selectedRepo?.fullName === repo.fullName }"
+              @click="selectRepo(repo)"
+            >
+              <div class="repo-header">
+                <span class="repo-name">{{ repo.name }}</span>
+                <span v-if="repo.isPrivate" class="repo-badge">Private</span>
+              </div>
+              <span v-if="repo.description" class="repo-description">{{ repo.description }}</span>
+              <span v-if="repo.language" class="repo-language">{{ repo.language }}</span>
+            </button>
+
+            <div v-if="filteredRepos.length === 0" class="repo-empty">
+              <span class="loading-text">{{ searchQuery ? "No matching repositories" : "No repositories found" }}</span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
 
     <!-- Project name input -->
     <div class="form-section">
@@ -148,15 +282,13 @@ onMounted(() => {
 
     <!-- Error message -->
     <div v-if="errorMsg" class="error-banner">
-      <p class="error-text">
-        {{ errorMsg }}
-      </p>
+      <p class="error-text">{{ errorMsg }}</p>
     </div>
 
     <!-- Create button -->
     <button class="btn-create" :disabled="!canCreate" @click="createProject">
       <div v-if="creating" class="btn-spinner" />
-      <span>{{ creating ? "Creating..." : "Create Project" }}</span>
+      <span>{{ creating ? (activeTab === "scaffold" ? "Creating..." : "Importing...") : (activeTab === "scaffold" ? "Create Project" : "Import Project") }}</span>
     </button>
   </div>
 </template>
@@ -411,5 +543,107 @@ onMounted(() => {
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-xs);
+}
+
+.tab {
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* Repo list */
+.repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.repo-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.repo-card:hover {
+  border-color: var(--text-muted);
+}
+
+.repo-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.repo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.repo-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.repo-badge {
+  font-size: 0.6875rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-overlay);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.repo-description {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.repo-language {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.repo-empty {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
 }
 </style>
