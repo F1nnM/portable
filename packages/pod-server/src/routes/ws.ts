@@ -1,4 +1,4 @@
-import type { Query } from "@anthropic-ai/claude-agent-sdk";
+import type { Options, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { Hono } from "hono";
 import type { UpgradeWebSocket, WSContext } from "hono/ws";
 import type { WebSocket as NodeWebSocket } from "ws";
@@ -19,6 +19,8 @@ interface ConnectionState {
   activeQuery: Query | null;
   pendingPrompt: string | null;
   closed: boolean;
+  sessionId: string | null;
+  isFirstQuery: boolean;
 }
 
 async function runQuery(
@@ -26,28 +28,49 @@ async function runQuery(
   prompt: string,
   state: ConnectionState,
 ): Promise<void> {
-  const activeQuery = query({
-    prompt,
-    options: {
-      cwd: WORKSPACE_DIR,
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
-      systemPrompt: { type: "preset", preset: "claude_code" },
-      settingSources: ["project"],
-    },
-  });
+  const options: Options = {
+    cwd: WORKSPACE_DIR,
+    permissionMode: "bypassPermissions",
+    allowDangerouslySkipPermissions: true,
+    systemPrompt: { type: "preset", preset: "claude_code" },
+    settingSources: ["project"],
+  };
+
+  if (state.isFirstQuery && state.sessionId) {
+    options.resume = state.sessionId;
+  } else if (!state.isFirstQuery) {
+    options.continue = true;
+  }
+
+  const activeQuery = query({ prompt, options });
 
   state.activeQuery = activeQuery;
   sendJson(ws, { type: "query_start" });
 
+  let sessionIdCaptured = false;
+
   try {
     for await (const message of activeQuery) {
+      if (
+        !sessionIdCaptured &&
+        typeof message === "object" &&
+        message !== null &&
+        "session_id" in message &&
+        (message as Record<string, unknown>).session_id
+      ) {
+        state.sessionId = (message as Record<string, unknown>).session_id as string;
+        sessionIdCaptured = true;
+      }
       sendJson(ws, { type: "sdk_event", event: message });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     sendJson(ws, { type: "error", message: errorMessage });
   } finally {
+    if (state.isFirstQuery && state.sessionId) {
+      sendJson(ws, { type: "session_info", sessionId: state.sessionId });
+    }
+    state.isFirstQuery = false;
     state.activeQuery = null;
     sendJson(ws, { type: "query_end" });
   }
@@ -66,11 +89,15 @@ export function registerWsRoute(
 ) {
   app.get(
     "/ws",
-    upgradeWebSocket((_c) => {
+    upgradeWebSocket((c) => {
+      const sessionParam = new URL(c.req.url).searchParams.get("session");
+
       const state: ConnectionState = {
         activeQuery: null,
         pendingPrompt: null,
         closed: false,
+        sessionId: sessionParam,
+        isFirstQuery: true,
       };
 
       return {

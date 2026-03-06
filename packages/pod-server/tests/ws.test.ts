@@ -145,14 +145,15 @@ describe("websocket bridge", () => {
 
     ws.send(JSON.stringify({ type: "user_message", content: "hello" }));
 
-    const messages = await waitForMessages(3);
+    const messages = await waitForMessages(4);
 
     expect(messages[0]).toEqual({ type: "query_start" });
     expect(messages[1]).toEqual({
       type: "sdk_event",
       event: { type: "system", session_id: "test-session" },
     });
-    expect(messages[2]).toEqual({ type: "query_end" });
+    expect(messages[2]).toEqual({ type: "session_info", sessionId: "test-session" });
+    expect(messages[3]).toEqual({ type: "query_end" });
 
     expect(mockQuery).toHaveBeenCalledOnce();
     const callArgs = mockQuery.mock.calls[0][0];
@@ -247,9 +248,10 @@ describe("websocket bridge", () => {
 
     ws.send(JSON.stringify({ type: "interrupt" }));
 
-    // Wait for query_end
-    const endMsg = await waitForMessage();
-    expect(endMsg.type).toBe("query_end");
+    // Wait for session_info and query_end (session_id was captured from first message)
+    const remaining = await waitForMessages(2);
+    expect(remaining[0]).toEqual({ type: "session_info", sessionId: "s1" });
+    expect(remaining[1]).toEqual({ type: "query_end" });
 
     const activeQuery = mockQuery.mock.results[0].value;
     expect(activeQuery.interrupt).toHaveBeenCalledOnce();
@@ -346,6 +348,78 @@ describe("websocket bridge", () => {
     expect(messages[0]).toEqual({ type: "query_start" });
     expect(messages[1]).toEqual({ type: "error", message: "SDK connection failed" });
     expect(messages[2]).toEqual({ type: "query_end" });
+  });
+
+  it("passes resume option when session query param is provided", async () => {
+    mockMessages = [
+      { type: "assistant", session_id: "existing-session", message: { content: [] } },
+    ];
+
+    ws = new WebSocket(`${serverUrl}/ws?session=existing-session`);
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    ws.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string));
+    });
+
+    ws.send(JSON.stringify({ type: "user_message", content: "continue" }));
+    await waitForMessages(4); // query_start, sdk_event, session_info, query_end
+
+    const callArgs = mockQuery.mock.calls[0][0];
+    expect(callArgs.options.resume).toBe("existing-session");
+  });
+
+  it("does not pass resume option when no session query param", async () => {
+    mockMessages = [{ type: "assistant", session_id: "new-session", message: { content: [] } }];
+
+    ws = new WebSocket(`${serverUrl}/ws`);
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    ws.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string));
+    });
+
+    ws.send(JSON.stringify({ type: "user_message", content: "hello" }));
+    await waitForMessages(4); // query_start, sdk_event, session_info, query_end
+
+    const callArgs = mockQuery.mock.calls[0][0];
+    expect(callArgs.options.resume).toBeUndefined();
+  });
+
+  it("sends session_info after first query with session_id from stream", async () => {
+    mockMessages = [{ type: "assistant", session_id: "new-sess-123", message: { content: [] } }];
+
+    ws = new WebSocket(`${serverUrl}/ws`);
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    ws.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string));
+    });
+
+    ws.send(JSON.stringify({ type: "user_message", content: "hello" }));
+    const messages = await waitForMessages(4); // query_start, sdk_event, session_info, query_end
+
+    expect(messages[2]).toEqual({ type: "session_info", sessionId: "new-sess-123" });
+  });
+
+  it("uses continue option on subsequent queries in same connection", async () => {
+    // First query
+    mockMessages = [{ type: "assistant", session_id: "sess-1", message: { content: [] } }];
+
+    ws = new WebSocket(`${serverUrl}/ws`);
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    ws.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string));
+    });
+
+    ws.send(JSON.stringify({ type: "user_message", content: "first" }));
+    await waitForMessages(4); // query_start, sdk_event, session_info, query_end
+
+    // Second query
+    mockMessages = [{ type: "assistant", session_id: "sess-1", message: { content: [] } }];
+    ws.send(JSON.stringify({ type: "user_message", content: "second" }));
+    await waitForMessages(3); // query_start, sdk_event, query_end
+
+    const secondCallArgs = mockQuery.mock.calls[1][0];
+    expect(secondCallArgs.options.continue).toBe(true);
+    expect(secondCallArgs.options.resume).toBeUndefined();
   });
 
   it("interrupts current query and starts new one when message arrives during active query", async () => {
