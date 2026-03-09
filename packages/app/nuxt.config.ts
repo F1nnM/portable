@@ -248,6 +248,11 @@ export default defineNuxtConfig({
   },
   vite: {
     plugins: [suppressWsHangupErrors(), devSubdomainProxy()],
+    server: {
+      // Allow all hosts so subdomain requests (e.g. *.portable.127.0.0.1.nip.io)
+      // reach our dev proxy instead of being blocked by Vite's host check.
+      allowedHosts: true,
+    },
   },
   app: {
     head: {
