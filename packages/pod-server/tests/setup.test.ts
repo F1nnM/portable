@@ -47,26 +47,9 @@ describe("setupWorkspace", () => {
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    const gitCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
-    expect(gitCalls).toHaveLength(4);
     expect(mockExecFn).toHaveBeenCalledWith(
       "git",
-      ["init"],
-      expect.objectContaining({ cwd: "/workspace" }),
-    );
-    expect(mockExecFn).toHaveBeenCalledWith(
-      "git",
-      ["remote", "add", "origin", "https://github.com/user/repo.git"],
-      expect.objectContaining({ cwd: "/workspace" }),
-    );
-    expect(mockExecFn).toHaveBeenCalledWith(
-      "git",
-      ["fetch", "origin"],
-      expect.objectContaining({ cwd: "/workspace" }),
-    );
-    expect(mockExecFn).toHaveBeenCalledWith(
-      "git",
-      ["checkout", "origin/HEAD", "-t"],
+      ["clone", "https://github.com/user/repo.git", "."],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
@@ -93,7 +76,7 @@ describe("setupWorkspace", () => {
 
     expect(mockExecFn).toHaveBeenCalledWith(
       "git",
-      ["remote", "add", "origin", "https://x-access-token:ghp_test123@github.com/user/repo.git"],
+      ["clone", "https://x-access-token:ghp_test123@github.com/user/repo.git", "."],
       expect.objectContaining({ cwd: "/workspace" }),
     );
   });
@@ -218,6 +201,6 @@ describe("setupWorkspace", () => {
 
     // Should clone because lost+found doesn't count as real files
     const gitCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
-    expect(gitCalls).toHaveLength(4);
+    expect(gitCalls).toHaveLength(1);
   });
 });
