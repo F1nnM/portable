@@ -73,9 +73,6 @@ RUN chmod +x ./scripts/entrypoint.sh
 
 # Project workspace will be mounted here via PVC
 RUN mkdir -p /workspace
-
-# Use the existing 'node' user (uid 1000) from the base image
-RUN chown -R node:node /srv /workspace
 VOLUME /workspace
 
 ENV NODE_ENV=production
@@ -84,5 +81,4 @@ ENV PORT=3000
 EXPOSE 3000
 EXPOSE 3001
 
-USER node
 CMD ["./scripts/entrypoint.sh"]

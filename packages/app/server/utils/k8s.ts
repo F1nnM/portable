@@ -115,19 +115,6 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
       },
       spec: {
         restartPolicy: "Always",
-        initContainers: [
-          {
-            name: "fix-workspace-permissions",
-            image: "busybox:1.37",
-            command: ["sh", "-c", "chown -R 1000:1000 /workspace"],
-            volumeMounts: [
-              {
-                name: "workspace",
-                mountPath: "/workspace",
-              },
-            ],
-          },
-        ],
         containers: [
           {
             name: "pod-server",
@@ -139,8 +126,6 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
             ],
             env,
             securityContext: {
-              runAsNonRoot: true,
-              runAsUser: 1000,
               allowPrivilegeEscalation: false,
               capabilities: {
                 drop: ["ALL"],
