@@ -44,8 +44,46 @@ jobs:
       - name: Lint Helm chart
         run: helm lint deploy/helm/portable
 
-  docker:
-    needs: ci
+  build-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/app/Dockerfile
+          push: false
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+  build-pod-server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build pod-server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/pod-server/Dockerfile
+          push: false
+          cache-from: type=gha,scope=pod-server
+          cache-to: type=gha,mode=max,scope=pod-server
+
+  push:
+    needs: [ci, build-app, build-pod-server]
     runs-on: ubuntu-latest
 
     steps:
@@ -81,7 +119,7 @@ jobs:
             type=raw,value=latest
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' }}
 
-      - name: Build and push app image
+      - name: Push app image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -89,7 +127,6 @@ jobs:
           push: true
           tags: ${{ steps.meta-app.outputs.tags }}
           cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
 
       - name: Docker meta for pod-server
         id: meta-pod
@@ -101,7 +138,7 @@ jobs:
             type=raw,value=latest
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'release' }}
 
-      - name: Build and push pod-server image
+      - name: Push pod-server image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -109,10 +146,9 @@ jobs:
           push: true
           tags: ${{ steps.meta-pod.outputs.tags }}
           cache-from: type=gha,scope=pod-server
-          cache-to: type=gha,mode=max,scope=pod-server
 
   helm:
-    needs: docker
+    needs: push
     runs-on: ubuntu-latest
 
     steps:
