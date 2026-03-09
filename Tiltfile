@@ -52,11 +52,12 @@ docker_build(
 
 # Pod server (Hono + editor SPA) — Dockerfile.dev.
 #
-# Project pods are created dynamically at runtime, not in static K8s manifests,
-# so Tilt can't detect the image reference. A dummy Job (tilt-pod-server-anchor)
-# anchors the image so Tilt builds and pushes it. This keeps the pod-server
-# build fully decoupled from the app Deployment (no match_in_env_vars, no
-# cascading rollouts).
+# Project pods are created dynamically at runtime, not in static K8s manifests.
+# A dummy Job (tilt-pod-server-anchor) anchors the image so Tilt builds it.
+# match_in_env_vars lets Tilt inject the content-hash tag into the deployment's
+# NUXT_POD_SERVER_IMAGE env var, so dynamically created project pods pull the
+# correct image. This causes a main app rollout on pod-server rebuilds, which
+# is needed for the app to pick up the new image reference.
 docker_build(
     POD_SERVER_IMAGE,
     context=".",
@@ -69,6 +70,7 @@ docker_build(
         "packages/app/package.json",
     ],
     ignore=IGNORE_PATTERNS,
+    match_in_env_vars=True,
 )
 
 # ---------------------------------------------------------------------------
