@@ -23,8 +23,8 @@ vi.mock("../../server/utils/db", () => ({
 }));
 
 // Import after mocks are set up
-const { getDomainFromBaseUrl, lookupProject, resolveProxyTarget } =
-  await import("../../server/utils/proxy");
+const { getDomainFromBaseUrl } = await import("../../server/utils/proxy-shared");
+const { lookupProject, resolveProxyTarget } = await import("../../server/utils/proxy");
 
 // -- Test data --
 const DOMAIN = "portable.127.0.0.1.nip.io";

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildProxyTarget, getDomainFromBaseUrl, parseSubdomain } from "../../server/utils/proxy";
+import {
+  buildProxyTarget,
+  getDomainFromBaseUrl,
+  parseCookie,
+  parseSubdomain,
+} from "../../server/utils/proxy-shared";
 
 describe("parseSubdomain", () => {
   const domain = "portable.127.0.0.1.nip.io";
@@ -85,5 +90,29 @@ describe("buildProxyTarget", () => {
   it("uses the provided namespace", () => {
     const result = buildProxyTarget("cool-app", "editor", "production");
     expect(result).toBe("http://project-cool-app.production.svc.cluster.local:3000");
+  });
+});
+
+describe("parseCookie", () => {
+  it("extracts a cookie value by name", () => {
+    expect(parseCookie("portable_session=abc123", "portable_session")).toBe("abc123");
+  });
+
+  it("extracts a cookie from multiple cookies", () => {
+    expect(parseCookie("foo=bar; portable_session=abc123; baz=qux", "portable_session")).toBe(
+      "abc123",
+    );
+  });
+
+  it("returns null when cookie is not present", () => {
+    expect(parseCookie("foo=bar; baz=qux", "portable_session")).toBeNull();
+  });
+
+  it("returns null for empty cookie header", () => {
+    expect(parseCookie("", "portable_session")).toBeNull();
+  });
+
+  it("decodes URI-encoded values", () => {
+    expect(parseCookie("token=hello%20world", "token")).toBe("hello world");
   });
 });

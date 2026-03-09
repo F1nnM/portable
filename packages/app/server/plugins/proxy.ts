@@ -4,7 +4,8 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
-import { getDomainFromBaseUrl, resolveProxyTarget } from "../utils/proxy";
+import { resolveProxyTarget } from "../utils/proxy";
+import { getDomainFromBaseUrl, parseCookie } from "../utils/proxy-shared";
 
 const httpProxy = createProxyServer();
 
@@ -106,11 +107,3 @@ export default defineNitroPlugin((nitroApp) => {
     event._handled = true;
   });
 });
-
-/**
- * Parses a specific cookie value from a cookie header string.
- */
-function parseCookie(cookieHeader: string, name: string): string | null {
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}

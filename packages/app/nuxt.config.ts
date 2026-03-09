@@ -1,10 +1,56 @@
 import type { Buffer } from "node:buffer";
-import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Socket } from "node:net";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
+import type { Duplex } from "node:stream";
 import type { Connect, Plugin, ViteDevServer } from "vite";
 
 import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
+
+import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/proxy-shared";
+
+// --- Dev proxy shared state ---
+// Module-level variables shared between the Vite middleware plugin (HTTP subdomain
+// proxy) and the listen hook (WebSocket subdomain proxy). Only used in dev mode.
+const DEV_BASE_URL = process.env.NUXT_BASE_URL || "http://localhost:3000";
+const DEV_NAMESPACE = process.env.NUXT_POD_NAMESPACE || "default";
+const DEV_DOMAIN = new URL(DEV_BASE_URL).hostname;
+
+let devSql: postgres.Sql | undefined;
+let devProxy: ReturnType<typeof createProxyServer> | undefined;
+
+function getDevSql(): postgres.Sql {
+  if (!devSql) devSql = postgres(process.env.DATABASE_URL!);
+  return devSql;
+}
+
+function getDevProxy(): ReturnType<typeof createProxyServer> {
+  if (!devProxy) {
+    devProxy = createProxyServer();
+    devProxy.on("error", (err) => {
+      console.warn(`[dev-proxy] Proxy error (suppressed):`, err.message);
+    });
+  }
+  return devProxy;
+}
+
+/**
+ * Validates a session cookie against the database. Returns the user ID if valid.
+ * Uses raw SQL because Drizzle auto-imports aren't available in Vite context.
+ */
+async function validateDevSession(cookieHeader: string): Promise<string | null> {
+  const token = parseCookie(cookieHeader, "portable_session");
+  if (!token) return null;
+
+  const rows = await getDevSql()`
+    SELECT u.id as user_id
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.id = ${token} AND s.expires_at > NOW()
+    LIMIT 1
+  `;
+
+  return rows.length > 0 ? (rows[0].user_id as string) : null;
+}
 
 /**
  * Suppresses "socket hang up" unhandled rejections from crashing the Nuxt dev
@@ -40,7 +86,7 @@ function suppressWsHangupErrors(): Plugin {
 }
 
 /**
- * Vite plugin that proxies subdomain requests BEFORE Vite's built-in middleware.
+ * Vite plugin that proxies subdomain HTTP requests BEFORE Vite's built-in middleware.
  *
  * In dev mode, Vite serves `/_nuxt/` asset requests before Nitro ever sees them.
  * When the browser requests `/_nuxt/entry.js` on a subdomain host (e.g.
@@ -48,58 +94,38 @@ function suppressWsHangupErrors(): Plugin {
  * letting the proxy forward them to the pod. This plugin intercepts ALL subdomain
  * requests before Vite can handle them.
  *
+ * WebSocket proxying is handled separately by the `listen` hook (see
+ * `installDevWsProxy`), because Vite runs in middlewareMode where
+ * `server.httpServer` is null.
+ *
  * In production there is no Vite, so the Nitro proxy plugin handles everything.
  */
 function devSubdomainProxy(): Plugin {
-  const baseUrl = process.env.NUXT_BASE_URL || "http://localhost:3000";
-  const namespace = process.env.NUXT_POD_NAMESPACE || "default";
-  const domain = new URL(baseUrl).hostname;
-
-  let proxy: ReturnType<typeof createProxyServer> | undefined;
-  let sql: postgres.Sql | undefined;
-
   return {
     name: "dev-subdomain-proxy",
     configureServer(server: ViteDevServer) {
       // Clean up previous instances (configureServer is called on each Vite restart)
-      if (sql) {
-        sql.end({ timeout: 0 }).catch(() => {});
-        sql = undefined;
+      if (devSql) {
+        devSql.end({ timeout: 0 }).catch(() => {});
+        devSql = undefined;
       }
-      if (proxy) {
-        if (typeof proxy.close === "function") proxy.close();
-        proxy = undefined;
+      if (devProxy) {
+        if (typeof devProxy.close === "function") devProxy.close();
+        devProxy = undefined;
       }
 
-      proxy = createProxyServer();
-      sql = postgres(process.env.DATABASE_URL!);
-
-      const currentProxy = proxy;
-      const currentSql = sql;
-
-      // Prevent unhandled 'error' events from crashing the process
-      currentProxy.on("error", (err) => {
-        console.warn(`[dev-proxy] Proxy error (suppressed):`, err.message);
-      });
+      const currentProxy = getDevProxy();
 
       server.middlewares.use(
         (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
           const host = req.headers.host;
           if (!host) return next();
 
-          const subdomain = parseSubdomain(host, domain);
+          const subdomain = parseSubdomain(host, DEV_DOMAIN);
           if (!subdomain) return next();
 
           // Authenticate via session cookie before proxying
-          handleAuthenticatedProxy(
-            req,
-            res,
-            subdomain,
-            currentSql,
-            namespace,
-            currentProxy,
-            host,
-          ).catch((err) => {
+          handleAuthenticatedProxy(req, res, subdomain, currentProxy, host).catch((err) => {
             console.error(`[dev-proxy] Error:`, err);
             if (!res.headersSent) {
               res.writeHead(500, { "Content-Type": "text/plain" });
@@ -109,32 +135,7 @@ function devSubdomainProxy(): Plugin {
         },
       );
 
-      // Handle WebSocket upgrades on subdomain hosts.
-      // Connect middleware doesn't intercept `upgrade` events, so without this
-      // handler WebSocket requests (e.g. /ws) fall through to Nitro/Nuxt which
-      // logs Vue Router warnings about unmatched paths.
-      server.httpServer?.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
-        const host = req.headers.host;
-        if (!host) return;
-
-        const subdomain = parseSubdomain(host, domain);
-        if (!subdomain) return;
-
-        handleAuthenticatedWsProxy(req, socket, head, subdomain, currentSql, namespace, host).catch(
-          (err) => {
-            console.error(`[dev-proxy] WebSocket error:`, err);
-            if (!socket.destroyed) socket.destroy();
-          },
-        );
-      });
-
-      // Clean up on server close
-      server.httpServer?.on("close", () => {
-        currentSql.end({ timeout: 0 }).catch(() => {});
-        if (typeof currentProxy.close === "function") currentProxy.close();
-      });
-
-      console.log(`[dev-proxy] Subdomain proxy installed (domain: ${domain})`);
+      console.log(`[dev-proxy] Subdomain proxy installed (domain: ${DEV_DOMAIN})`);
     },
   };
 }
@@ -143,40 +144,17 @@ async function handleAuthenticatedProxy(
   req: IncomingMessage,
   res: ServerResponse,
   subdomain: { slug: string; type: "editor" | "preview" },
-  sql: postgres.Sql,
-  namespace: string,
   proxy: ReturnType<typeof createProxyServer>,
   host: string,
 ): Promise<void> {
-  // Parse session cookie
-  const cookieHeader = req.headers.cookie || "";
-  const tokenMatch = cookieHeader.match(/(?:^|;\s*)portable_session=([^;]*)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-
-  if (!token) {
+  const userId = await validateDevSession(req.headers.cookie || "");
+  if (!userId) {
     res.writeHead(401, { "Content-Type": "text/plain" });
     res.end("Unauthorized");
     return;
   }
 
-  // Validate session directly against the database
-  const rows = await sql`
-    SELECT u.id as user_id
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    WHERE s.id = ${token} AND s.expires_at > NOW()
-    LIMIT 1
-  `;
-
-  if (rows.length === 0) {
-    res.writeHead(401, { "Content-Type": "text/plain" });
-    res.end("Unauthorized");
-    return;
-  }
-
-  const port = subdomain.type === "editor" ? 3000 : 3001;
-  const target = `http://project-${subdomain.slug}.${namespace}.svc.cluster.local:${port}`;
-
+  const target = buildProxyTarget(subdomain.slug, subdomain.type, DEV_NAMESPACE);
   await proxy.web(req, res, {
     target,
     xfwd: true,
@@ -184,68 +162,76 @@ async function handleAuthenticatedProxy(
   });
 }
 
-async function handleAuthenticatedWsProxy(
-  req: IncomingMessage,
-  socket: Socket,
-  head: Buffer,
-  subdomain: { slug: string; type: "editor" | "preview" },
-  sql: postgres.Sql,
-  namespace: string,
-  host: string,
-): Promise<void> {
-  const cookieHeader = req.headers.cookie || "";
-  const tokenMatch = cookieHeader.match(/(?:^|;\s*)portable_session=([^;]*)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+/**
+ * Installs a WebSocket proxy on the actual HTTP server for dev mode.
+ *
+ * In dev, Vite runs in middlewareMode (no httpServer), so the Vite plugin's
+ * `server.httpServer?.on("upgrade", ...)` would be a no-op. The actual HTTP
+ * server is owned by the Nitro dev server, which registers its own upgrade
+ * handler to forward all WebSocket connections to the Nitro worker.
+ *
+ * This function intercepts upgrade events on that server to proxy subdomain
+ * WebSocket connections directly to project pods, before Nitro's default
+ * handler forwards them to the worker (which doesn't know about subdomains).
+ */
+function installDevWsProxy(server: Server): void {
+  // Capture existing upgrade listeners (Nitro's worker proxy, Vite HMR, etc.)
+  const existingListeners = server.listeners("upgrade") as ((
+    req: IncomingMessage,
+    socket: Duplex,
+    head: Buffer,
+  ) => void)[];
+  server.removeAllListeners("upgrade");
 
-  if (!token) {
-    socket.destroy();
-    return;
-  }
+  server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+    const host = req.headers.host;
+    if (!host) {
+      for (const listener of existingListeners) listener(req, socket, head);
+      return;
+    }
 
-  const rows = await sql`
-    SELECT u.id as user_id
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    WHERE s.id = ${token} AND s.expires_at > NOW()
-    LIMIT 1
-  `;
+    const subdomain = parseSubdomain(host, DEV_DOMAIN);
+    if (!subdomain) {
+      // Not a subdomain request -- delegate to original handlers
+      for (const listener of existingListeners) listener(req, socket, head);
+      return;
+    }
 
-  if (rows.length === 0) {
-    socket.destroy();
-    return;
-  }
+    // Subdomain WebSocket -- authenticate and proxy to pod
+    validateDevSession(req.headers.cookie || "")
+      .then((userId) => {
+        if (!userId) {
+          socket.destroy();
+          return;
+        }
 
-  const port = subdomain.type === "editor" ? 3000 : 3001;
-  const target = `http://project-${subdomain.slug}.${namespace}.svc.cluster.local:${port}`;
-
-  await proxyUpgrade(target, req, socket, head, {
-    xfwd: true,
-    headers: { "x-forwarded-host": host },
+        const target = buildProxyTarget(subdomain.slug, subdomain.type, DEV_NAMESPACE);
+        return proxyUpgrade(target, req, socket, head, {
+          xfwd: true,
+          headers: { "x-forwarded-host": host },
+        });
+      })
+      .catch((err) => {
+        console.error(`[dev-proxy] WebSocket error:`, err);
+        if (!socket.destroyed) socket.destroy();
+      });
   });
-}
 
-function parseSubdomain(
-  host: string,
-  domain: string,
-): { slug: string; type: "editor" | "preview" } | null {
-  if (!host) return null;
-  const hostname = host.includes(":") ? host.split(":")[0] : host;
-  if (!hostname.endsWith(domain)) return null;
-  if (hostname === domain) return null;
-  const prefix = hostname.slice(0, -(domain.length + 1));
-  if (!prefix) return null;
-  if (prefix.endsWith("--preview")) {
-    const slug = prefix.slice(0, -"--preview".length);
-    if (!slug) return null;
-    return { slug, type: "preview" };
-  }
-  return { slug: prefix, type: "editor" };
+  console.log(`[dev-proxy] WebSocket proxy installed on HTTP server`);
 }
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-03-01",
   ssr: true,
   devtools: { enabled: false },
+  hooks: {
+    // The listen hook fires when the Nuxt dev server binds to a port.
+    // In production, nuxt.config.ts isn't loaded at runtime (Nitro handles
+    // everything), so this hook only runs during development.
+    listen(server) {
+      installDevWsProxy(server as Server);
+    },
+  },
   runtimeConfig: {
     githubClientId: "",
     githubClientSecret: "",
