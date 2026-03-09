@@ -83,7 +83,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=pod-server
 
   push:
-    needs: [ci, build-app, build-pod-server]
+    needs: [build-app, build-pod-server]
     runs-on: ubuntu-latest
 
     steps:
