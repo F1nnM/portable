@@ -8,6 +8,15 @@ import { getDomainFromBaseUrl, resolveProxyTarget } from "../utils/proxy";
 
 const httpProxy = createProxyServer();
 
+// Prevent unhandled 'error' events from crashing the process.
+// Errors during proxying are already caught in the try/catch around proxy.web(),
+// but httpxy can also emit error events on the proxy object itself for socket-level
+// errors (e.g., upstream closes mid-stream). Without this handler, those become
+// unhandled errors that crash the Nuxt dev server.
+httpProxy.on("error", (err) => {
+  console.warn(`[proxy] Proxy error (suppressed):`, err.message);
+});
+
 /**
  * Unified proxy plugin for HTTP and WebSocket subdomain requests.
  *

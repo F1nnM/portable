@@ -12,10 +12,6 @@ REGISTRY = "k3d-portable-registry.localhost:5002"
 APP_IMAGE = REGISTRY + "/portable-app"
 POD_SERVER_IMAGE = REGISTRY + "/portable-pod-server"
 
-# Pod-server image is used at runtime (dynamically created project pods), not in
-# static K8s manifests, so Tilt can't detect it. Suppress the unused warning.
-update_settings(suppress_unused_image_warnings=[POD_SERVER_IMAGE])
-
 # ---------------------------------------------------------------------------
 # Docker builds
 # ---------------------------------------------------------------------------
@@ -56,16 +52,16 @@ docker_build(
 
 # Pod server (Hono + editor SPA) — Dockerfile.dev.
 #
-# Project pods are created dynamically at runtime (not by Tilt), so there is
-# no static K8s manifest that references this image directly. The Helm set[]
-# above injects the image ref into NUXT_POD_SERVER_IMAGE statically, so we
-# do NOT use match_in_env_vars (which would cause Tilt to re-apply the app
-# Deployment on every pod-server rebuild, triggering a rollout). New project
-# pods pick up the latest image via imagePullPolicy: Always on the :dev tag.
-custom_build(
+# Project pods are created dynamically at runtime, not in static K8s manifests,
+# so Tilt can't detect the image reference. A dummy Job (tilt-pod-server-anchor)
+# anchors the image so Tilt builds and pushes it. This keeps the pod-server
+# build fully decoupled from the app Deployment (no match_in_env_vars, no
+# cascading rollouts).
+docker_build(
     POD_SERVER_IMAGE,
-    "docker build -t $EXPECTED_REF -f packages/pod-server/Dockerfile.dev .",
-    deps=[
+    context=".",
+    dockerfile="packages/pod-server/Dockerfile.dev",
+    only=[
         "package.json",
         "bun.lock",
         "packages/pod-server/",
@@ -73,12 +69,14 @@ custom_build(
         "packages/app/package.json",
     ],
     ignore=IGNORE_PATTERNS,
-    tag="dev",
 )
 
 # ---------------------------------------------------------------------------
 # Helm deployment
 # ---------------------------------------------------------------------------
+
+# Anchor Job that references the pod-server image so Tilt builds it.
+k8s_yaml("deploy/tilt-pod-server-anchor.yaml")
 
 k8s_yaml(
     helm(
@@ -112,6 +110,12 @@ k8s_resource(
         port_forward(3000, 3000, name="app-http"),
     ],
     labels=["app"],
+)
+
+# Pod server image build (anchored by dummy Job)
+k8s_resource(
+    "pod-server-anchor",
+    labels=["build"],
 )
 
 # Postgres resource

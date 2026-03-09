@@ -1,7 +1,9 @@
+import type { Buffer } from "node:buffer";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { Socket } from "node:net";
 import type { Connect, Plugin, ViteDevServer } from "vite";
 
-import { createProxyServer } from "httpxy";
+import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
 
 /**
@@ -107,6 +109,25 @@ function devSubdomainProxy(): Plugin {
         },
       );
 
+      // Handle WebSocket upgrades on subdomain hosts.
+      // Connect middleware doesn't intercept `upgrade` events, so without this
+      // handler WebSocket requests (e.g. /ws) fall through to Nitro/Nuxt which
+      // logs Vue Router warnings about unmatched paths.
+      server.httpServer?.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
+        const host = req.headers.host;
+        if (!host) return;
+
+        const subdomain = parseSubdomain(host, domain);
+        if (!subdomain) return;
+
+        handleAuthenticatedWsProxy(req, socket, head, subdomain, currentSql, namespace, host).catch(
+          (err) => {
+            console.error(`[dev-proxy] WebSocket error:`, err);
+            if (!socket.destroyed) socket.destroy();
+          },
+        );
+      });
+
       // Clean up on server close
       server.httpServer?.on("close", () => {
         currentSql.end({ timeout: 0 }).catch(() => {});
@@ -158,6 +179,46 @@ async function handleAuthenticatedProxy(
 
   await proxy.web(req, res, {
     target,
+    xfwd: true,
+    headers: { "x-forwarded-host": host },
+  });
+}
+
+async function handleAuthenticatedWsProxy(
+  req: IncomingMessage,
+  socket: Socket,
+  head: Buffer,
+  subdomain: { slug: string; type: "editor" | "preview" },
+  sql: postgres.Sql,
+  namespace: string,
+  host: string,
+): Promise<void> {
+  const cookieHeader = req.headers.cookie || "";
+  const tokenMatch = cookieHeader.match(/(?:^|;\s*)portable_session=([^;]*)/);
+  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+
+  if (!token) {
+    socket.destroy();
+    return;
+  }
+
+  const rows = await sql`
+    SELECT u.id as user_id
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.id = ${token} AND s.expires_at > NOW()
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    socket.destroy();
+    return;
+  }
+
+  const port = subdomain.type === "editor" ? 3000 : 3001;
+  const target = `http://project-${subdomain.slug}.${namespace}.svc.cluster.local:${port}`;
+
+  await proxyUpgrade(target, req, socket, head, {
     xfwd: true,
     headers: { "x-forwarded-host": host },
   });

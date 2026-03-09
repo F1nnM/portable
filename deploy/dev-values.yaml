@@ -63,11 +63,11 @@ podServer:
 # Longer probe delays for dev mode (Nitro takes ~10s to build)
 probes:
   liveness:
-    initialDelaySeconds: 30
-    periodSeconds: 30
+    initialDelaySeconds: 10
+    periodSeconds: 10
     timeoutSeconds: 5
   readiness:
-    initialDelaySeconds: 20
+    initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 5
 

@@ -1,0 +1,17 @@
+# Dummy Job that references the pod-server image so Tilt recognizes it as
+# "used" and builds/pushes it. Without this, Tilt skips building images not
+# found in any K8s manifest. The Job completes immediately and is cleaned up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pod-server-anchor
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: anchor
+          image: k3d-portable-registry.localhost:5002/portable-pod-server
+          command: ["echo", "done"]
