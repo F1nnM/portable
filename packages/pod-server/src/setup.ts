@@ -1,6 +1,6 @@
 import type { SpawnOptions } from "node:child_process";
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { setPhase } from "./setup-state.js";
 
@@ -68,6 +68,11 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
     }
 
     setPhase("cloning");
+    // Remove lost+found (created by ext4 on empty PVCs) so git clone succeeds
+    const lostFound = join(workspaceDir, "lost+found");
+    if (existsSyncFn(lostFound)) {
+      rmSync(lostFound, { recursive: true });
+    }
     console.log(`[setup] Cloning ${githubRepoUrl} into ${workspaceDir}...`);
     await execFn("git", ["clone", cloneUrl, "."], execOpts);
     console.log("[setup] Clone complete.");
