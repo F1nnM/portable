@@ -1,4 +1,3 @@
-import { builtinModules } from "node:module";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
@@ -9,6 +8,4 @@ export default defineConfig({
   clean: true,
   splitting: false,
   sourcemap: true,
-  noExternal: [/.*/],
-  external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
 });

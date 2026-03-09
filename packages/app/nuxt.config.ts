@@ -5,6 +5,39 @@ import { createProxyServer } from "httpxy";
 import postgres from "postgres";
 
 /**
+ * Suppresses "socket hang up" unhandled rejections from crashing the Nuxt dev
+ * server. Nitropack's dev server uses an internal httpxy (v0.1.7, separate from
+ * our v0.3.1) to proxy WebSocket connections to its worker process. During
+ * rebuilds triggered by Tilt file sync, the old worker dies and the WebSocket
+ * proxy fails with "socket hang up". Nitropack doesn't catch the rejection,
+ * which causes Nuxt to restart. We intercept process.emit to suppress this
+ * specific event before Nuxt's error handler sees it.
+ */
+function suppressWsHangupErrors(): Plugin {
+  let patched = false;
+  return {
+    name: "suppress-ws-hangup-errors",
+    config() {
+      if (patched) return;
+      patched = true;
+
+      const originalEmit = process.emit.bind(process);
+      // @ts-expect-error -- monkey-patching process.emit for error suppression
+      process.emit = function (event: string, ...args: unknown[]) {
+        if (event === "unhandledRejection" || event === "uncaughtException") {
+          const reason = args[0];
+          if (reason instanceof Error && reason.message === "socket hang up") {
+            return true; // signal that the event was handled
+          }
+        }
+        // @ts-expect-error -- forwarding to original emit with loosened types
+        return originalEmit(event, ...args);
+      };
+    },
+  };
+}
+
+/**
  * Vite plugin that proxies subdomain requests BEFORE Vite's built-in middleware.
  *
  * In dev mode, Vite serves `/_nuxt/` asset requests before Nitro ever sees them.
@@ -20,11 +53,32 @@ function devSubdomainProxy(): Plugin {
   const namespace = process.env.NUXT_POD_NAMESPACE || "default";
   const domain = new URL(baseUrl).hostname;
 
+  let proxy: ReturnType<typeof createProxyServer> | undefined;
+  let sql: postgres.Sql | undefined;
+
   return {
     name: "dev-subdomain-proxy",
     configureServer(server: ViteDevServer) {
-      const proxy = createProxyServer();
-      const sql = postgres(process.env.DATABASE_URL!);
+      // Clean up previous instances (configureServer is called on each Vite restart)
+      if (sql) {
+        sql.end({ timeout: 0 }).catch(() => {});
+        sql = undefined;
+      }
+      if (proxy) {
+        if (typeof proxy.close === "function") proxy.close();
+        proxy = undefined;
+      }
+
+      proxy = createProxyServer();
+      sql = postgres(process.env.DATABASE_URL!);
+
+      const currentProxy = proxy;
+      const currentSql = sql;
+
+      // Prevent unhandled 'error' events from crashing the process
+      currentProxy.on("error", (err) => {
+        console.warn(`[dev-proxy] Proxy error (suppressed):`, err.message);
+      });
 
       server.middlewares.use(
         (req: IncomingMessage, res: ServerResponse, next: Connect.NextFunction) => {
@@ -35,17 +89,29 @@ function devSubdomainProxy(): Plugin {
           if (!subdomain) return next();
 
           // Authenticate via session cookie before proxying
-          handleAuthenticatedProxy(req, res, subdomain, sql, namespace, proxy, host).catch(
-            (err) => {
-              console.error(`[dev-proxy] Error:`, err);
-              if (!res.headersSent) {
-                res.writeHead(500, { "Content-Type": "text/plain" });
-                res.end("Internal Server Error");
-              }
-            },
-          );
+          handleAuthenticatedProxy(
+            req,
+            res,
+            subdomain,
+            currentSql,
+            namespace,
+            currentProxy,
+            host,
+          ).catch((err) => {
+            console.error(`[dev-proxy] Error:`, err);
+            if (!res.headersSent) {
+              res.writeHead(500, { "Content-Type": "text/plain" });
+              res.end("Internal Server Error");
+            }
+          });
         },
       );
+
+      // Clean up on server close
+      server.httpServer?.on("close", () => {
+        currentSql.end({ timeout: 0 }).catch(() => {});
+        if (typeof currentProxy.close === "function") currentProxy.close();
+      });
 
       console.log(`[dev-proxy] Subdomain proxy installed (domain: ${domain})`);
     },
@@ -118,7 +184,7 @@ function parseSubdomain(
 export default defineNuxtConfig({
   compatibilityDate: "2025-03-01",
   ssr: true,
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   runtimeConfig: {
     githubClientId: "",
     githubClientSecret: "",
@@ -134,7 +200,7 @@ export default defineNuxtConfig({
     allowedUsers: "",
   },
   vite: {
-    plugins: [devSubdomainProxy()],
+    plugins: [suppressWsHangupErrors(), devSubdomainProxy()],
   },
   app: {
     head: {

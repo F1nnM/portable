@@ -60,9 +60,10 @@ COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /srv
 
-# Copy pod-server build output (all dependencies are bundled by tsup)
+# Copy pod-server build output and runtime dependencies
 COPY --from=build /build/packages/pod-server/dist ./dist
 COPY --from=build /build/packages/pod-server/package.json ./package.json
+COPY --from=build /build/packages/pod-server/node_modules ./node_modules
 
 # Copy editor SPA dist into a known location the pod-server can serve
 COPY --from=build /build/packages/editor/dist ./public
