@@ -1,6 +1,6 @@
 import type { SpawnOptions } from "node:child_process";
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { setPhase } from "./setup-state.js";
 
@@ -68,13 +68,13 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
     }
 
     setPhase("cloning");
-    // Remove lost+found (created by ext4 on empty PVCs) so git clone succeeds
-    const lostFound = join(workspaceDir, "lost+found");
-    if (existsSyncFn(lostFound)) {
-      rmSync(lostFound, { recursive: true });
-    }
     console.log(`[setup] Cloning ${githubRepoUrl} into ${workspaceDir}...`);
-    await execFn("git", ["clone", cloneUrl, "."], execOpts);
+    // Use init+fetch+checkout instead of clone so it works in non-empty dirs
+    // (e.g. PVCs with root-owned lost+found that can't be removed)
+    await execFn("git", ["init"], execOpts);
+    await execFn("git", ["remote", "add", "origin", cloneUrl], execOpts);
+    await execFn("git", ["fetch", "origin"], execOpts);
+    await execFn("git", ["checkout", "origin/HEAD", "-t"], execOpts);
     console.log("[setup] Clone complete.");
   } else if (!workspaceHasFiles) {
     console.log("[setup] Workspace is empty and no GITHUB_REPO_URL set, skipping clone.");
