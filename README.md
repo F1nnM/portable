@@ -33,7 +33,7 @@ Postgres (shared)                         Dev Server (per-project)
 
 - **Main app** handles auth, project management, and proxies all traffic to pods
 - **Project pods** run Claude Code, a dev server, and serve the editor SPA
-- Subdomain routing: `<project>.domain` for the editor, `preview.<project>.domain` for the dev server
+- Subdomain routing: `<project>--<appLabel>.domain` for the editor, `<project>--preview--<appLabel>.domain` for the dev server
 
 ## Tech Stack
 

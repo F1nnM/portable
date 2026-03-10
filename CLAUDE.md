@@ -211,11 +211,11 @@ The main app acts as a reverse proxy for all subdomain traffic. The proxy layer 
 
 ### Subdomain Routing
 
-| Host pattern                           | Target                                                         |
-| -------------------------------------- | -------------------------------------------------------------- |
-| `portable.example.com` (bare domain)   | Main app (Nuxt handles normally)                               |
-| `<slug>.portable.example.com`          | Pod editor at `project-<slug>.<ns>.svc.cluster.local:3000`     |
-| `<slug>--preview.portable.example.com` | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
+| Host pattern                            | Target                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| `portable.example.com` (bare domain)    | Main app (Nuxt handles normally)                               |
+| `<slug>--portable.example.com`          | Pod editor at `project-<slug>.<ns>.svc.cluster.local:3000`     |
+| `<slug>--preview--portable.example.com` | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
 
 ### Middleware Ordering
 
@@ -352,11 +352,11 @@ The git tab displays the workspace's git state via the `useGit` composable and t
 
 ### Preview View
 
-Full-screen iframe that loads the project's dev server. The preview hostname is constructed by appending `--preview` to the project slug in the current hostname (e.g., `my-project.domain` becomes `my-project--preview.domain`). This keeps the preview within a single subdomain level so the wildcard ingress matches. Includes a thin header bar with a "Preview" label, the preview URL, and a refresh button. Shows a loading overlay while the iframe is loading.
+Full-screen iframe that loads the project's dev server. The preview hostname is constructed by replacing the project's `--<appLabel>` suffix with `--preview--<appLabel>` in the current hostname (e.g., `my-project--portable.example.com` becomes `my-project--preview--portable.example.com`). This uses a flat single-level subdomain scheme so only a single wildcard DNS/cert entry is needed. Includes a thin header bar with a "Preview" label, the preview URL, and a refresh button. Shows a loading overlay while the iframe is loading.
 
 ## Architecture Summary
 
-The main app (Nuxt) handles authentication (GitHub OAuth), project CRUD, Kubernetes pod lifecycle, and acts as an auth-checking reverse proxy. Each project gets its own K8s pod running the pod server (Hono) which serves the editor SPA, provides file access APIs, and bridges WebSocket connections to the Claude Agent SDK. Subdomain routing: `<project>.domain` goes to the editor, `<project>--preview.domain` goes to the dev server.
+The main app (Nuxt) handles authentication (GitHub OAuth), project CRUD, Kubernetes pod lifecycle, and acts as an auth-checking reverse proxy. Each project gets its own K8s pod running the pod server (Hono) which serves the editor SPA, provides file access APIs, and bridges WebSocket connections to the Claude Agent SDK. Subdomain routing: `<project>--<appLabel>.domain` goes to the editor, `<project>--preview--<appLabel>.domain` goes to the dev server.
 
 See `docs/architecture.md` for the full architecture diagram and component details.
 

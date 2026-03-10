@@ -13,7 +13,7 @@
                                     v
                     +-------------------------------+
                     |       Ingress (nginx)         |
-                    |   *.portable.example.com      |
+                    |   *.example.com               |
                     +-------------------------------+
                                     |
                                     v
@@ -187,7 +187,7 @@ Browser -> Ingress -> Main App (Nuxt)
 ```
 Browser -> Ingress -> Main App (proxy middleware)
                          |
-                         +-> Parse Host header: <slug>.portable.example.com
+                         +-> Parse Host header: <slug>--portable.example.com
                          +-> Validate session cookie
                          +-> Look up project by slug
                          +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3000
@@ -198,7 +198,7 @@ Browser -> Ingress -> Main App (proxy middleware)
 ```
 Browser -> Ingress -> Main App (proxy middleware)
                          |
-                         +-> Parse Host header: preview.<slug>.portable.example.com
+                         +-> Parse Host header: <slug>--preview--portable.example.com
                          +-> Validate session cookie
                          +-> Look up project by slug
                          +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3001
@@ -289,13 +289,13 @@ A global Nuxt route middleware (`middleware/auth.global.ts`) uses the `useAuth()
 
 ## Subdomain Routing
 
-A single wildcard Ingress resource (`*.portable.example.com`) sends all traffic to the main app. A Nitro server middleware inspects the `Host` header to determine what to do:
+A single wildcard Ingress resource (`*.example.com`) sends all traffic to the main app. A Nitro server middleware inspects the `Host` header to determine what to do:
 
-| Host pattern                          | Action                              |
-| ------------------------------------- | ----------------------------------- |
-| `portable.example.com` (bare domain)  | Serve main app UI                   |
-| `<slug>.portable.example.com`         | Proxy to pod editor (port 3000)     |
-| `preview.<slug>.portable.example.com` | Proxy to pod dev server (port 3001) |
+| Host pattern                            | Action                              |
+| --------------------------------------- | ----------------------------------- |
+| `portable.example.com` (bare domain)    | Serve main app UI                   |
+| `<slug>--portable.example.com`          | Proxy to pod editor (port 3000)     |
+| `<slug>--preview--portable.example.com` | Proxy to pod dev server (port 3001) |
 
 Each project pod gets a headless Service (`clusterIP: None`) named `project-<slug>` for stable DNS resolution at `project-<slug>.<namespace>.svc.cluster.local`.
 

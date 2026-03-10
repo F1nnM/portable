@@ -205,7 +205,7 @@ Created the reverse proxy layer that routes subdomain traffic to project pods. T
 - `server/middleware/proxy.ts` -- Nitro HTTP middleware that intercepts subdomain requests and proxies them via `h3.proxyRequest`. Forwards the original path and sets `x-forwarded-host`. Runs after the auth middleware (alphabetical ordering ensures `event.context.user` is populated).
 - `server/plugins/ws-proxy.ts` -- Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests. Manually parses the session cookie and validates it (plugins run outside the middleware chain). Proxies WebSocket connections via `httpxy.proxyUpgrade`. Destroys the socket on auth/project errors.
 
-Subdomain routing: `<slug>.domain` proxies to port 3000 (editor), `preview.<slug>.domain` proxies to port 3001 (dev server). Pods are addressed via K8s service DNS at `project-<slug>.<namespace>.svc.cluster.local`.
+Subdomain routing: `<slug>--<appLabel>.domain` proxies to port 3000 (editor), `<slug>--preview--<appLabel>.domain` proxies to port 3001 (dev server). Pods are addressed via K8s service DNS at `project-<slug>.<namespace>.svc.cluster.local`.
 
 Also renamed `baseUrl` to `appBaseUrl` in the Nuxt runtime config to avoid collision with Nuxt's built-in `app.baseURL`. Added `httpxy` as a dependency for WebSocket proxying.
 

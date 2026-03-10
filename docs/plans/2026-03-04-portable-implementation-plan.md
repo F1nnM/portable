@@ -374,7 +374,7 @@ Connect K8s to project API routes. Start = pod + service + PVC. Stop = delete po
 
 Nitro middleware: parse Host header, validate session, proxy via `h3.proxyRequest`. Nitro plugin for WebSocket upgrade via `httpxy`.
 
-**Tests:** `parseSubdomain()` correctly extracts slug and type. `<project>.domain` routes to pod editor port. `preview.<project>.domain` routes to pod dev server port. Unauthenticated requests get 401. Unknown projects get 404. WebSocket upgrade is proxied.
+**Tests:** `parseSubdomain()` correctly extracts slug and type. `<project>--<appLabel>.domain` routes to pod editor port. `<project>--preview--<appLabel>.domain` routes to pod dev server port. Unauthenticated requests get 401. Unknown projects get 404. WebSocket upgrade is proxied.
 
 **Files:**
 
@@ -477,7 +477,7 @@ File tree, tap opens CodeMirror 6 full-screen, back button, read-only default wi
 
 ### Task 8.4: Preview view `[DONE]`
 
-Full-screen iframe to `preview.<project>.domain`. Detect subdomain, construct URL.
+Full-screen iframe to `<project>--preview--<appLabel>.domain`. Detect subdomain, construct URL.
 
 **Tests:** Iframe src constructed correctly from current hostname. Renders iframe full-screen.
 
