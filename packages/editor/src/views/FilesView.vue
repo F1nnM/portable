@@ -91,12 +91,12 @@ function handleContentChange(content: string) {
 }
 
 .state-text {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
   color: var(--color-text-muted);
 }
 
 .error-text {
-  color: #f85149;
+  color: var(--color-danger);
 }
 </style>

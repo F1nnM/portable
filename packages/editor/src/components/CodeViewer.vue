@@ -5,9 +5,10 @@ import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { markdown } from "@codemirror/lang-markdown";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView, lineNumbers } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 
 const props = defineProps<{
@@ -62,45 +63,70 @@ function getLanguageExtension(path: string): Extension[] {
   }
 }
 
-const darkTheme = EditorView.theme(
-  {
-    "&": {
-      backgroundColor: "var(--color-bg)",
-      color: "var(--color-text)",
-      height: "100%",
-    },
-    ".cm-gutters": {
-      backgroundColor: "var(--color-bg-elevated)",
-      color: "var(--color-text-muted)",
-      border: "none",
-      borderRight: "1px solid var(--color-border)",
-    },
-    ".cm-activeLineGutter": {
-      backgroundColor: "var(--color-bg-surface)",
-    },
-    ".cm-activeLine": {
-      backgroundColor: "transparent",
-    },
-    ".cm-cursor": {
-      borderLeftColor: "var(--color-accent)",
-    },
-    ".cm-selectionBackground": {
-      backgroundColor: "rgba(88, 166, 255, 0.2) !important",
-    },
-    "&.cm-focused .cm-selectionBackground": {
-      backgroundColor: "rgba(88, 166, 255, 0.3) !important",
-    },
-    ".cm-content": {
-      fontFamily: "var(--font-mono)",
-      fontSize: "0.8125rem",
-      lineHeight: "1.5",
-    },
-    ".cm-scroller": {
-      overflow: "auto",
-    },
+const customTheme = EditorView.theme({
+  "&": {
+    backgroundColor: "var(--color-bg)",
+    color: "var(--color-text)",
+    height: "100%",
   },
-  { dark: true },
-);
+  ".cm-gutters": {
+    backgroundColor: "var(--color-bg-surface)",
+    color: "var(--color-text-muted)",
+    border: "none",
+    borderRight: "1px solid var(--color-border-subtle)",
+  },
+  ".cm-activeLineGutter": {
+    backgroundColor: "var(--color-bg-elevated)",
+  },
+  ".cm-activeLine": {
+    backgroundColor: "transparent",
+  },
+  ".cm-cursor": {
+    borderLeftColor: "var(--color-accent)",
+  },
+  ".cm-selectionBackground": {
+    backgroundColor: "var(--color-accent-tint) !important",
+  },
+  "&.cm-focused .cm-selectionBackground": {
+    backgroundColor: "var(--color-accent-tint) !important",
+  },
+  ".cm-content": {
+    fontFamily: "var(--font-mono)",
+    fontSize: "13px",
+    lineHeight: "1.5",
+  },
+  ".cm-scroller": {
+    overflow: "auto",
+  },
+});
+
+const syntaxColors = HighlightStyle.define([
+  { tag: tags.keyword, color: "#6366f1" },
+  { tag: tags.controlKeyword, color: "#6366f1" },
+  { tag: tags.operatorKeyword, color: "#6366f1" },
+  { tag: tags.definitionKeyword, color: "#6366f1" },
+  { tag: tags.moduleKeyword, color: "#6366f1" },
+  { tag: tags.string, color: "#22c55e" },
+  { tag: tags.regexp, color: "#22c55e" },
+  { tag: tags.number, color: "#f59e0b" },
+  { tag: tags.bool, color: "#f59e0b" },
+  { tag: tags.null, color: "#f59e0b" },
+  { tag: tags.comment, color: "#6b7280", fontStyle: "italic" },
+  { tag: tags.lineComment, color: "#6b7280", fontStyle: "italic" },
+  { tag: tags.blockComment, color: "#6b7280", fontStyle: "italic" },
+  { tag: tags.variableName, color: "#e0e0e8" },
+  { tag: tags.definition(tags.variableName), color: "#818cf8" },
+  { tag: tags.function(tags.variableName), color: "#818cf8" },
+  { tag: tags.typeName, color: "#38bdf8" },
+  { tag: tags.className, color: "#38bdf8" },
+  { tag: tags.propertyName, color: "#e0e0e8" },
+  { tag: tags.attributeName, color: "#818cf8" },
+  { tag: tags.tagName, color: "#ef4444" },
+  { tag: tags.angleBracket, color: "#6b7280" },
+  { tag: tags.punctuation, color: "#9ca3af" },
+  { tag: tags.operator, color: "#9ca3af" },
+  { tag: tags.meta, color: "#6b7280" },
+]);
 
 function createEditor() {
   if (!editorContainer.value) return;
@@ -113,8 +139,8 @@ function createEditor() {
 
   const extensions: Extension[] = [
     lineNumbers(),
-    oneDark,
-    darkTheme,
+    customTheme,
+    syntaxHighlighting(syntaxColors),
     ...getLanguageExtension(props.path),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
@@ -208,9 +234,9 @@ watch(
 .viewer-header {
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 4px;
-  background: var(--color-bg-elevated);
+  height: var(--touch-min);
+  padding: 0 var(--space-1);
+  background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
@@ -223,9 +249,10 @@ watch(
   border: none;
   color: var(--color-accent);
   cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  padding: 8px 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
   min-height: 40px;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -239,12 +266,12 @@ watch(
   flex: 1;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 13px;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
 }
 
 .header-actions {
@@ -253,7 +280,7 @@ watch(
 }
 
 .save-btn {
-  color: var(--color-accent-active);
+  color: var(--color-success);
 }
 
 .editor-container {
