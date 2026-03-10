@@ -102,7 +102,7 @@ describe("resolveProxyTarget", () => {
 
   it("throws 401 for unauthenticated subdomain requests", async () => {
     await expect(
-      resolveProxyTarget("my-project.portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, null),
+      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, null),
     ).rejects.toMatchObject({
       statusCode: 401,
     });
@@ -113,7 +113,12 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     await expect(
-      resolveProxyTarget("unknown-project.portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
+      resolveProxyTarget(
+        "unknown-project--portable.127.0.0.1.nip.io",
+        DOMAIN,
+        NAMESPACE,
+        TEST_USER,
+      ),
     ).rejects.toMatchObject({
       statusCode: 404,
     });
@@ -124,7 +129,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     await expect(
-      resolveProxyTarget("my-project.portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
+      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
     ).rejects.toMatchObject({
       statusCode: 503,
     });
@@ -135,7 +140,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     const result = await resolveProxyTarget(
-      "my-project.portable.127.0.0.1.nip.io",
+      "my-project--portable.127.0.0.1.nip.io",
       DOMAIN,
       NAMESPACE,
       TEST_USER,
@@ -152,7 +157,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     const result = await resolveProxyTarget(
-      "my-project--preview.portable.127.0.0.1.nip.io",
+      "my-project--preview--portable.127.0.0.1.nip.io",
       DOMAIN,
       NAMESPACE,
       TEST_USER,
@@ -169,7 +174,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     const result = await resolveProxyTarget(
-      "my-project.portable.127.0.0.1.nip.io:3000",
+      "my-project--portable.127.0.0.1.nip.io:3000",
       DOMAIN,
       NAMESPACE,
       TEST_USER,
@@ -188,7 +193,7 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     await expect(
-      resolveProxyTarget("my-project.portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
+      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
     ).rejects.toMatchObject({
       statusCode: 404,
     });

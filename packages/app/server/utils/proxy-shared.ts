@@ -24,41 +24,62 @@ export function getDomainFromBaseUrl(baseUrl: string): string {
  * Parses the Host header to extract project slug and access type.
  * Returns null if the host is the main app domain (no subdomain).
  *
+ * All project subdomains are flattened to a single DNS level using "--" as separator,
+ * so that only one wildcard certificate level is needed (compatible with Cloudflare free-tier SSL).
+ *
+ * The configured domain (e.g. "portable.127.0.0.1.nip.io") is split into:
+ *   appLabel = "portable", parentDomain = "127.0.0.1.nip.io"
+ *
  * Examples (domain = "portable.127.0.0.1.nip.io"):
- *   "my-project.portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "editor" }
- *   "my-project--preview.portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "preview" }
+ *   "my-project--portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "editor" }
+ *   "my-project--preview--portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "preview" }
  *   "portable.127.0.0.1.nip.io" -> null (main app)
+ *   "argocd.127.0.0.1.nip.io" -> null (not our traffic, no "--portable" suffix)
  */
 export function parseSubdomain(host: string, domain: string): SubdomainInfo | null {
   if (!host) return null;
 
+  // Derive appLabel and parentDomain from the configured domain
+  // e.g. "portable.127.0.0.1.nip.io" -> appLabel="portable", parentDomain="127.0.0.1.nip.io"
+  const firstDot = domain.indexOf(".");
+  if (firstDot === -1) return null;
+  const appLabel = domain.slice(0, firstDot);
+  const parentDomain = domain.slice(firstDot + 1);
+
   // Strip port from host if present
   const hostname = host.includes(":") ? host.split(":")[0] : host;
 
-  // Ensure the hostname ends with the domain
-  if (!hostname.endsWith(domain)) return null;
+  // Ensure the hostname ends with the parent domain
+  if (!hostname.endsWith(parentDomain)) return null;
 
-  // If hostname equals domain exactly, it's the main app
+  // If hostname equals the configured domain exactly, it's the main app
   if (hostname === domain) return null;
 
-  // Extract the subdomain prefix (everything before the domain)
-  // e.g., "my-project.portable.127.0.0.1.nip.io" -> "my-project"
-  // e.g., "my-project--preview.portable.127.0.0.1.nip.io" -> "my-project--preview"
-  const prefix = hostname.slice(0, -(domain.length + 1)); // +1 for the trailing dot
+  // Extract the subdomain label (everything before .{parentDomain})
+  const suffix = `.${parentDomain}`;
+  if (!hostname.endsWith(suffix)) return null;
+  const subdomain = hostname.slice(0, -suffix.length);
 
-  if (!prefix) return null;
+  if (!subdomain) return null;
+
+  // The subdomain must end with --{appLabel} to be our traffic
+  const appSuffix = `--${appLabel}`;
+  if (!subdomain.endsWith(appSuffix)) return null;
+
+  // Strip the app label suffix
+  const remainder = subdomain.slice(0, -appSuffix.length);
+
+  if (!remainder) return null;
 
   // Check if it's a preview subdomain: "<slug>--preview"
-  // Uses "--" suffix so the entire subdomain stays in a single DNS label,
-  // which is required for wildcard ingress matching (*.domain).
-  if (prefix.endsWith("--preview")) {
-    const slug = prefix.slice(0, -"--preview".length);
+  if (remainder.endsWith("--preview")) {
+    const slug = remainder.slice(0, -"--preview".length);
     if (!slug) return null;
     return { slug, type: "preview" };
   }
 
   // Otherwise it's an editor subdomain: "<slug>"
-  return { slug: prefix, type: "editor" };
+  return { slug: remainder, type: "editor" };
 }
 
 /**

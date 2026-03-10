@@ -15,17 +15,17 @@ describe("parseSubdomain", () => {
   });
 
   it("extracts slug and type 'editor' for a single subdomain", () => {
-    const result = parseSubdomain("my-project.portable.127.0.0.1.nip.io", domain);
+    const result = parseSubdomain("my-project--portable.127.0.0.1.nip.io", domain);
     expect(result).toEqual({ slug: "my-project", type: "editor" });
   });
 
   it("extracts slug and type 'preview' for preview subdomain", () => {
-    const result = parseSubdomain("my-project--preview.portable.127.0.0.1.nip.io", domain);
+    const result = parseSubdomain("my-project--preview--portable.127.0.0.1.nip.io", domain);
     expect(result).toEqual({ slug: "my-project", type: "preview" });
   });
 
   it("handles Host header with port (strips port for matching)", () => {
-    const result = parseSubdomain("my-project.portable.127.0.0.1.nip.io:3000", domain);
+    const result = parseSubdomain("my-project--portable.127.0.0.1.nip.io:3000", domain);
     expect(result).toEqual({ slug: "my-project", type: "editor" });
   });
 
@@ -35,7 +35,7 @@ describe("parseSubdomain", () => {
   });
 
   it("handles preview subdomain with port", () => {
-    const result = parseSubdomain("my-project--preview.portable.127.0.0.1.nip.io:8080", domain);
+    const result = parseSubdomain("my-project--preview--portable.127.0.0.1.nip.io:8080", domain);
     expect(result).toEqual({ slug: "my-project", type: "preview" });
   });
 
@@ -45,13 +45,18 @@ describe("parseSubdomain", () => {
   });
 
   it("handles a different base domain", () => {
-    const result = parseSubdomain("my-app.example.com", "example.com");
+    const result = parseSubdomain("my-app--portable.example.com", "portable.example.com");
     expect(result).toEqual({ slug: "my-app", type: "editor" });
   });
 
   it("handles preview with a different base domain", () => {
-    const result = parseSubdomain("my-app--preview.example.com", "example.com");
+    const result = parseSubdomain("my-app--preview--portable.example.com", "portable.example.com");
     expect(result).toEqual({ slug: "my-app", type: "preview" });
+  });
+
+  it("returns null for non-portable subdomain", () => {
+    const result = parseSubdomain("argocd.127.0.0.1.nip.io", domain);
+    expect(result).toBeNull();
   });
 
   it("returns null when host does not end with domain", () => {
