@@ -1,26 +1,34 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
+
 definePageMeta({
   layout: false,
 });
 
 const route = useRoute();
 const error = computed(() => route.query.error as string | undefined);
+
+onMounted(() => {
+  const theme = localStorage.getItem("portable-theme");
+  if (theme && theme !== "system") {
+    document.documentElement.dataset.theme = theme;
+  }
+});
 </script>
 
 <template>
   <div class="login-page">
     <div class="login-bg">
-      <div class="grid-lines" />
-      <div class="glow-orb" />
+      <div class="ambient-glow" />
     </div>
 
     <div class="login-content">
       <div class="login-card">
         <div class="brand">
-          <div class="brand-icon">
-            <span class="prompt">&gt;_</span>
+          <div class="brand-line">
+            <span class="brand-mark">&gt;_</span>
+            <span class="brand-name">portable</span>
           </div>
-          <h1 class="brand-title">Portable</h1>
           <p class="brand-tagline">Claude Code, anywhere.</p>
         </div>
 
@@ -36,8 +44,6 @@ const error = computed(() => route.query.error as string | undefined);
           </svg>
           Sign in with GitHub
         </a>
-
-        <p class="login-footer">Isolated dev environments powered by Kubernetes.</p>
       </div>
     </div>
   </div>
@@ -49,52 +55,45 @@ const error = computed(() => route.query.error as string | undefined);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-base);
+  background: var(--color-bg);
   position: relative;
   overflow: hidden;
 }
 
-/* Background effects */
+/* Ambient background */
 .login-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.grid-lines {
+.ambient-glow {
   position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--border-subtle) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
-  background-size: 48px 48px;
-  opacity: 0.5;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
-}
-
-.glow-orb {
-  position: absolute;
-  top: 30%;
+  top: 35%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
+  opacity: 0.05;
   border-radius: 50%;
-  filter: blur(60px);
-  animation: pulse-glow 4s ease-in-out infinite;
+  filter: blur(80px);
+  animation: drift 18s ease-in-out infinite;
 }
 
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1);
+@keyframes drift {
+  0% {
+    background-position: 0% 0%;
+    transform: translate(-50%, -50%) translate(0, 0);
   }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
+  33% {
+    transform: translate(-50%, -50%) translate(30px, -20px);
+  }
+  66% {
+    transform: translate(-50%, -50%) translate(-20px, 15px);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(0, 0);
   }
 }
 
@@ -103,7 +102,7 @@ const error = computed(() => route.query.error as string | undefined);
   position: relative;
   z-index: 1;
   width: 100%;
-  padding: var(--space-md);
+  padding: var(--space-4);
   max-width: 400px;
 }
 
@@ -111,7 +110,7 @@ const error = computed(() => route.query.error as string | undefined);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xl);
+  gap: var(--space-6);
 }
 
 /* Brand */
@@ -120,60 +119,44 @@ const error = computed(() => route.query.error as string | undefined);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-3);
 }
 
-.brand-icon {
-  width: 72px;
-  height: 72px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+.brand-line {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 4px 24px rgba(0, 0, 0, 0.4);
+  align-items: baseline;
+  gap: 6px;
 }
 
-.prompt {
+.brand-mark {
   font-family: var(--font-mono);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--color-accent);
+}
+
+.brand-name {
+  font-family: var(--font-sans);
+  font-size: 2rem;
   font-weight: 600;
-  color: var(--accent);
-  animation: blink-cursor 1s step-end infinite;
-}
-
-@keyframes blink-cursor {
-  50% {
-    opacity: 0.4;
-  }
-}
-
-.brand-title {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: var(--text-primary);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .brand-tagline {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.9375rem;
-  color: var(--text-secondary);
-  letter-spacing: -0.01em;
+  color: var(--color-text-secondary);
 }
 
 /* Error message */
 .error-message {
   width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid rgba(248, 81, 73, 0.4);
-  border-radius: var(--radius-md);
-  color: #f85149;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
   font-size: 0.875rem;
   text-align: center;
   line-height: 1.5;
@@ -184,44 +167,34 @@ const error = computed(() => route.query.error as string | undefined);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   width: 100%;
+  max-width: 320px;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--text-primary);
-  color: var(--bg-base);
-  font-family: var(--font-display);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 1rem;
-  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  border-radius: var(--radius-sm);
   text-decoration: none;
   transition:
     background var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+    transform var(--transition-fast);
 }
 
 .btn-github:hover {
-  background: #ffffff;
-  color: var(--bg-base);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: var(--color-accent-hover);
+  color: #ffffff;
 }
 
 .btn-github:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .github-icon {
   width: 20px;
   height: 20px;
-}
-
-/* Footer */
-.login-footer {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  text-align: center;
-  line-height: 1.5;
 }
 </style>
