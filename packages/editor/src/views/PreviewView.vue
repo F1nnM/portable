@@ -88,7 +88,7 @@ function onIframeLoad() {
     </div>
     <div class="preview-content">
       <div v-if="loading" class="preview-loading">
-        <span class="loading-text">Loading preview...</span>
+        <div class="loading-spinner" />
       </div>
       <iframe
         :key="iframeKey"
@@ -113,16 +113,16 @@ function onIframeLoad() {
   display: flex;
   align-items: center;
   height: 40px;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .preview-label {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-text);
   flex-shrink: 0;
@@ -130,7 +130,7 @@ function onIframeLoad() {
 
 .preview-url {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,17 +147,17 @@ function onIframeLoad() {
   height: 28px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  transition: color var(--transition-fast);
 }
 
 .preview-action:hover {
   color: var(--color-text);
-  background: var(--color-bg-elevated);
 }
 
 .preview-action:active {
@@ -185,10 +185,19 @@ function onIframeLoad() {
   z-index: 1;
 }
 
-.loading-text {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .preview-iframe {
@@ -196,6 +205,6 @@ function onIframeLoad() {
   height: 100%;
   border: none;
   display: block;
-  background: #fff;
+  background: var(--color-bg);
 }
 </style>
