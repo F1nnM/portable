@@ -296,7 +296,7 @@ export default defineNuxtConfig({
       title: "Portable",
       meta: [
         { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-        { name: "theme-color", content: "#0a0a0b" },
+        { name: "theme-color", content: "#fafaf9" },
         {
           name: "description",
           content: "Mobile-first remote Claude Code environment",
@@ -311,10 +311,10 @@ export default defineNuxtConfig({
         },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
         },
       ],
     },
   },
-  css: ["~/assets/css/global.css"],
+  css: ["@portable/design-tokens/tokens.css", "~/assets/css/global.css"],
 });
