@@ -29,12 +29,18 @@ RUN ln -s /build/packages/editor/dist /build/packages/pod-server/public
 # Make dev entrypoint executable
 RUN chmod +x packages/pod-server/scripts/entrypoint-dev.sh
 
+# Create writable home directory for the non-root user
+RUN mkdir -p /home/node/.claude && chown -R node:node /home/node
+
 # Project workspace will be mounted here via PVC
-RUN mkdir -p /workspace
+RUN mkdir -p /workspace && chown node:node /workspace
 VOLUME /workspace
 
 ENV NODE_ENV=development
 ENV PORT=3000
+ENV HOME=/home/node
+
+USER node
 
 EXPOSE 3000
 EXPOSE 3001

@@ -71,12 +71,18 @@ COPY --from=build /build/packages/editor/dist ./public
 COPY packages/pod-server/scripts/entrypoint.sh ./scripts/entrypoint.sh
 RUN chmod +x ./scripts/entrypoint.sh
 
+# Create writable home directory for the non-root user
+RUN mkdir -p /home/node/.claude && chown -R node:node /home/node
+
 # Project workspace will be mounted here via PVC
-RUN mkdir -p /workspace
+RUN mkdir -p /workspace && chown node:node /workspace
 VOLUME /workspace
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HOME=/home/node
+
+USER node
 
 EXPOSE 3000
 EXPOSE 3001
