@@ -36,6 +36,10 @@
         "vue-tsc": "^2.2.12",
       },
     },
+    "packages/design-tokens": {
+      "name": "@portable/design-tokens",
+      "version": "0.1.0",
+    },
     "packages/editor": {
       "name": "@portable/editor",
       "dependencies": {
@@ -638,6 +642,8 @@
     "@poppinss/exception": ["@poppinss/exception@1.2.3", "", {}, "sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw=="],
 
     "@portable/app": ["@portable/app@workspace:packages/app"],
+
+    "@portable/design-tokens": ["@portable/design-tokens@workspace:packages/design-tokens"],
 
     "@portable/editor": ["@portable/editor@workspace:packages/editor"],
 
