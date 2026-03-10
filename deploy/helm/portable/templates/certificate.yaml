@@ -1,4 +1,6 @@
 {{- if .Values.certManager.enabled }}
+{{- $parts := splitList "." .Values.domain }}
+{{- $parentDomain := join "." (rest $parts) }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -12,5 +14,5 @@ spec:
     kind: {{ .Values.certManager.issuerKind }}
   dnsNames:
     - {{ .Values.domain | quote }}
-    - {{ printf "*.%s" .Values.domain | quote }}
+    - {{ printf "*.%s" $parentDomain | quote }}
 {{- end }}

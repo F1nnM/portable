@@ -13,13 +13,14 @@
 # =============================================================================
 
 # -- Base domain for the application.
-# All traffic is routed through this domain and its subdomains:
-#   <domain>                       -> Main app (auth, dashboard, settings)
-#   <project>.<domain>             -> Project editor (chat, files)
-#   preview.<project>.<domain>     -> Project dev server preview
+# All traffic is routed through this domain using a flat subdomain scheme
+# under the parent domain (derived by stripping the first label):
+#   <domain>                                    -> Main app (auth, dashboard, settings)
+#   <slug>--<appLabel>.<parentDomain>           -> Project editor (chat, files)
+#   <slug>--preview--<appLabel>.<parentDomain>  -> Project dev server preview
 #
-# A wildcard DNS record (*.<domain>) pointing to the cluster ingress is required.
-# Example: portable.example.com
+# A wildcard DNS record (*.<parentDomain>) pointing to the cluster ingress is required.
+# Example: portable.example.com (appLabel=portable, parentDomain=example.com)
 domain: ""
 
 # -- GitHub OAuth credentials for user authentication.

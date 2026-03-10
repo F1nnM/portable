@@ -8,6 +8,8 @@ metadata:
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- $parts := splitList "." .Values.domain }}
+{{- $parentDomain := join "." (rest $parts) }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className | quote }}
@@ -16,7 +18,7 @@ spec:
   tls:
     - hosts:
         - {{ .Values.domain | quote }}
-        - {{ printf "*.%s" .Values.domain | quote }}
+        - {{ printf "*.%s" $parentDomain | quote }}
       secretName: {{ include "portable.fullname" . }}-tls
   {{- end }}
   rules:
@@ -30,7 +32,7 @@ spec:
                 name: {{ include "portable.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
-    - host: {{ printf "*.%s" .Values.domain | quote }}
+    - host: {{ printf "*.%s" $parentDomain | quote }}
       http:
         paths:
           - path: /
