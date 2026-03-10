@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
             />
           </svg>
         </button>
-        <span class="chat-label">Chat</span>
+        <span class="chat-label">New conversation</span>
       </div>
 
       <div ref="messageListRef" class="message-list">
@@ -174,50 +174,54 @@ onBeforeUnmount(() => {
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border);
+  height: 52px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
   flex-shrink: 0;
+  position: relative;
 }
 
 .back-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
-  color: var(--color-text-muted);
+  color: var(--color-accent);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .back-button:active {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
 }
 
 .back-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .chat-label {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  color: var(--color-text);
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 15px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--color-text);
+  padding-right: 36px; /* balance the back button */
 }
 
 .message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
+  gap: var(--space-5);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -229,17 +233,15 @@ onBeforeUnmount(() => {
 }
 
 .empty-label {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .streaming-indicator {
   display: flex;
   gap: 4px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   align-self: flex-start;
 }
 
