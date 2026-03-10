@@ -90,6 +90,7 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
   const env: Array<{ name: string; value: string }> = [
     { name: "DATABASE_URL", value: options.databaseUrl },
     { name: "GITHUB_TOKEN", value: options.githubToken },
+    { name: "CLAUDE_CONFIG_DIR", value: "/workspace/.claude" },
   ];
 
   if (options.repoUrl) {

@@ -1,6 +1,6 @@
 import type { SpawnOptions } from "node:child_process";
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { setPhase } from "./setup-state.js";
 
@@ -82,6 +82,9 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
     console.log("[setup] Workspace already has files, skipping clone.");
   }
 
+  // Ensure .claude/ is gitignored so session data stays out of the repo
+  ensureGitignoreEntry(workspaceDir, ".claude/", existsSyncFn);
+
   // Step 2: Install dependencies if node_modules is missing
   const nodeModulesPath = join(workspaceDir, "node_modules");
   const hasNodeModules = existsSyncFn(nodeModulesPath);
@@ -105,4 +108,19 @@ function hasFiles(
   const entries = readdirSyncFn(dir);
   // Filter out common hidden/system entries that might be on an empty PVC
   return entries.filter((e) => e !== "." && e !== ".." && e !== "lost+found").length > 0;
+}
+
+function ensureGitignoreEntry(
+  workspaceDir: string,
+  entry: string,
+  existsSyncFn: typeof existsSync,
+): void {
+  const gitignorePath = join(workspaceDir, ".gitignore");
+  if (!existsSyncFn(gitignorePath)) return;
+
+  const content = readFileSync(gitignorePath, "utf-8");
+  if (content.split("\n").some((line) => line.trim() === entry)) return;
+
+  const separator = content.endsWith("\n") ? "" : "\n";
+  appendFileSync(gitignorePath, `${separator}${entry}\n`);
 }
