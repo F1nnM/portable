@@ -162,7 +162,6 @@ onMounted(() => {
   <div class="new-project">
     <div class="page-header">
       <h1 class="page-title">New Project</h1>
-      <p class="page-subtitle">Create an isolated dev environment with Claude Code</p>
     </div>
 
     <!-- Tabs -->
@@ -303,37 +302,33 @@ onMounted(() => {
 .new-project {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-6);
 }
 
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-1);
 }
 
 .page-title {
-  font-size: 1.75rem;
-  letter-spacing: -0.03em;
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 /* Form sections */
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .form-label {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 /* Scaffold loading */
@@ -341,15 +336,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-xl) var(--space-md);
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4);
 }
 
 .loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -362,8 +357,7 @@ onMounted(() => {
 
 .loading-text {
   font-size: 0.8125rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+  color: var(--color-text-muted);
 }
 
 /* Scaffold error */
@@ -371,10 +365,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-xl) var(--space-md);
-  border: 1px dashed var(--danger);
-  border-radius: var(--radius-lg);
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--color-danger);
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
@@ -383,29 +377,29 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.875rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   transition:
     background var(--transition-fast),
     color var(--transition-fast);
 }
 
 .btn-retry:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 /* Scaffold grid */
 .scaffold-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 @media (min-width: 480px) {
@@ -417,40 +411,38 @@ onMounted(() => {
 .scaffold-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   text-align: left;
   min-height: var(--touch-min);
   cursor: pointer;
   transition:
     border-color var(--transition-fast),
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
+    background var(--transition-fast);
 }
 
 .scaffold-card:hover {
-  border-color: var(--text-muted);
+  border-color: var(--color-text-muted);
 }
 
 .scaffold-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
 }
 
 .scaffold-name {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .scaffold-description {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
@@ -458,12 +450,12 @@ onMounted(() => {
 .form-input {
   width: 100%;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: var(--font-body);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   font-size: 1rem;
   outline: none;
   transition:
@@ -472,41 +464,41 @@ onMounted(() => {
 }
 
 .form-input::placeholder {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .form-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-tint);
 }
 
 /* Slug preview */
 .slug-preview {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-1);
   font-size: 0.8125rem;
 }
 
 .slug-label {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .slug-value {
   font-family: var(--font-mono);
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 /* Error banner */
 .error-banner {
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-md);
-  background: rgba(255, 77, 106, 0.08);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .error-text {
-  color: var(--danger);
+  color: var(--color-danger);
   font-size: 0.875rem;
 }
 
@@ -515,26 +507,24 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-family: var(--font-display);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     background var(--transition-fast),
-    transform var(--transition-fast),
     opacity var(--transition-fast);
 }
 
 .btn-create:hover:not(:disabled) {
-  background: var(--accent-dim);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
 }
 
 .btn-create:disabled {
@@ -545,8 +535,8 @@ onMounted(() => {
 .btn-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--accent-text);
-  border-top-color: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -554,18 +544,17 @@ onMounted(() => {
 /* Tabs */
 .tabs {
   display: flex;
-  gap: var(--space-xs);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: var(--space-xs);
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab {
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-2) var(--space-4);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-secondary);
-  font-family: var(--font-display);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
   cursor: pointer;
@@ -575,19 +564,19 @@ onMounted(() => {
 }
 
 .tab:hover {
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
 /* Repo list */
 .repo-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-1);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -595,66 +584,64 @@ onMounted(() => {
 .repo-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   text-align: left;
   cursor: pointer;
   transition:
     border-color var(--transition-fast),
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
+    background var(--transition-fast);
 }
 
 .repo-card:hover {
-  border-color: var(--text-muted);
+  border-color: var(--color-text-muted);
 }
 
 .repo-card.selected {
-  border-color: var(--accent);
-  background: var(--accent-glow);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
 }
 
 .repo-header {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .repo-name {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .repo-badge {
   font-size: 0.6875rem;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  background: var(--bg-overlay);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
 }
 
 .repo-description {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
 .repo-language {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-family: var(--font-mono);
 }
 
 .repo-empty {
   display: flex;
   justify-content: center;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-6) var(--space-4);
 }
 </style>
