@@ -33,6 +33,10 @@ function refresh() {
   iframeKey.value += 1;
 }
 
+function openInNewTab() {
+  window.open(previewUrl.value, "_blank");
+}
+
 const loading = ref(true);
 
 function onIframeLoad() {
@@ -46,12 +50,27 @@ function onIframeLoad() {
       <span class="preview-label">Preview</span>
       <span class="preview-url" data-testid="preview-url">{{ previewHost }}</span>
       <button
-        class="preview-refresh"
+        class="preview-action"
+        data-testid="preview-open-tab"
+        title="Open in new tab"
+        @click="openInNewTab"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="action-icon">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"
+          />
+        </svg>
+      </button>
+      <button
+        class="preview-action"
         data-testid="preview-refresh"
         title="Refresh preview"
         @click="refresh"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="refresh-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="action-icon">
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
@@ -120,7 +139,7 @@ function onIframeLoad() {
   min-width: 0;
 }
 
-.preview-refresh {
+.preview-action {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -136,16 +155,16 @@ function onIframeLoad() {
   touch-action: manipulation;
 }
 
-.preview-refresh:hover {
+.preview-action:hover {
   color: var(--color-text);
   background: var(--color-bg-elevated);
 }
 
-.preview-refresh:active {
+.preview-action:active {
   color: var(--color-accent);
 }
 
-.refresh-icon {
+.action-icon {
   width: 16px;
   height: 16px;
 }
