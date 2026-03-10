@@ -71,13 +71,7 @@ function handleProjectDeleted() {
   <div class="dashboard">
     <div class="page-header">
       <div class="header-top">
-        <div class="header-text">
-          <h1 class="page-title">Dashboard</h1>
-          <p class="page-subtitle">
-            Welcome back,
-            <span class="username">{{ user?.displayName || user?.username }}</span>
-          </p>
-        </div>
+        <h1 class="page-title">Projects</h1>
         <NuxtLink to="/new" class="btn-new">
           <svg
             viewBox="0 0 24 24"
@@ -123,7 +117,7 @@ function handleProjectDeleted() {
     </div>
 
     <!-- Project list -->
-    <div v-else class="project-list">
+    <div v-else class="project-grid">
       <ProjectCard
         v-for="project in projects"
         :key="project.id"
@@ -140,56 +134,41 @@ function handleProjectDeleted() {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-6);
 }
 
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-1);
 }
 
 .header-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.header-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-4);
 }
 
 .page-title {
-  font-size: 1.75rem;
-  letter-spacing: -0.03em;
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
-}
-
-.username {
-  color: var(--accent);
-  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .btn-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
+  gap: var(--space-1);
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.875rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
@@ -199,9 +178,8 @@ function handleProjectDeleted() {
 }
 
 .btn-new:hover {
-  background: var(--accent-dim);
-  color: var(--accent-text);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
+  color: #ffffff;
 }
 
 .btn-new svg {
@@ -214,15 +192,15 @@ function handleProjectDeleted() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-3xl) var(--space-md);
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-4);
 }
 
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -235,8 +213,7 @@ function handleProjectDeleted() {
 
 .loading-text {
   font-size: 0.875rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+  color: var(--color-text-muted);
 }
 
 /* Error state */
@@ -244,15 +221,15 @@ function handleProjectDeleted() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-3xl) var(--space-md);
-  border: 1px dashed var(--danger);
-  border-radius: var(--radius-lg);
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-4);
+  border: 1px dashed var(--color-danger);
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
 .error-text {
-  color: var(--danger);
+  color: var(--color-danger);
   font-size: 0.9375rem;
 }
 
@@ -261,22 +238,22 @@ function handleProjectDeleted() {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.875rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   transition:
     background var(--transition-fast),
     color var(--transition-fast);
 }
 
 .btn-retry:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 /* Empty state */
@@ -284,17 +261,17 @@ function handleProjectDeleted() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-3xl) var(--space-md);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
 .empty-icon {
   width: 48px;
   height: 48px;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .empty-icon svg {
@@ -303,7 +280,7 @@ function handleProjectDeleted() {
 }
 
 .empty-text {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-size: 0.9375rem;
 }
 
@@ -312,13 +289,13 @@ function handleProjectDeleted() {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.9375rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   text-decoration: none;
   transition:
     background var(--transition-fast),
@@ -326,15 +303,20 @@ function handleProjectDeleted() {
 }
 
 .btn-primary:hover {
-  background: var(--accent-dim);
-  color: var(--accent-text);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
+  color: #ffffff;
 }
 
-/* Project list */
-.project-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+/* Project grid */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 720px) {
+  .project-grid {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  }
 }
 </style>

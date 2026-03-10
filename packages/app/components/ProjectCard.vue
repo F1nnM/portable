@@ -238,9 +238,10 @@ function handleRenameKeydown(e: KeyboardEvent) {
         <span v-if="phaseDisplay" class="startup-phase">{{ phaseDisplay }}</span>
       </div>
       <div class="card-actions-area">
-        <span class="status-badge" :class="statusConfig.class">
+        <span class="status-indicator" :class="statusConfig.class">
           <span v-if="project.status === 'running'" class="status-dot status-dot-pulse" />
           <span v-else-if="isTransitioning" class="status-dot status-dot-blink" />
+          <span v-else class="status-dot" />
           {{ statusConfig.label }}
         </span>
         <div class="menu-container">
@@ -448,40 +449,41 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 <style scoped>
 .project-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-4);
+  box-shadow: var(--shadow-card);
   transition: border-color var(--transition-base);
 }
 
 .project-card:hover {
-  border-color: var(--border-subtle);
+  border-color: var(--color-border-subtle);
 }
 
 .card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: var(--space-4);
 }
 
 .card-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
 
 .project-name {
-  font-family: var(--font-display);
-  font-size: 1.0625rem;
+  font-family: var(--font-sans);
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text);
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
@@ -491,7 +493,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .project-slug {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -500,58 +502,51 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .startup-phase {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
-  color: #e6b422;
+  color: var(--color-warning);
   animation: blink 1s ease-in-out infinite;
 }
 
 .card-actions-area {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
-/* Status badge */
-.status-badge {
+/* Status indicator (dot + text) */
+.status-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
   white-space: nowrap;
-  letter-spacing: 0.02em;
 }
 
 .status-stopped {
-  background: var(--bg-overlay);
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .status-running {
-  background: var(--accent-glow);
-  color: var(--accent);
+  color: var(--color-success);
 }
 
 .status-creating,
 .status-starting,
 .status-stopping {
-  background: rgba(255, 200, 50, 0.12);
-  color: #e6b422;
+  color: var(--color-warning);
 }
 
 .status-error {
-  background: rgba(255, 77, 106, 0.12);
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
-/* Pulsing dot */
+/* Status dot */
 .status-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -598,15 +593,15 @@ function handleRenameKeydown(e: KeyboardEvent) {
   width: var(--touch-min);
   height: var(--touch-min);
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   transition:
     color var(--transition-fast),
     background var(--transition-fast);
 }
 
 .btn-menu:hover {
-  color: var(--text-secondary);
-  background: var(--bg-elevated);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
 }
 
 .btn-menu svg {
@@ -620,11 +615,11 @@ function handleRenameKeydown(e: KeyboardEvent) {
   right: 0;
   z-index: 200;
   min-width: 160px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-xs);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: var(--space-1);
+  box-shadow: var(--shadow-elevated);
 }
 
 .menu-backdrop {
@@ -636,12 +631,12 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   width: 100%;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-2) var(--space-4);
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   border-radius: var(--radius-sm);
   transition:
     color var(--transition-fast),
@@ -649,8 +644,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .menu-item:hover {
-  background: var(--bg-overlay);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 .menu-item svg {
@@ -658,12 +653,12 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .menu-item-danger {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .menu-item-danger:hover {
-  background: rgba(255, 77, 106, 0.1);
-  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--color-danger);
 }
 
 .menu-fade-enter-active,
@@ -683,38 +678,36 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .card-footer {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .action-error {
   width: 100%;
   font-size: 0.75rem;
-  color: var(--danger);
-  padding: var(--space-xs) 0;
+  color: var(--color-danger);
+  padding: var(--space-1) 0;
 }
 
 .btn-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
+  gap: var(--space-1);
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-lg);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.875rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition:
     background var(--transition-fast),
-    transform var(--transition-fast),
     opacity var(--transition-fast);
 }
 
 .btn-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
 }
 
 .btn-action svg {
@@ -723,38 +716,35 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .btn-open {
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   text-decoration: none;
 }
 
 .btn-open:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  transform: translateY(-1px);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 .btn-start {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .btn-start:hover:not(:disabled) {
-  background: var(--accent-dim);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
 }
 
 .btn-stop {
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .btn-stop:hover:not(:disabled) {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  transform: translateY(-1px);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 /* Bottom sheet overlay */
@@ -762,7 +752,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -772,15 +762,15 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .sheet-content {
   width: 100%;
   max-width: 480px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-bottom: none;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: var(--space-lg);
-  padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  padding: var(--space-5);
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-4);
 }
 
 .sheet-header {
@@ -790,13 +780,13 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .sheet-title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 1.125rem;
   font-weight: 600;
 }
 
 .sheet-title-danger {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .btn-sheet-close {
@@ -805,7 +795,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   justify-content: center;
   width: var(--touch-min);
   height: var(--touch-min);
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   border-radius: var(--radius-sm);
   transition:
     color var(--transition-fast),
@@ -813,8 +803,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .btn-sheet-close:hover {
-  color: var(--text-secondary);
-  background: var(--bg-elevated);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
 }
 
 .btn-sheet-close svg {
@@ -825,75 +815,78 @@ function handleRenameKeydown(e: KeyboardEvent) {
 .sheet-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .input-label {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .input-field {
   width: 100%;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-base);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-family: var(--font-body);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  color: var(--color-text);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .input-field:focus {
-  border-color: var(--accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-tint);
 }
 
 .input-field::placeholder {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
 }
 
 .sheet-error {
   font-size: 0.75rem;
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .delete-warning {
   font-size: 0.9375rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
 .delete-warning strong {
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-2);
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
-  padding: var(--space-xs) 0;
+  padding: var(--space-1) 0;
 }
 
 .checkbox-input {
   width: 18px;
   height: 18px;
-  accent-color: var(--danger);
+  accent-color: var(--color-danger);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .sheet-actions {
   display: flex;
-  gap: var(--space-sm);
-  padding-top: var(--space-sm);
+  gap: var(--space-2);
+  padding-top: var(--space-2);
 }
 
 .btn-sheet {
@@ -902,14 +895,13 @@ function handleRenameKeydown(e: KeyboardEvent) {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-display);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.875rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition:
     background var(--transition-fast),
-    transform var(--transition-fast),
     opacity var(--transition-fast);
 }
 
@@ -919,34 +911,32 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .btn-sheet-cancel {
-  background: var(--bg-overlay);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .btn-sheet-cancel:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
 }
 
 .btn-sheet-save {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .btn-sheet-save:hover:not(:disabled) {
-  background: var(--accent-dim);
-  transform: translateY(-1px);
+  background: var(--color-accent-hover);
 }
 
 .btn-sheet-delete {
-  background: var(--danger);
-  color: #fff;
+  background: var(--color-danger);
+  color: #ffffff;
 }
 
 .btn-sheet-delete:hover:not(:disabled) {
-  background: var(--danger-dim);
-  transform: translateY(-1px);
+  background: var(--color-danger-hover);
 }
 
 /* Sheet transition */
@@ -978,8 +968,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
   .sheet-content {
     border-radius: var(--radius-lg);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-5);
   }
 
   .sheet-enter-from .sheet-content,
