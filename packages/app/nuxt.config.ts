@@ -7,6 +7,7 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
 
 import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/proxy-shared";
+import { verifyRelayToken } from "./server/utils/relay-token";
 
 // --- Dev proxy shared state ---
 // Module-level variables shared between the Vite middleware plugin (HTTP subdomain
@@ -140,6 +141,20 @@ function devSubdomainProxy(): Plugin {
   };
 }
 
+/**
+ * Extracts the `__portable_relay` query parameter from a URL path+query string.
+ */
+function extractDevRelayToken(url: string): { token: string; cleanUrl: string } | null {
+  const qIdx = url.indexOf("?");
+  if (qIdx === -1) return null;
+  const params = new URLSearchParams(url.slice(qIdx));
+  const token = params.get("__portable_relay");
+  if (!token) return null;
+  params.delete("__portable_relay");
+  const remaining = params.toString();
+  return { token, cleanUrl: remaining ? `${url.slice(0, qIdx)}?${remaining}` : url.slice(0, qIdx) };
+}
+
 async function handleAuthenticatedProxy(
   req: IncomingMessage,
   res: ServerResponse,
@@ -147,10 +162,32 @@ async function handleAuthenticatedProxy(
   proxy: ReturnType<typeof createProxyServer>,
   host: string,
 ): Promise<void> {
+  const encryptionKey = process.env.NUXT_ENCRYPTION_KEY || "";
+
+  // Handle relay token exchange: validate token, set cookie, redirect to clean URL
+  const relay = extractDevRelayToken(req.url || "/");
+  if (relay && encryptionKey) {
+    const result = verifyRelayToken(relay.token, encryptionKey);
+    if (result) {
+      const cookie =
+        `portable_session=${encodeURIComponent(result.sessionId)}; ` +
+        `Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`;
+      res.writeHead(302, {
+        Location: relay.cleanUrl || "/",
+        "Set-Cookie": cookie,
+      });
+      res.end();
+      return;
+    }
+  }
+
   const userId = await validateDevSession(req.headers.cookie || "");
   if (!userId) {
-    res.writeHead(401, { "Content-Type": "text/plain" });
-    res.end("Unauthorized");
+    // Redirect to auth relay on the main app domain
+    const originalUrl = `${DEV_BASE_URL.replace(/\/\/[^/]+/, `//${host}`)}${req.url || "/"}`;
+    const relayUrl = `${DEV_BASE_URL}/auth/relay?redirect=${encodeURIComponent(originalUrl)}`;
+    res.writeHead(302, { Location: relayUrl });
+    res.end();
     return;
   }
 

@@ -99,11 +99,21 @@ export default defineEventHandler(async (event) => {
   // Create session
   const sessionToken = await createSession(userId);
 
-  // Set session cookie with domain so it's valid on all subdomains
+  // Set session cookie on the main app domain
   setCookie(event, "portable_session", sessionToken, {
     ...sessionCookieOptions(),
     maxAge: 30 * 24 * 60 * 60, // 30 days
   });
+
+  // If a relay redirect was stored (user came via /auth/relay while unauthenticated),
+  // continue the relay flow instead of going to the dashboard.
+  const relayRedirect = getCookie(event, "portable_relay_redirect");
+  if (relayRedirect) {
+    deleteCookie(event, "portable_relay_redirect");
+    const relayUrl = new URL("/auth/relay", config.baseUrl);
+    relayUrl.searchParams.set("redirect", relayRedirect);
+    return sendRedirect(event, relayUrl.toString());
+  }
 
   return sendRedirect(event, "/");
 });

@@ -117,7 +117,12 @@ const canStop = computed(
 
 const projectUrl = computed(() => {
   if (typeof window === "undefined") return null;
-  return `//${props.project.slug}.${window.location.host}`;
+  const host = window.location.host;
+  const hostname = window.location.hostname;
+  const firstDot = hostname.indexOf(".");
+  const appLabel = hostname.substring(0, firstDot);
+  const parentDomain = host.substring(firstDot + 1);
+  return `//${props.project.slug}--${appLabel}.${parentDomain}`;
 });
 
 function toggleMenu() {

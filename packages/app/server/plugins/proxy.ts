@@ -5,7 +5,8 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
 import { resolveProxyTarget } from "../utils/proxy";
-import { getDomainFromBaseUrl, parseCookie } from "../utils/proxy-shared";
+import { getDomainFromBaseUrl, parseCookie, parseSubdomain } from "../utils/proxy-shared";
+import { verifyRelayToken } from "../utils/relay-token";
 
 const httpProxy = createProxyServer();
 
@@ -29,6 +30,24 @@ httpProxy.on("error", (err) => {
  * Auth is handled manually (cookie parsing + session validation) because
  * Nitro middleware (including the auth middleware) hasn't run yet at this point.
  */
+/**
+ * Extracts the `__portable_relay` query parameter from a raw URL string.
+ * Returns the token value and the URL with the parameter stripped, or null if absent.
+ */
+function extractRelayToken(url: string): { token: string; cleanUrl: string } | null {
+  const qIdx = url.indexOf("?");
+  if (qIdx === -1) return null;
+
+  const searchParams = new URLSearchParams(url.slice(qIdx));
+  const token = searchParams.get("__portable_relay");
+  if (!token) return null;
+
+  searchParams.delete("__portable_relay");
+  const remaining = searchParams.toString();
+  const cleanUrl = remaining ? `${url.slice(0, qIdx)}?${remaining}` : url.slice(0, qIdx);
+  return { token, cleanUrl };
+}
+
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook("request", async (event) => {
     const host = event.node.req.headers.host;
@@ -36,9 +55,47 @@ export default defineNitroPlugin((nitroApp) => {
 
     const config = useRuntimeConfig();
     const domain = getDomainFromBaseUrl(config.baseUrl);
-    const { podNamespace } = getK8sConfig();
 
-    // Validate session from cookie (auth middleware hasn't run yet in plugin context)
+    // Quick check: is this a subdomain request at all?
+    const subdomain = parseSubdomain(host, domain);
+    if (!subdomain) return; // Main app domain — let Nuxt handle it
+
+    const isWebSocket = event.node.req.headers.upgrade?.toLowerCase() === "websocket";
+
+    // --- Relay token exchange ---
+    // If the URL contains a `__portable_relay` param, validate it, set a
+    // subdomain-scoped session cookie, and redirect to the clean URL.
+    if (!isWebSocket) {
+      const relay = extractRelayToken(event.node.req.url || "/");
+      if (relay) {
+        const result = verifyRelayToken(relay.token, config.encryptionKey);
+        if (result) {
+          // Validate the session is still active
+          const relayUser = await validateSession(result.sessionId);
+          if (relayUser) {
+            // Set session cookie as a host-only cookie (no Domain attribute).
+            // Omitting Domain means the browser only sends this cookie to the
+            // exact host that set it, which is the project subdomain.
+            const secure = process.env.NODE_ENV === "production";
+            const cookie =
+              `portable_session=${encodeURIComponent(result.sessionId)}; ` +
+              `Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${
+                secure ? "; Secure" : ""
+              }`;
+            event.node.res.writeHead(302, {
+              Location: relay.cleanUrl || "/",
+              "Set-Cookie": cookie,
+            });
+            event.node.res.end();
+            event._handled = true;
+            return;
+          }
+        }
+        // Invalid or expired relay token — fall through to auth redirect
+      }
+    }
+
+    // --- Session validation ---
     const cookieHeader = event.node.req.headers.cookie || "";
     const sessionToken = parseCookie(cookieHeader, "portable_session");
 
@@ -47,11 +104,27 @@ export default defineNitroPlugin((nitroApp) => {
       user = await validateSession(sessionToken);
     }
 
+    // --- Unauthenticated subdomain request: redirect to auth relay ---
+    if (!user) {
+      if (isWebSocket) {
+        event.node.req.socket.destroy();
+      } else {
+        const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+        const originalUrl = `${protocol}://${host}${event.node.req.url || "/"}`;
+        const relayUrl = `${config.baseUrl}/auth/relay?redirect=${encodeURIComponent(originalUrl)}`;
+        event.node.res.writeHead(302, { Location: relayUrl });
+        event.node.res.end();
+      }
+      event._handled = true;
+      return;
+    }
+
+    // --- Resolve proxy target ---
+    const { podNamespace } = getK8sConfig();
     let resolution;
     try {
       resolution = await resolveProxyTarget(host, domain, podNamespace, user);
     } catch (err: unknown) {
-      const isWebSocket = event.node.req.headers.upgrade?.toLowerCase() === "websocket";
       if (isWebSocket) {
         event.node.req.socket.destroy();
       } else {
@@ -64,11 +137,11 @@ export default defineNitroPlugin((nitroApp) => {
       return;
     }
 
-    // Not a subdomain request -- let Nuxt handle it normally
+    // This shouldn't happen since we already checked parseSubdomain above,
+    // but guard against it anyway.
     if (!resolution) return;
 
-    const isWebSocket = event.node.req.headers.upgrade?.toLowerCase() === "websocket";
-
+    // --- Proxy the request ---
     if (isWebSocket) {
       try {
         await proxyUpgrade(
