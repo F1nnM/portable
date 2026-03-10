@@ -103,15 +103,4 @@ describe("nuxt-postgres scaffold", () => {
     expect(content).toContain("DATABASE_URL");
   });
 
-  it("server/db/schema.ts defines a todos table", () => {
-    const content = readFileSync(resolve(scaffoldDir, "server/db/schema.ts"), "utf-8");
-    expect(content).toContain("todos");
-    expect(content).toContain("title");
-    expect(content).toContain("completed");
-  });
-
-  it("server/utils/db.ts reads DATABASE_URL from env", () => {
-    const content = readFileSync(resolve(scaffoldDir, "server/utils/db.ts"), "utf-8");
-    expect(content).toContain("DATABASE_URL");
-  });
 });

@@ -167,4 +167,109 @@ describe("git view", () => {
     // Should show short hash
     expect(wrapper.text()).toContain("abc123d");
   });
+
+  it("formats commit time as 'just now' for recent timestamps", async () => {
+    const recentDate = new Date(Date.now() - 10 * 1000).toISOString(); // 10 seconds ago
+    const gitData = {
+      branch: "main",
+      commits: [
+        {
+          hash: "aaa111",
+          shortHash: "aaa111",
+          message: "Recent commit",
+          author: "Dev",
+          date: recentDate,
+        },
+      ],
+      staged: [],
+      unstaged: [],
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(gitData),
+    });
+
+    const router = createTestRouter();
+    router.push("/git");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [router] },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("just now");
+  });
+
+  it("formats commit time as minutes ago", async () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const gitData = {
+      branch: "main",
+      commits: [
+        {
+          hash: "bbb222",
+          shortHash: "bbb222",
+          message: "Five min commit",
+          author: "Dev",
+          date: fiveMinAgo,
+        },
+      ],
+      staged: [],
+      unstaged: [],
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(gitData),
+    });
+
+    const router = createTestRouter();
+    router.push("/git");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [router] },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("5m ago");
+  });
+
+  it("formats commit time as hours ago", async () => {
+    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const gitData = {
+      branch: "main",
+      commits: [
+        {
+          hash: "ccc333",
+          shortHash: "ccc333",
+          message: "Three hour commit",
+          author: "Dev",
+          date: threeHoursAgo,
+        },
+      ],
+      staged: [],
+      unstaged: [],
+    };
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(gitData),
+    });
+
+    const router = createTestRouter();
+    router.push("/git");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [router] },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("3h ago");
+  });
 });

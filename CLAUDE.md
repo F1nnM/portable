@@ -11,12 +11,12 @@ portable/
   packages/
     app/              Nuxt 3 full-stack main app (auth, project management, proxy)
       server/
-        api/          API endpoints (health, auth/me, settings/credential, projects CRUD, projects status, scaffolds, github/repos)
-        routes/       Route handlers (auth/github, auth/logout)
+        api/          API endpoints (health, auth/me, settings/credential+age-key, projects CRUD, projects status, scaffolds, github/repos)
+        routes/       Route handlers (auth/github, auth/logout, auth/relay)
         middleware/   Server middleware (session auth, subdomain proxy)
         db/           Drizzle schema and migrations
-        plugins/      Nitro plugins (auto-migration on startup, WebSocket proxy)
-        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle, proxy)
+        plugins/      Nitro plugins (auto-migration, subdomain proxy, startup recovery)
+        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle, proxy, proxy-shared, relay-token, creation-phase)
       composables/    Vue composables (useAuth)
       components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)
@@ -37,7 +37,7 @@ portable/
     editor/           Vue 3 SPA served by the pod server (chat, files, preview)
       src/
         views/        Route views (ChatView, FilesView, PreviewView)
-        components/   UI components (ChatMessage, ChatInput, FileTree, CodeViewer)
+        components/   UI components (ChatMessage, ChatInput, SessionList, FileTree, CodeViewer)
         composables/  Vue composables (useWebSocket, useSessions, useFiles)
         router.ts     Vue Router with /chat, /files, /preview routes
         App.vue       Root layout with bottom tab bar navigation
@@ -173,6 +173,7 @@ The Nuxt app uses `runtimeConfig` for server-only configuration. Set these via `
 | `NUXT_POD_RESOURCE_MEMORY_REQUEST` | `podResourceMemoryRequest` | Pod memory request (default: `512Mi`)                               |
 | `NUXT_POD_RESOURCE_MEMORY_LIMIT`   | `podResourceMemoryLimit`   | Pod memory limit (default: `4Gi`)                                   |
 | `NUXT_POD_STORAGE_SIZE`            | `podStorageSize`           | PVC size for project workspaces (default: `5Gi`)                    |
+| `NUXT_ALLOWED_USERS`               | `allowedUsers`             | Comma-separated GitHub usernames allowed to sign up (empty = all)   |
 
 ## Credential Encryption
 
@@ -203,11 +204,12 @@ The `scaffoldId` column in the `projects` table is nullable: `null` indicates an
 
 ## Reverse Proxy
 
-The main app acts as a reverse proxy for all subdomain traffic. The proxy layer consists of three files:
+The main app acts as a reverse proxy for all subdomain traffic. The proxy layer consists of four files:
 
-- **`server/utils/proxy.ts`** -- Shared proxy logic: `getDomainFromBaseUrl` (extracts hostname from the configured base URL), `parseSubdomain` (parses the Host header to extract project slug and access type), `buildProxyTarget` (constructs the K8s service URL), `lookupProject` (queries the DB for the project), `resolveProxyTarget` (orchestrates auth + lookup + target building). Returns null for main app domain requests so Nuxt handles them normally. Throws 401 for unauthenticated subdomain requests, 404 for unknown projects, 503 for non-running projects.
+- **`server/utils/proxy-shared.ts`** -- Pure utility functions usable in both Nitro and Vite contexts: `getDomainFromBaseUrl`, `parseSubdomain` (parses Host header to extract project slug and access type), `buildProxyTarget` (constructs K8s service URL), `parseCookie`.
+- **`server/utils/proxy.ts`** -- DB-dependent proxy logic: `lookupProject` (queries the DB for the project), `resolveProxyTarget` (orchestrates auth + lookup + target building). Returns null for main app domain requests so Nuxt handles them normally. Throws 401 for unauthenticated subdomain requests, 404 for unknown projects, 503 for non-running projects.
 - **`server/middleware/proxy.ts`** -- Nitro HTTP middleware that intercepts subdomain requests and proxies them via `h3.proxyRequest`. Runs after the auth middleware (which attaches `event.context.user`), so session validation is already done. Forwards the original path and sets `x-forwarded-host`.
-- **`server/plugins/ws-proxy.ts`** -- Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests before the normal HTTP pipeline. Manually parses the session cookie and validates it (since the auth middleware does not run for WebSocket upgrades in Nitro plugins). Uses `httpxy.proxyUpgrade` to proxy the WebSocket connection to the pod. Destroys the socket on auth/project errors.
+- **`server/plugins/proxy.ts`** -- Unified Nitro plugin that handles both HTTP subdomain proxying and WebSocket upgrade interception. Hooks into the `request` event to intercept requests before the normal HTTP pipeline. Manually parses the session cookie and validates it (since the auth middleware does not run for Nitro plugins). Handles the auth relay token exchange flow for cross-subdomain session transfer. Uses `httpxy` for both HTTP proxying and WebSocket upgrades.
 
 ### Subdomain Routing
 
@@ -217,9 +219,23 @@ The main app acts as a reverse proxy for all subdomain traffic. The proxy layer 
 | `<slug>--portable.example.com`          | Pod editor at `project-<slug>.<ns>.svc.cluster.local:3000`     |
 | `<slug>--preview--portable.example.com` | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
 
+### Auth Relay Flow
+
+Since the session cookie is scoped to the main app domain (e.g., `.portable.example.com`), project subdomains (e.g., `slug--portable.example.com`) need their own session cookie. The auth relay flow handles this:
+
+1. Unauthenticated request hits a project subdomain (no `portable_session` cookie)
+2. The proxy plugin redirects to `GET /auth/relay?redirect=<original-url>` on the main app
+3. The relay handler creates a short-lived HMAC-signed token (`server/utils/relay-token.ts`) containing the session ID
+4. Redirects back to the original URL with `?__portable_relay=<token>` appended
+5. The proxy plugin intercepts this token, validates it, sets a subdomain-scoped `portable_session` cookie, strips the query parameter, and redirects cleanly
+
 ### Middleware Ordering
 
-The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware (`server/middleware/proxy.ts`) due to Nitro's alphabetical middleware ordering. This ensures `event.context.user` is populated before the proxy middleware checks authentication. The WebSocket proxy plugin handles its own auth since Nitro plugins run outside the middleware chain.
+The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware (`server/middleware/proxy.ts`) due to Nitro's alphabetical middleware ordering. This ensures `event.context.user` is populated before the proxy middleware checks authentication. The proxy Nitro plugin handles its own auth since plugins run outside the middleware chain.
+
+### Startup Recovery
+
+The `server/plugins/recovery.ts` plugin runs on server startup and resets any projects stuck in transitional states (`creating`, `starting`, `stopping`) -- typically caused by a previous server crash. It cleans up orphaned K8s resources and resets project status to `stopped` or `error`.
 
 ## Pod Server
 
@@ -352,7 +368,7 @@ The git tab displays the workspace's git state via the `useGit` composable and t
 
 ### Preview View
 
-Full-screen iframe that loads the project's dev server. The preview hostname is constructed by replacing the project's `--<appLabel>` suffix with `--preview--<appLabel>` in the current hostname (e.g., `my-project--portable.example.com` becomes `my-project--preview--portable.example.com`). This uses a flat single-level subdomain scheme so only a single wildcard DNS/cert entry is needed. Includes a thin header bar with a "Preview" label, the preview URL, and a refresh button. Shows a loading overlay while the iframe is loading.
+Full-screen iframe that loads the project's dev server. The preview hostname is constructed by replacing the project's `--<appLabel>` suffix with `--preview--<appLabel>` in the current hostname (e.g., `my-project--portable.example.com` becomes `my-project--preview--portable.example.com`). This uses a flat single-level subdomain scheme so only a single wildcard DNS/cert entry is needed. Includes a thin header bar with a "Preview" label, the preview URL, an "open in new tab" button, and a refresh button. Shows a loading overlay while the iframe is loading.
 
 ## Architecture Summary
 

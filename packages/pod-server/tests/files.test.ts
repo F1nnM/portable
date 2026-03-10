@@ -104,6 +104,15 @@ describe("file read - GET /api/files/:path", () => {
   });
 });
 
+describe("file read - GET /api/files/:path (directory)", () => {
+  it("returns 400 when reading a directory path", async () => {
+    const response = await app.request("/api/files/src");
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toEqual({ error: "Not a file" });
+  });
+});
+
 describe("file write - PUT /api/files/:path", () => {
   it("writes file content", async () => {
     const response = await app.request("/api/files/test-write.txt", {
@@ -133,6 +142,31 @@ describe("file write - PUT /api/files/:path", () => {
     expect(readResponse.status).toBe(200);
     const text = await readResponse.text();
     expect(text).toBe("deeply nested content");
+  });
+
+  it("overwrites existing file content", async () => {
+    // Write initial content
+    const writeResponse1 = await app.request("/api/files/overwrite-test.txt", {
+      method: "PUT",
+      body: "original content",
+    });
+    expect(writeResponse1.status).toBe(200);
+
+    // Verify initial content
+    const readResponse1 = await app.request("/api/files/overwrite-test.txt");
+    expect(await readResponse1.text()).toBe("original content");
+
+    // Overwrite with new content
+    const writeResponse2 = await app.request("/api/files/overwrite-test.txt", {
+      method: "PUT",
+      body: "updated content",
+    });
+    expect(writeResponse2.status).toBe(200);
+
+    // Verify overwritten content
+    const readResponse2 = await app.request("/api/files/overwrite-test.txt");
+    expect(readResponse2.status).toBe(200);
+    expect(await readResponse2.text()).toBe("updated content");
   });
 
   it("returns 403 for path traversal on write (encoded)", async () => {

@@ -151,4 +151,36 @@ describe("preview view", () => {
     expect(view.classes()).toContain("view");
     expect(view.classes()).toContain("preview-view");
   });
+
+  it("handles localhost with port for development", async () => {
+    mockLocation("myproject--portable.localhost", "http:", "3000");
+
+    const router = createTestRouter();
+    router.push("/preview");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [router] },
+    });
+
+    const iframe = wrapper.find("iframe");
+    expect(iframe.exists()).toBe(true);
+    expect(iframe.attributes("src")).toBe("http://myproject--preview--portable.localhost:3000");
+  });
+
+  it("handles deeply nested domain", async () => {
+    mockLocation("myproject--portable.sub.example.com");
+
+    const router = createTestRouter();
+    router.push("/preview");
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: { plugins: [router] },
+    });
+
+    const iframe = wrapper.find("iframe");
+    expect(iframe.exists()).toBe(true);
+    expect(iframe.attributes("src")).toBe("https://myproject--preview--portable.sub.example.com");
+  });
 });

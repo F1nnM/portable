@@ -23,6 +23,23 @@ describe("pod-server smoke tests", () => {
     }
   });
 
+  it("returns 503 with phase during setup phases", async () => {
+    const { setPhase } = await import("../src/setup-state.js");
+    const setupPhases = ["cloning", "installing", "starting_server"] as const;
+
+    for (const phase of setupPhases) {
+      setPhase(phase);
+      try {
+        const response = await app.request("/health");
+        expect(response.status).toBe(503);
+        const body = await response.json();
+        expect(body).toEqual({ status: "setting_up", phase });
+      } finally {
+        setPhase("initializing");
+      }
+    }
+  });
+
   it("returns 404 for / when no public directory exists", async () => {
     // The root route serves static files from ./public.
     // Without a public directory, it returns 404.

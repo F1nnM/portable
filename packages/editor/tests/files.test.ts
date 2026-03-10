@@ -227,6 +227,83 @@ describe("files view", () => {
     expect((putCall![1] as RequestInit).method).toBe("PUT");
   });
 
+  it("builds tree from single root file", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ files: ["README.md"] }),
+    });
+
+    const { fileTree, fetchFileTree } = useFiles();
+    await fetchFileTree();
+
+    expect(fileTree.value).toHaveLength(1);
+    expect(fileTree.value[0].name).toBe("README.md");
+    expect(fileTree.value[0].isDir).toBe(false);
+  });
+
+  it("builds tree with deep nesting", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ files: ["a/b/c/deep.txt"] }),
+    });
+
+    const { fileTree, fetchFileTree } = useFiles();
+    await fetchFileTree();
+
+    expect(fileTree.value).toHaveLength(1);
+    const a = fileTree.value[0];
+    expect(a.name).toBe("a");
+    expect(a.isDir).toBe(true);
+    expect(a.children).toHaveLength(1);
+
+    const b = a.children![0];
+    expect(b.name).toBe("b");
+    expect(b.isDir).toBe(true);
+    expect(b.children).toHaveLength(1);
+
+    const c = b.children![0];
+    expect(c.name).toBe("c");
+    expect(c.isDir).toBe(true);
+    expect(c.children).toHaveLength(1);
+
+    const deep = c.children![0];
+    expect(deep.name).toBe("deep.txt");
+    expect(deep.isDir).toBe(false);
+  });
+
+  it("sorts directories before files at each level", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ files: ["zebra.txt", "alpha/file.txt", "beta.txt"] }),
+    });
+
+    const { fileTree, fetchFileTree } = useFiles();
+    await fetchFileTree();
+
+    expect(fileTree.value).toHaveLength(3);
+    // alpha directory should come first
+    expect(fileTree.value[0].name).toBe("alpha");
+    expect(fileTree.value[0].isDir).toBe(true);
+    // then beta.txt
+    expect(fileTree.value[1].name).toBe("beta.txt");
+    expect(fileTree.value[1].isDir).toBe(false);
+    // then zebra.txt
+    expect(fileTree.value[2].name).toBe("zebra.txt");
+    expect(fileTree.value[2].isDir).toBe(false);
+  });
+
+  it("handles empty file list", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ files: [] }),
+    });
+
+    const { fileTree, fetchFileTree } = useFiles();
+    await fetchFileTree();
+
+    expect(fileTree.value).toHaveLength(0);
+  });
+
   it("back returns to tree", async () => {
     fetchSpy
       .mockResolvedValueOnce({

@@ -4,7 +4,9 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { app } from "../src/app.js";
+import { createApp } from "../src/app.js";
+
+const { app } = createApp();
 
 let workspaceDir: string;
 
@@ -112,5 +114,31 @@ describe("git api - GET /api/git", () => {
 
     // Clean up
     execSync("git checkout -- README.md", { cwd: workspaceDir });
+  });
+});
+
+describe("git api - non-git workspace", () => {
+  let nonGitDir: string;
+  let savedWorkspaceDir: string | undefined;
+
+  beforeAll(async () => {
+    nonGitDir = await mkdtemp(path.join(tmpdir(), "pod-server-nongit-test-"));
+    // Create a plain file so it's a valid directory but not a git repo
+    writeFileSync(path.join(nonGitDir, "README.md"), "# Not a git repo");
+    savedWorkspaceDir = process.env.WORKSPACE_DIR;
+    process.env.WORKSPACE_DIR = nonGitDir;
+  });
+
+  afterAll(() => {
+    process.env.WORKSPACE_DIR = savedWorkspaceDir;
+    rmSync(nonGitDir, { recursive: true, force: true });
+  });
+
+  it("returns 500 for non-git workspace", async () => {
+    const response = await app.request("/api/git");
+    expect(response.status).toBe(500);
+
+    const body = await response.json();
+    expect(body).toEqual({ error: "Not a git repository or git is not available" });
   });
 });

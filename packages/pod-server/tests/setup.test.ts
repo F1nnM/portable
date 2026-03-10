@@ -1,6 +1,10 @@
 import type { existsSync, readdirSync } from "node:fs";
 import type { ExecFn } from "../src/setup.js";
-import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { setupWorkspace } from "../src/setup.js";
 
 function createMocks(options: { files?: string[]; nodeModulesExists?: boolean }) {
@@ -177,6 +181,80 @@ describe("setupWorkspace", () => {
 
     // No install call
     expect(mockExecFn).not.toHaveBeenCalled();
+  });
+
+  describe("ensureGitignoreEntry (via setupWorkspace)", () => {
+    let tempDir: string;
+
+    afterEach(() => {
+      if (tempDir) {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("appends .claude/ to existing .gitignore after clone", async () => {
+      tempDir = await mkdtemp(path.join(tmpdir(), "setup-gitignore-"));
+      // Create a .gitignore without .claude/
+      writeFileSync(path.join(tempDir, ".gitignore"), "node_modules\n.env\n");
+      // Create a dummy file so hasFiles() returns true (skip clone)
+      writeFileSync(path.join(tempDir, "package.json"), "{}");
+      // Create node_modules so install is skipped
+      mkdirSync(path.join(tempDir, "node_modules"), { recursive: true });
+
+      const mockExecFn = vi.fn().mockResolvedValue(undefined);
+
+      await setupWorkspace({
+        workspaceDir: tempDir,
+        execFn: mockExecFn as unknown as ExecFn,
+      });
+
+      const content = readFileSync(path.join(tempDir, ".gitignore"), "utf-8");
+      expect(content).toContain(".claude/");
+      // Original content should still be there
+      expect(content).toContain("node_modules");
+      expect(content).toContain(".env");
+    });
+
+    it("does not duplicate .claude/ in .gitignore if already present", async () => {
+      tempDir = await mkdtemp(path.join(tmpdir(), "setup-gitignore-"));
+      writeFileSync(path.join(tempDir, ".gitignore"), "node_modules\n.claude/\n.env\n");
+      writeFileSync(path.join(tempDir, "package.json"), "{}");
+      mkdirSync(path.join(tempDir, "node_modules"), { recursive: true });
+
+      const mockExecFn = vi.fn().mockResolvedValue(undefined);
+
+      await setupWorkspace({
+        workspaceDir: tempDir,
+        execFn: mockExecFn as unknown as ExecFn,
+      });
+
+      const content = readFileSync(path.join(tempDir, ".gitignore"), "utf-8");
+      // Count occurrences of .claude/ -- should be exactly 1
+      const matches = content.match(/\.claude\//g);
+      expect(matches).toHaveLength(1);
+    });
+
+    it("handles .gitignore without trailing newline", async () => {
+      tempDir = await mkdtemp(path.join(tmpdir(), "setup-gitignore-"));
+      // No trailing newline
+      writeFileSync(path.join(tempDir, ".gitignore"), "node_modules\n.env");
+      writeFileSync(path.join(tempDir, "package.json"), "{}");
+      mkdirSync(path.join(tempDir, "node_modules"), { recursive: true });
+
+      const mockExecFn = vi.fn().mockResolvedValue(undefined);
+
+      await setupWorkspace({
+        workspaceDir: tempDir,
+        execFn: mockExecFn as unknown as ExecFn,
+      });
+
+      const content = readFileSync(path.join(tempDir, ".gitignore"), "utf-8");
+      expect(content).toContain(".claude/");
+      // Verify .claude/ is on its own line (not appended to .env)
+      const lines = content.split("\n");
+      expect(lines.some((line) => line.trim() === ".claude/")).toBe(true);
+      expect(lines.some((line) => line.trim() === ".env")).toBe(true);
+    });
   });
 
   it("ignores lost+found when checking if workspace has files", async () => {

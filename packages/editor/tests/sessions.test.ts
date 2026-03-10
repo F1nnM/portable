@@ -119,6 +119,54 @@ describe("useSessions composable", () => {
     await expect(deleteSession("a")).rejects.toThrow("Failed to delete session: 500");
     expect(sessions.value).toHaveLength(1);
   });
+
+  it("deleteSession handles server error gracefully", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sessions: [
+              { sessionId: "x", title: "My Session", lastModified: 5000, firstPrompt: "Hey" },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 500 });
+
+    const { sessions, fetchSessions, deleteSession } = useSessions();
+    await fetchSessions();
+    expect(sessions.value).toHaveLength(1);
+
+    // The delete should throw, and the session should NOT be removed
+    await expect(deleteSession("x")).rejects.toThrow("Failed to delete session: 500");
+    expect(sessions.value).toHaveLength(1);
+    expect(sessions.value[0].sessionId).toBe("x");
+  });
+
+  it("fetchSessions clears previous error on success", async () => {
+    // First call fails
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: "Internal Server Error" }),
+    });
+
+    const { error, fetchSessions } = useSessions();
+    await fetchSessions();
+    expect(error.value).toBe("Failed to fetch sessions: 500");
+
+    // Second call succeeds
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          sessions: [{ sessionId: "a", title: "Session A", lastModified: 1000, firstPrompt: "Hi" }],
+        }),
+    });
+
+    await fetchSessions();
+    expect(error.value).toBeNull();
+  });
 });
 
 describe("sessionList component", () => {

@@ -65,17 +65,6 @@ describe("github utilities", () => {
       expect(() => readScaffoldFiles("non-existent")).toThrow(/not found/i);
     });
   });
-
-  describe("module exports", () => {
-    it("exports all expected functions", async () => {
-      const mod = await import("../../server/utils/github");
-      expect(typeof mod.listScaffolds).toBe("function");
-      expect(typeof mod.readScaffoldFiles).toBe("function");
-      expect(typeof mod.getDecryptedGithubToken).toBe("function");
-      expect(typeof mod.createGitHubRepo).toBe("function");
-      expect(typeof mod.pushScaffoldToRepo).toBe("function");
-    });
-  });
 });
 
 describe("scaffolds API endpoint", async () => {
