@@ -19,8 +19,7 @@ function adjustHeight() {
   const el = textareaRef.value;
   if (!el) return;
   el.style.height = "auto";
-  const lineHeight = 20;
-  const maxHeight = lineHeight * 6;
+  const maxHeight = 120;
   el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
 }
 
@@ -55,7 +54,7 @@ function handleInterrupt() {
         ref="textareaRef"
         v-model="text"
         class="input-textarea"
-        placeholder="Message..."
+        placeholder="Message Claude..."
         rows="1"
         data-testid="chat-textarea"
         @keydown="handleKeydown"
@@ -88,57 +87,56 @@ function handleInterrupt() {
 <style scoped>
 .chat-input {
   flex-shrink: 0;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-elevated);
-  padding: 8px 12px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: var(--space-3);
+  margin-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-card);
 }
 
 .input-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .input-textarea {
   flex: 1;
   resize: none;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
   color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  line-height: 20px;
-  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: var(--space-2);
   outline: none;
   overflow-y: auto;
+  max-height: 120px;
 }
 
 .input-textarea::placeholder {
   color: var(--color-text-muted);
 }
 
-.input-textarea:focus {
-  border-color: var(--color-accent);
-}
-
 .send-btn,
 .interrupt-btn {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   cursor: pointer;
   background: var(--color-accent);
-  color: var(--color-bg);
+  color: #fff;
   transition:
-    opacity 0.15s,
-    background 0.15s;
+    opacity var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .send-btn:disabled {
@@ -147,7 +145,11 @@ function handleInterrupt() {
 }
 
 .interrupt-btn {
-  background: var(--color-accent-active);
+  background: var(--color-danger);
+}
+
+.interrupt-btn:active {
+  background: var(--color-danger-hover);
 }
 
 .btn-icon {

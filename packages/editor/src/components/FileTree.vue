@@ -55,10 +55,10 @@ function getBaseName(name: string): string {
       <div
         class="tree-item"
         data-testid="file-tree-item"
-        :style="{ paddingLeft: `${(depth ?? 0) * 16 + 8}px` }"
+        :style="{ paddingLeft: `${(depth ?? 0) * 20 + 12}px` }"
         @click="handleClick(node)"
       >
-        <span v-if="depth" class="indent-guide" :style="{ left: `${(depth ?? 0) * 16 - 4}px` }" />
+        <span v-if="depth" class="indent-guide" :style="{ left: `${(depth ?? 0) * 20}px` }" />
         <!-- Directory icon -->
         <svg v-if="node.isDir" class="node-icon" viewBox="0 0 16 16" fill="none">
           <path
@@ -120,17 +120,17 @@ function getBaseName(name: string): string {
 
 <style scoped>
 .file-tree {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  font-size: 14px;
   line-height: 1;
 }
 
 .tree-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding-right: 12px;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding-right: var(--space-3);
   cursor: pointer;
   position: relative;
   color: var(--color-text);
@@ -147,7 +147,7 @@ function getBaseName(name: string): string {
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--color-border);
+  background: var(--color-border-subtle);
 }
 
 .node-icon {
@@ -162,6 +162,7 @@ function getBaseName(name: string): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .name-ext {
@@ -173,7 +174,7 @@ function getBaseName(name: string): string {
   height: 12px;
   flex-shrink: 0;
   color: var(--color-text-muted);
-  transition: transform 0.15s;
+  transition: transform var(--transition-fast);
 }
 
 .expand-icon.expanded {

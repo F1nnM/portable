@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -17,6 +17,13 @@ const activeTab = computed(() => route.path);
 function navigate(path: string) {
   router.push(path);
 }
+
+onMounted(() => {
+  const theme = localStorage.getItem("portable-theme");
+  if (theme && theme !== "system") {
+    document.documentElement.dataset.theme = theme;
+  }
+});
 </script>
 
 <template>
@@ -84,24 +91,12 @@ function navigate(path: string) {
 </template>
 
 <style>
-:root {
-  --color-bg: #0d1117;
-  --color-bg-elevated: #161b22;
-  --color-bg-surface: #21262d;
-  --color-text: #e6edf3;
-  --color-text-muted: #7d8590;
-  --color-accent: #58a6ff;
-  --color-accent-active: #f0883e;
-  --color-border: #30363d;
-  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Cascadia Code", monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-  --tab-bar-height: 56px;
-}
-
-* {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
 html,
@@ -114,6 +109,7 @@ body {
   font-family: var(--font-sans);
   background: var(--color-bg);
   color: var(--color-text);
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -141,8 +137,8 @@ body {
 .tab-bar {
   display: flex;
   align-items: stretch;
-  height: var(--tab-bar-height);
-  background: var(--color-bg-elevated);
+  height: 60px;
+  background: var(--color-bg-surface);
   border-top: 1px solid var(--color-border);
   flex-shrink: 0;
 }
@@ -156,24 +152,20 @@ body {
   gap: 2px;
   background: none;
   border: none;
-  border-top: 2px solid transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  font-family: var(--font-mono);
-  transition:
-    color 0.15s,
-    border-color 0.15s;
+  font-family: var(--font-sans);
+  transition: color var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 .tab:active {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
 }
 
 .tab.active {
   color: var(--color-accent);
-  border-top-color: var(--color-accent);
 }
 
 .tab-icon {
@@ -182,7 +174,9 @@ body {
 }
 
 .tab-label {
-  font-size: 0.6875rem;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  font-weight: 500;
   letter-spacing: 0.02em;
 }
 </style>

@@ -99,68 +99,75 @@ async function handleDelete(sessionId: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 12px 8px;
+  padding: var(--space-4) var(--space-4) var(--space-3);
   flex-shrink: 0;
 }
 
 .session-title {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-text);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .new-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg-surface);
-  color: var(--color-accent);
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition-fast);
+}
+
+.new-button:active {
+  background: var(--color-accent-hover);
 }
 
 .new-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .session-cards {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 12px 12px;
+  padding: 0 var(--space-4) var(--space-4);
   -webkit-overflow-scrolling: touch;
 }
 
 .session-card {
   display: flex;
   align-items: center;
-  padding: 14px 12px;
-  border-bottom: 1px solid var(--color-border);
+  min-height: var(--touch-min);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .session-card:active {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
 }
 
 .card-content {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .card-title {
-  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
@@ -168,29 +175,31 @@ async function handleDelete(sessionId: string) {
 }
 
 .card-time {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-family: var(--font-sans);
+  font-size: 13px;
   color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .delete-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--color-text-muted);
   cursor: pointer;
   flex-shrink: 0;
+  margin-left: var(--space-2);
   -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition-fast);
 }
 
 .delete-button:active {
-  background: var(--color-bg-surface);
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .delete-icon {
@@ -205,31 +214,33 @@ async function handleDelete(sessionId: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .loading-text,
 .empty-label {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--color-text-secondary);
 }
 
 .start-button {
-  padding: 10px 20px;
+  padding: var(--space-3) var(--space-5);
   border: 1px solid var(--color-accent);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--color-accent);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .start-button:active {
-  background: var(--color-bg-surface);
+  background: var(--color-accent-tint);
 }
 </style>

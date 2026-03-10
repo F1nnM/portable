@@ -63,11 +63,9 @@ async function handleFileClick(filePath: string) {
         v-if="gitState.staged.length > 0 || gitState.unstaged.length > 0"
         class="changes-section"
       >
-        <h3 class="section-title">Changes</h3>
-
         <!-- Staged files -->
         <div v-if="gitState.staged.length > 0" class="file-group">
-          <div class="group-label">Staged</div>
+          <div class="group-label">STAGED</div>
           <div
             v-for="file in gitState.staged"
             :key="`staged-${file.path}`"
@@ -82,7 +80,7 @@ async function handleFileClick(filePath: string) {
 
         <!-- Unstaged files -->
         <div v-if="gitState.unstaged.length > 0" class="file-group">
-          <div class="group-label">Unstaged</div>
+          <div class="group-label">UNSTAGED</div>
           <div
             v-for="file in gitState.unstaged"
             :key="`unstaged-${file.path}`"
@@ -96,18 +94,23 @@ async function handleFileClick(filePath: string) {
         </div>
       </div>
 
+      <!-- Clean tree state -->
+      <div
+        v-else-if="gitState.staged.length === 0 && gitState.unstaged.length === 0"
+        class="clean-state"
+      >
+        <span class="clean-text">Clean working tree</span>
+      </div>
+
       <!-- Commits section -->
       <div v-if="gitState.commits.length > 0" class="commits-section">
-        <h3 class="section-title">Commits</h3>
+        <div class="section-heading">COMMITS</div>
         <div v-for="commit in gitState.commits" :key="commit.hash" class="commit-item">
           <div class="commit-top">
             <span class="commit-message">{{ commit.message }}</span>
           </div>
           <div class="commit-meta">
             <span class="commit-hash">{{ commit.shortHash }}</span>
-            <span class="commit-dot">&middot;</span>
-            <span class="commit-author">{{ commit.author }}</span>
-            <span class="commit-dot">&middot;</span>
             <span class="commit-time">{{ formatRelativeTime(commit.date) }}</span>
           </div>
         </div>
@@ -136,13 +139,13 @@ async function handleFileClick(filePath: string) {
 }
 
 .state-text {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
   color: var(--color-text-muted);
 }
 
 .error-text {
-  color: #f85149;
+  color: var(--color-danger);
 }
 
 .git-content {
@@ -154,68 +157,69 @@ async function handleFileClick(filePath: string) {
 .branch-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .branch-icon {
-  color: var(--color-text-muted);
+  color: var(--color-accent);
   flex-shrink: 0;
 }
 
 .branch-name {
   font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-accent);
 }
 
-.changes-section,
-.commits-section {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.section-title {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 12px 16px 4px;
+.changes-section {
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .file-group {
-  padding: 4px 0;
+  padding: var(--space-2) 0;
 }
 
 .group-label {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  color: var(--color-text-muted);
-  padding: 4px 16px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-4);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.section-heading {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-4) var(--space-2);
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-4);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
 .file-item:active {
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
 }
 
 .file-status {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 13px;
   font-weight: 600;
   width: 16px;
   text-align: center;
@@ -223,25 +227,42 @@ async function handleFileClick(filePath: string) {
 }
 
 .file-status.staged {
-  color: #3fb950;
+  color: var(--color-success);
 }
 
 .file-status.unstaged {
-  color: #d29922;
+  color: var(--color-warning);
 }
 
 .file-path {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 13px;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.clean-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.clean-text {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.commits-section {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
 .commit-item {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .commit-item:last-child {
@@ -249,12 +270,13 @@ async function handleFileClick(filePath: string) {
 }
 
 .commit-top {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .commit-message {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,17 +287,17 @@ async function handleFileClick(filePath: string) {
 .commit-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-3);
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 12px;
   color: var(--color-text-muted);
 }
 
 .commit-hash {
-  color: var(--color-accent);
+  color: var(--color-text-muted);
 }
 
-.commit-dot {
-  opacity: 0.5;
+.commit-time {
+  color: var(--color-text-muted);
 }
 </style>
