@@ -252,10 +252,15 @@ describe("chat", () => {
       };
       const wrapper = mount(ChatMessage, { props: { message: msg } });
 
+      // Tool use is collapsed by default behind a disclosure
+      expect(wrapper.text()).toContain("1 tool used");
+
+      // Expand the tools disclosure
+      await wrapper.find(".tools-disclosure").trigger("click");
       expect(wrapper.find("[data-testid='tool-use-block']").exists()).toBe(true);
       expect(wrapper.text()).toContain("bash");
 
-      // Expand the tool use block to see the input
+      // Expand the individual tool to see the input
       await wrapper.find(".tool-use-header").trigger("click");
       expect(wrapper.text()).toContain("ls");
     });

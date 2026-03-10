@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { Project } from "~/types/project";
 
-const { user } = useAuth();
-
 const loading = ref(true);
 const error = ref("");
 const projects = ref<Project[]>([]);
