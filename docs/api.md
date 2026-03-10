@@ -250,11 +250,11 @@ In addition to the `/api/` and `/auth/` routes above, the main app handles subdo
 
 ### How it works
 
-All traffic arrives at the main app through a single wildcard Ingress (`*.portable.example.com`). A Nitro server middleware (`server/middleware/proxy.ts`) inspects the `Host` header on every request:
+All traffic arrives at the main app through a single wildcard Ingress (`*.example.com`). A Nitro server middleware inspects the `Host` header on every request:
 
 - **Main app domain** (e.g., `portable.example.com`): Request passes through to Nuxt normally and is handled by the API/page routes documented above.
-- **Project subdomain** (e.g., `my-project.portable.example.com`): Request is authenticated, the project is looked up by slug, and the request is proxied to the pod's editor service (port 3000).
-- **Preview subdomain** (e.g., `preview.my-project.portable.example.com`): Same as above but proxied to the pod's dev server (port 3001).
+- **Project subdomain** (e.g., `my-project--portable.example.com`): Request is authenticated, the project is looked up by slug, and the request is proxied to the pod's editor service (port 3000).
+- **Preview subdomain** (e.g., `my-project--preview--portable.example.com`): Same as above but proxied to the pod's dev server (port 3001).
 
 ### Authentication
 

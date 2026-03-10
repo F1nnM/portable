@@ -84,7 +84,7 @@ Vue 3 single-page application with Vue Router, served by the pod server at the r
 
 - **Chat (`/chat`, default route):** Connects to the pod server's WebSocket bridge at `/ws` via the `useWebSocket` composable. Renders user and assistant messages with the `ChatMessage` component, which supports collapsible tool use blocks. The `ChatInput` component provides an auto-growing textarea with send/interrupt buttons (Enter to send, Shift+Enter for newlines). Auto-scrolls on new messages and shows a pulsing dots streaming indicator. Reconnects automatically after 2 seconds on disconnect.
 - **Files (`/files`):** Uses the `useFiles` composable to fetch the file tree from `GET /api/files` and build a nested directory structure. The `FileTree` component renders a recursive tree with expand/collapse, indent guides, and dimmed file extensions. Selecting a file opens the `CodeViewer` component -- a CodeMirror 6 editor with the One Dark theme and language detection (JavaScript, TypeScript, JSON, CSS, HTML, Vue, Markdown). Read-only by default with an edit toggle and save button that calls `PUT /api/files/:path`. Back navigation returns to the tree.
-- **Preview (`/preview`):** Full-screen iframe pointing to `preview.<hostname>` (subdomain URL constructed from `window.location.hostname`). Thin header bar with a "Preview" label, URL display, and refresh button. Loading state overlay while the iframe loads.
+- **Preview (`/preview`):** Full-screen iframe pointing to the preview subdomain (constructed by inserting `--preview` before the app label in `window.location.hostname`). Thin header bar with a "Preview" label, URL display, and refresh button. Loading state overlay while the iframe loads.
 
 ### Postgres
 

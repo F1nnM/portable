@@ -90,7 +90,7 @@ function suppressWsHangupErrors(): Plugin {
  *
  * In dev mode, Vite serves `/_nuxt/` asset requests before Nitro ever sees them.
  * When the browser requests `/_nuxt/entry.js` on a subdomain host (e.g.
- * `my-project--preview.domain`), Vite serves the main app's assets instead of
+ * `my-project--preview--portable.domain`), Vite serves the main app's assets instead of
  * letting the proxy forward them to the pod. This plugin intercepts ALL subdomain
  * requests before Vite can handle them.
  *

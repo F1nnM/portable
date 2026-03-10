@@ -176,8 +176,9 @@ ingress:
 
 # -- cert-manager integration for automatic TLS certificates.
 # When enabled, a Certificate resource is created requesting a wildcard cert
-# covering both <domain> and *.<domain>. The resulting TLS secret is
-# referenced by the Ingress for HTTPS termination.
+# covering both <domain> and *.<parentDomain> (e.g. portable.example.com and
+# *.example.com). The resulting TLS secret is referenced by the Ingress for
+# HTTPS termination.
 # Requires cert-manager to be installed in the cluster:
 #   https://cert-manager.io/docs/installation/
 certManager:

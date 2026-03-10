@@ -24,14 +24,17 @@ TLS is NOT enabled. To enable automatic TLS certificates, set:
   certManager.issuer=<your-issuer-name>
 {{- end }}
 
+{{- $parts := splitList "." .Values.domain }}
+{{- $appLabel := first $parts }}
+{{- $parentDomain := join "." (rest $parts) }}
 DNS Configuration:
   Point both of the following to your cluster's ingress controller IP:
     {{ .Values.domain }}
-    *.{{ .Values.domain }}
+    *.{{ $parentDomain }}
 
   The wildcard record is required for project subdomains
-  (<project>.{{ .Values.domain }}) and preview subdomains
-  (preview.<project>.{{ .Values.domain }}).
+  (<project>--{{ $appLabel }}.{{ $parentDomain }}) and preview subdomains
+  (<project>--preview--{{ $appLabel }}.{{ $parentDomain }}).
 
 Next Steps:
   1. Ensure GitHub OAuth credentials are configured (github.clientId, github.clientSecret)

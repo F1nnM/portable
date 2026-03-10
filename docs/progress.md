@@ -285,7 +285,7 @@ Covered by 6 tests.
 
 ### Task 8.4: Preview view
 
-Implemented a full-screen iframe pointing to `preview.<hostname>` with subdomain URL construction from `window.location.hostname`. Added a thin header bar with a "Preview" label, URL display, and refresh button. Includes a loading state overlay. Covered by 7 tests.
+Implemented a full-screen iframe pointing to the preview subdomain (constructed by inserting `--preview` before the app label in `window.location.hostname`). Added a thin header bar with a "Preview" label, URL display, and refresh button. Includes a loading state overlay. Covered by 7 tests.
 
 ### Code review fixes
 

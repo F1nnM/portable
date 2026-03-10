@@ -7,7 +7,7 @@ A mobile-first web application for using Claude Code remotely. Create projects f
 - **Mobile-first Claude Code** -- Chat with Claude Code from your phone or tablet through a responsive web UI with streaming messages and tool usage display
 - **Isolated K8s pods** -- Each project runs in its own Kubernetes pod with dedicated CPU, memory, and persistent storage
 - **Project scaffolds** -- Start new projects from templates (e.g., Nuxt + Postgres) with automatic GitHub repo creation
-- **Live preview** -- See your running app at `preview.<project>.yourdomain.com` while Claude Code edits it
+- **Live preview** -- See your running app at `<project>--preview--portable.yourdomain.com` while Claude Code edits it
 - **File browser** -- View and edit project files with CodeMirror 6, optimized for mobile
 - **GitHub integration** -- OAuth login, automatic repo creation, scaffold push
 
