@@ -22,6 +22,21 @@ export interface SetupOptions {
   readdirSyncFn?: typeof readdirSync;
 }
 
+function ensureGitignoreEntry(
+  workspaceDir: string,
+  entry: string,
+  existsSyncFn: typeof existsSync,
+): void {
+  const gitignorePath = join(workspaceDir, ".gitignore");
+  if (!existsSyncFn(gitignorePath)) return;
+
+  const content = readFileSync(gitignorePath, "utf-8");
+  if (content.split("\n").some((line) => line.trim() === entry)) return;
+
+  const separator = content.endsWith("\n") ? "" : "\n";
+  appendFileSync(gitignorePath, `${separator}${entry}\n`);
+}
+
 function spawnAsync(file: string, args: readonly string[], options?: SpawnOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, { stdio: "inherit", ...options });
@@ -108,19 +123,4 @@ function hasFiles(
   const entries = readdirSyncFn(dir);
   // Filter out common hidden/system entries that might be on an empty PVC
   return entries.filter((e) => e !== "." && e !== ".." && e !== "lost+found").length > 0;
-}
-
-function ensureGitignoreEntry(
-  workspaceDir: string,
-  entry: string,
-  existsSyncFn: typeof existsSync,
-): void {
-  const gitignorePath = join(workspaceDir, ".gitignore");
-  if (!existsSyncFn(gitignorePath)) return;
-
-  const content = readFileSync(gitignorePath, "utf-8");
-  if (content.split("\n").some((line) => line.trim() === entry)) return;
-
-  const separator = content.endsWith("\n") ? "" : "\n";
-  appendFileSync(gitignorePath, `${separator}${entry}\n`);
 }
