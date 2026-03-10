@@ -1,6 +1,29 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
+
 const { user } = useAuth();
 
+// Theme toggle
+const theme = ref<"system" | "light" | "dark">("system");
+
+onMounted(() => {
+  const stored = localStorage.getItem("portable-theme");
+  if (stored === "light" || stored === "dark") {
+    theme.value = stored;
+  }
+});
+
+function setTheme(value: "system" | "light" | "dark") {
+  theme.value = value;
+  localStorage.setItem("portable-theme", value);
+  if (value === "system") {
+    delete document.documentElement.dataset.theme;
+  } else {
+    document.documentElement.dataset.theme = value;
+  }
+}
+
+// Credential management
 const credentialInput = ref("");
 const isLoading = ref(false);
 const statusMessage = ref<{ type: "success" | "error"; text: string } | null>(null);
@@ -50,6 +73,7 @@ async function removeCredential() {
   }
 }
 
+// AGE key management
 const ageKeyInput = ref("");
 const isAgeKeyLoading = ref(false);
 const ageKeyStatusMessage = ref<{ type: "success" | "error"; text: string } | null>(null);
@@ -104,8 +128,36 @@ async function removeAgeKey() {
   <div class="settings">
     <div class="page-header">
       <h1 class="page-title">Settings</h1>
-      <p class="page-subtitle">Manage your account and credentials</p>
     </div>
+
+    <section class="settings-section">
+      <h2 class="section-title">Theme</h2>
+      <div class="settings-card">
+        <div class="theme-toggle">
+          <button
+            class="theme-option"
+            :class="{ active: theme === 'system' }"
+            @click="setTheme('system')"
+          >
+            System
+          </button>
+          <button
+            class="theme-option"
+            :class="{ active: theme === 'light' }"
+            @click="setTheme('light')"
+          >
+            Light
+          </button>
+          <button
+            class="theme-option"
+            :class="{ active: theme === 'dark' }"
+            @click="setTheme('dark')"
+          >
+            Dark
+          </button>
+        </div>
+      </div>
+    </section>
 
     <section class="settings-section">
       <h2 class="section-title">Account</h2>
@@ -126,8 +178,11 @@ async function removeAgeKey() {
 
         <div class="setting-row">
           <span class="setting-label">Status</span>
-          <span v-if="hasCredential" class="setting-badge configured">Configured</span>
-          <span v-else class="setting-badge not-set">Not configured</span>
+          <span class="setting-status">
+            <span v-if="hasCredential" class="status-dot status-dot-success" />
+            <span v-else class="status-dot status-dot-muted" />
+            {{ hasCredential ? "Configured" : "Not configured" }}
+          </span>
         </div>
 
         <div v-if="statusMessage" class="status-message" :class="statusMessage.type">
@@ -175,8 +230,11 @@ async function removeAgeKey() {
 
         <div class="setting-row">
           <span class="setting-label">Status</span>
-          <span v-if="hasAgeKey" class="setting-badge configured">Configured</span>
-          <span v-else class="setting-badge not-set">Not configured</span>
+          <span class="setting-status">
+            <span v-if="hasAgeKey" class="status-dot status-dot-success" />
+            <span v-else class="status-dot status-dot-muted" />
+            {{ hasAgeKey ? "Configured" : "Not configured" }}
+          </span>
         </div>
 
         <div v-if="ageKeyStatusMessage" class="status-message" :class="ageKeyStatusMessage.type">
@@ -219,47 +277,80 @@ async function removeAgeKey() {
 .settings {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-6);
 }
 
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-1);
 }
 
 .page-title {
-  font-size: 1.75rem;
-  letter-spacing: -0.03em;
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .section-title {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .settings-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-md);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.theme-option {
+  flex: 1;
+  min-height: var(--touch-min);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.theme-option + .theme-option {
+  border-left: 1px solid var(--color-border);
+}
+
+.theme-option:hover {
+  background: var(--color-bg-elevated);
+}
+
+.theme-option.active {
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .setting-row {
@@ -270,12 +361,12 @@ async function removeAgeKey() {
 }
 
 .setting-label {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 0.9375rem;
 }
 
 .setting-value {
-  color: var(--text-primary);
+  color: var(--color-text);
   font-size: 0.9375rem;
 }
 
@@ -283,85 +374,96 @@ async function removeAgeKey() {
   font-family: var(--font-mono);
 }
 
+.setting-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.status-dot-success {
+  background: var(--color-success);
+}
+
+.status-dot-muted {
+  background: var(--color-text-muted);
+}
+
 .setting-description {
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   font-size: 0.875rem;
   line-height: 1.5;
 }
 
-.setting-badge {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
-.setting-badge.not-set {
-  background: var(--bg-overlay);
-  color: var(--text-muted);
-}
-
-.setting-badge.configured {
-  background: var(--accent-glow);
-  color: var(--accent);
-}
-
 .status-message {
   font-size: 0.8125rem;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
 }
 
 .status-message.success {
-  background: var(--accent-glow);
-  color: var(--accent);
+  background: rgba(34, 197, 94, 0.08);
+  color: var(--color-success);
 }
 
 .status-message.error {
-  background: rgba(255, 77, 106, 0.15);
-  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--color-danger);
 }
 
 .credential-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .credential-input {
   width: 100%;
   min-height: var(--touch-min);
-  padding: 0 var(--space-md);
-  background: var(--bg-base);
-  border: 1px solid var(--border);
+  padding: 0 var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--color-text);
   font-family: var(--font-mono);
   font-size: 0.875rem;
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .credential-input::placeholder {
-  color: var(--text-muted);
-  font-family: var(--font-body);
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
 }
 
 .credential-input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-tint);
 }
 
 .credential-actions {
   display: flex;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .btn {
   min-height: var(--touch-min);
-  padding: 0 var(--space-lg);
+  padding: 0 var(--space-5);
   border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   transition:
     background var(--transition-fast),
     opacity var(--transition-fast);
@@ -373,21 +475,21 @@ async function removeAgeKey() {
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .btn-primary:not(:disabled):hover {
-  background: var(--accent-dim);
+  background: var(--color-accent-hover);
 }
 
 .btn-danger {
   background: transparent;
-  border: 1px solid var(--danger-dim);
-  color: var(--danger);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
 }
 
 .btn-danger:not(:disabled):hover {
-  background: rgba(255, 77, 106, 0.1);
+  background: rgba(239, 68, 68, 0.08);
 }
 </style>
