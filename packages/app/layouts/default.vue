@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
+
 const { user, logout } = useAuth();
 const route = useRoute();
 
@@ -11,6 +13,13 @@ const navItems = [
 function isActive(path: string): boolean {
   return route.path === path;
 }
+
+onMounted(() => {
+  const theme = localStorage.getItem("portable-theme");
+  if (theme && theme !== "system") {
+    document.documentElement.dataset.theme = theme;
+  }
+});
 </script>
 
 <template>
@@ -20,7 +29,7 @@ function isActive(path: string): boolean {
       <div class="topbar-inner">
         <NuxtLink to="/" class="topbar-brand">
           <span class="brand-mark">&gt;_</span>
-          <span class="brand-name">Portable</span>
+          <span class="brand-name">portable</span>
         </NuxtLink>
 
         <div v-if="user" class="topbar-user">
@@ -99,9 +108,8 @@ function isActive(path: string): boolean {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .topbar-inner {
@@ -110,55 +118,55 @@ function isActive(path: string): boolean {
   justify-content: space-between;
   max-width: 960px;
   margin: 0 auto;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-2) var(--space-4);
   height: 56px;
 }
 
 .topbar-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.125rem;
-  color: var(--text-primary);
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text);
   text-decoration: none;
 }
 
 .brand-mark {
   font-family: var(--font-mono);
-  color: var(--accent);
-  font-size: 1rem;
+  color: var(--color-accent);
+  font-size: 0.9375rem;
 }
 
 .brand-name {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .topbar-user {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-4);
 }
 
 .user-name {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .btn-logout {
   font-size: 0.8125rem;
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   min-height: var(--touch-min);
   display: flex;
   align-items: center;
-  padding: 0 var(--space-sm);
+  padding: 0 var(--space-2);
   transition: color var(--transition-fast);
 }
 
 .btn-logout:hover {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 /* Main content */
@@ -167,8 +175,8 @@ function isActive(path: string): boolean {
   max-width: 960px;
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md);
-  padding-bottom: calc(var(--space-lg) + 72px);
+  padding: var(--space-5) var(--space-4);
+  padding-bottom: calc(var(--space-5) + 72px);
 }
 
 /* Bottom nav */
@@ -181,10 +189,10 @@ function isActive(path: string): boolean {
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  height: 64px;
+  height: 60px;
 }
 
 .nav-item {
@@ -195,21 +203,23 @@ function isActive(path: string): boolean {
   gap: 2px;
   flex: 1;
   min-height: var(--touch-min);
-  color: var(--text-muted);
+  color: var(--color-text-muted);
   text-decoration: none;
   transition: color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .nav-item.active {
-  color: var(--accent);
+  color: var(--color-accent);
 }
 
 .nav-item:hover {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .nav-item.active:hover {
-  color: var(--accent);
+  color: var(--color-accent);
 }
 
 .nav-icon {
@@ -218,19 +228,19 @@ function isActive(path: string): boolean {
 }
 
 .nav-label {
+  font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
 }
 
-/* Desktop: hide bottom nav, show desktop nav */
+/* Desktop: hide bottom nav */
 @media (min-width: 768px) {
   .bottom-nav {
     display: none;
   }
 
   .main-content {
-    padding-bottom: var(--space-lg);
+    padding-bottom: var(--space-5);
   }
 }
 </style>
