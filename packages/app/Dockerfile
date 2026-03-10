@@ -12,6 +12,7 @@ COPY package.json bun.lock ./
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
 COPY packages/editor/package.json packages/editor/package.json
+COPY packages/design-tokens/package.json packages/design-tokens/package.json
 
 # Install all dependencies (bun needs the full workspace context)
 RUN bun install --frozen-lockfile
@@ -29,6 +30,9 @@ COPY --from=deps /app/packages/app/node_modules ./packages/app/node_modules
 
 # Copy workspace root files
 COPY package.json bun.lock ./
+
+# Copy design tokens (CSS imported by the app)
+COPY packages/design-tokens/ packages/design-tokens/
 
 # Copy app source
 COPY packages/app/ packages/app/

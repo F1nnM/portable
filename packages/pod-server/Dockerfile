@@ -18,6 +18,7 @@ COPY package.json bun.lock ./
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
 COPY packages/editor/package.json packages/editor/package.json
+COPY packages/design-tokens/package.json packages/design-tokens/package.json
 
 # Install all dependencies
 RUN bun install --frozen-lockfile
@@ -39,6 +40,9 @@ COPY package.json bun.lock ./
 
 # Copy pod-server source
 COPY packages/pod-server/ packages/pod-server/
+
+# Copy design tokens (CSS imported by the editor)
+COPY packages/design-tokens/ packages/design-tokens/
 
 # Copy editor source
 COPY packages/editor/ packages/editor/
