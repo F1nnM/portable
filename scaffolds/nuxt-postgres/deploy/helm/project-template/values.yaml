@@ -1,0 +1,112 @@
+# =============================================================================
+# Project Template Helm Chart Values
+# =============================================================================
+#
+# Required values (must be set for a working deployment):
+#   - domain (if ingress is enabled)
+#   - postgresql.password (if postgresql is enabled)
+#   - externalDatabase.url (if postgresql is disabled)
+# =============================================================================
+
+# -- Application container image.
+image:
+  # -- Image repository.
+  # Example: ghcr.io/myorg/my-app
+  repository: project-template
+  # -- Image tag. Defaults to the chart appVersion.
+  tag: "0.1.0"
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+
+# -- Number of app replicas.
+replicaCount: 1
+
+# -- Resource requests and limits for the app container.
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+# -- Security context for the app container.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Kubernetes Service configuration.
+service:
+  type: ClusterIP
+  port: 3000
+
+# -- Ingress configuration.
+ingress:
+  # -- Enable ingress resource.
+  enabled: false
+  # -- Ingress class name (e.g., "nginx", "traefik").
+  className: ""
+  # -- Ingress annotations.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  # -- Hostname for the ingress rule.
+  # Required when ingress.enabled is true.
+  host: ""
+
+# -- cert-manager integration for automatic TLS certificates.
+certManager:
+  # -- Enable cert-manager Certificate and TLS on the Ingress.
+  enabled: false
+  # -- Name of the cert-manager Issuer or ClusterIssuer.
+  issuer: ""
+  # -- Kind of the issuer reference ("ClusterIssuer" or "Issuer").
+  issuerKind: ClusterIssuer
+
+# -- Built-in PostgreSQL configuration.
+# Deploys a Postgres StatefulSet within the chart.
+# Disable when using an external database.
+postgresql:
+  # -- Enable the built-in Postgres StatefulSet.
+  enabled: true
+  # -- Postgres superuser password.
+  # Required when postgresql.enabled is true.
+  # Generate with: openssl rand -base64 32
+  password: ""
+  # -- Persistent volume size for Postgres data.
+  storage: 1Gi
+  # -- Postgres container image.
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  # -- Resource requests and limits for the Postgres container.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# -- External database configuration.
+# Used when postgresql.enabled is false.
+externalDatabase:
+  # -- Full Postgres connection URI.
+  # Example: postgresql://user:pass@host:5432/dbname
+  url: ""
+
+# -- Health probe configuration.
+probes:
+  liveness:
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5

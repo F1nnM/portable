@@ -68,3 +68,67 @@ drizzle.config.ts   Drizzle Kit configuration
 bun run build     # Build for production
 bun run preview   # Preview production build locally
 ```
+
+## Deployment
+
+### Docker
+
+Multi-stage Dockerfile builds a production image:
+
+```bash
+docker build -t my-app .
+docker run -p 3000:3000 -e DATABASE_URL=... my-app
+```
+
+### Helm Chart
+
+Located at `deploy/helm/project-template/`. Deploys the app with an optional bundled Postgres.
+
+```bash
+# With bundled Postgres
+helm install my-app deploy/helm/project-template \
+  --set postgresql.password=secret
+
+# With external database
+helm install my-app deploy/helm/project-template \
+  --set postgresql.enabled=false \
+  --set externalDatabase.url=postgresql://user:pass@host:5432/db
+
+# With ingress and TLS
+helm install my-app deploy/helm/project-template \
+  --set ingress.enabled=true \
+  --set ingress.host=my-app.example.com \
+  --set certManager.enabled=true \
+  --set certManager.issuer=letsencrypt-prod
+```
+
+### CI/CD
+
+GitHub Actions workflows in `.github/workflows/`:
+
+- **ci.yml** — Runs typecheck and Helm lint on PRs
+- **release.yml** — Builds and pushes Docker image to GHCR, packages and pushes Helm chart on push to main and releases
+
+### Project Structure (deployment)
+
+```
+Dockerfile                          Multi-stage production build
+.dockerignore                       Excludes dev files from Docker context
+deploy/
+  helm/
+    project-template/
+      Chart.yaml                    Helm chart metadata
+      values.yaml                   Configurable values
+      templates/
+        _helpers.tpl                Template helpers
+        deployment.yaml             App Deployment
+        service.yaml                ClusterIP Service
+        ingress.yaml                Optional Ingress
+        secret.yaml                 DATABASE_URL secret
+        postgres-statefulset.yaml   Optional bundled Postgres
+        postgres-service.yaml       Postgres headless Service
+.github/
+  workflows/
+    ci.yml                          PR checks
+    release.yml                     Build + publish on merge/release
+```

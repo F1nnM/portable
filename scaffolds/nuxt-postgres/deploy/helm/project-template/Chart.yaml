@@ -1,0 +1,6 @@
+apiVersion: v2
+name: project-template
+description: Nuxt 3 full-stack web application with Postgres
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
