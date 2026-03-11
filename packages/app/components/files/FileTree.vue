@@ -1,0 +1,216 @@
+<script setup lang="ts">
+import type { TreeNode } from "~/types/files";
+
+const props = withDefaults(
+  defineProps<{
+    nodes: TreeNode[];
+    depth?: number;
+  }>(),
+  { depth: 0 },
+);
+
+const emit = defineEmits<{
+  select: [path: string];
+}>();
+
+const expandedDirs = ref<string[]>([]);
+
+// Sort: directories first (alphabetical), then files (alphabetical)
+const sortedNodes = computed(() =>
+  [...props.nodes].sort((a, b) => {
+    if (a.type === "directory" && b.type === "file") return -1;
+    if (a.type === "file" && b.type === "directory") return 1;
+    return a.name.localeCompare(b.name);
+  }),
+);
+
+function toggleDir(path: string) {
+  const idx = expandedDirs.value.indexOf(path);
+  if (idx >= 0) {
+    expandedDirs.value.splice(idx, 1);
+  } else {
+    expandedDirs.value.push(path);
+  }
+}
+
+function isExpanded(path: string): boolean {
+  return expandedDirs.value.includes(path);
+}
+
+function selectFile(path: string) {
+  emit("select", path);
+}
+
+function getFileExtension(name: string): string {
+  const dotIdx = name.lastIndexOf(".");
+  if (dotIdx === -1) return "";
+  return name.slice(dotIdx);
+}
+
+function getFileName(name: string): string {
+  const dotIdx = name.lastIndexOf(".");
+  if (dotIdx === -1) return name;
+  return name.slice(0, dotIdx);
+}
+</script>
+
+<template>
+  <div class="file-tree" :class="{ 'tree-root': depth === 0 }">
+    <template v-for="node in sortedNodes" :key="node.path">
+      <!-- Directory item -->
+      <div
+        v-if="node.type === 'directory'"
+        class="tree-item tree-item-row tree-directory"
+        :style="{ paddingLeft: `${depth * 16 + 8}px` }"
+        @click="toggleDir(node.path)"
+      >
+        <!-- Indent guides -->
+        <span
+          v-for="i in depth"
+          :key="i"
+          class="indent-guide"
+          :style="{ left: `${(i - 1) * 16 + 14}px` }"
+        />
+
+        <svg
+          class="tree-chevron"
+          :class="{ expanded: isExpanded(node.path) }"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+            clip-rule="evenodd"
+          />
+        </svg>
+
+        <svg class="tree-icon tree-icon-dir" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z" />
+        </svg>
+
+        <span class="tree-name">{{ node.name }}</span>
+      </div>
+
+      <!-- Directory children -->
+      <div v-if="node.type === 'directory' && isExpanded(node.path) && node.children">
+        <FileTree
+          :nodes="node.children"
+          :depth="depth + 1"
+          @select="(path: string) => emit('select', path)"
+        />
+      </div>
+
+      <!-- File item -->
+      <div
+        v-if="node.type === 'file'"
+        class="tree-item tree-item-row tree-file"
+        :style="{ paddingLeft: `${depth * 16 + 28}px` }"
+        @click="selectFile(node.path)"
+      >
+        <!-- Indent guides -->
+        <span
+          v-for="i in depth"
+          :key="i"
+          class="indent-guide"
+          :style="{ left: `${(i - 1) * 16 + 14}px` }"
+        />
+
+        <svg
+          class="tree-icon tree-icon-file"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+
+        <span class="tree-name">
+          {{ getFileName(node.name)
+          }}<span class="tree-ext">{{ getFileExtension(node.name) }}</span>
+        </span>
+      </div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.file-tree {
+  user-select: none;
+}
+
+.tree-root {
+  padding: var(--space-2) 0;
+}
+
+.tree-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding-right: var(--space-4);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition-fast);
+}
+
+.tree-item-row:hover {
+  background: var(--color-bg-inset);
+}
+
+/* Indent guides */
+.indent-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+
+/* Chevron */
+.tree-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform var(--transition-base);
+}
+
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+/* Icons */
+.tree-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.tree-icon-dir {
+  color: var(--color-accent);
+  opacity: 0.8;
+}
+
+.tree-icon-file {
+  color: var(--color-text-muted);
+}
+
+/* Names */
+.tree-name {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-ext {
+  color: var(--color-text-muted);
+}
+</style>
