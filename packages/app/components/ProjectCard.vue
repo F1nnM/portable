@@ -115,16 +115,6 @@ const canStop = computed(
   () => props.project.status === "running" || props.project.status === "starting",
 );
 
-const projectUrl = computed(() => {
-  if (typeof window === "undefined") return null;
-  const host = window.location.host;
-  const hostname = window.location.hostname;
-  const firstDot = hostname.indexOf(".");
-  const appLabel = hostname.substring(0, firstDot);
-  const parentDomain = host.substring(firstDot + 1);
-  return `//${props.project.slug}--${appLabel}.${parentDomain}`;
-});
-
 function toggleMenu() {
   showMenu.value = !showMenu.value;
 }
@@ -151,6 +141,7 @@ async function handleStart() {
   if (isActioning.value) return;
   currentAction.value = "starting";
   actionError.value = "";
+  closeMenu();
   try {
     await $fetch(`/api/projects/${props.project.slug}/start`, { method: "POST" });
     emit("starting");
@@ -166,6 +157,7 @@ async function handleStop() {
   if (isActioning.value) return;
   currentAction.value = "stopping";
   actionError.value = "";
+  closeMenu();
   try {
     await $fetch(`/api/projects/${props.project.slug}/stop`, { method: "POST" });
     emit("updated");
@@ -225,119 +217,102 @@ function handleRenameKeydown(e: KeyboardEvent) {
     handleRename();
   }
 }
+
+function openGithubRepo() {
+  if (props.project.repoUrl) {
+    window.open(props.project.repoUrl, "_blank", "noopener");
+  }
+  closeMenu();
+}
 </script>
 
 <template>
   <div class="project-card">
-    <div class="card-header">
+    <NuxtLink :to="`/projects/${project.slug}`" class="card-link">
       <div class="card-info">
         <h3 class="project-name">
           {{ project.name }}
         </h3>
-        <span class="project-slug">{{ project.slug }}</span>
-        <span v-if="phaseDisplay" class="startup-phase">{{ phaseDisplay }}</span>
-      </div>
-      <div class="card-actions-area">
-        <span class="status-indicator" :class="statusConfig.class">
-          <span v-if="project.status === 'running'" class="status-dot status-dot-pulse" />
-          <span v-else-if="isTransitioning" class="status-dot status-dot-blink" />
-          <span v-else class="status-dot" />
-          {{ statusConfig.label }}
-        </span>
-        <div class="menu-container">
-          <button class="btn-menu" aria-label="Project actions" @click="toggleMenu">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-              <circle cx="12" cy="5" r="1.5" />
-              <circle cx="12" cy="12" r="1.5" />
-              <circle cx="12" cy="19" r="1.5" />
-            </svg>
-          </button>
-          <Transition name="menu-fade">
-            <div v-if="showMenu" class="menu-dropdown">
-              <button class="menu-item" @click="openRename">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  width="16"
-                  height="16"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-                Rename
-              </button>
-              <button class="menu-item menu-item-danger" @click="openDelete">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  width="16"
-                  height="16"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path
-                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                  />
-                </svg>
-                Delete
-              </button>
-            </div>
-          </Transition>
-          <div v-if="showMenu" class="menu-backdrop" @click="closeMenu" />
+        <div class="card-status-line">
+          <span class="status-indicator" :class="statusConfig.class">
+            <span v-if="project.status === 'running'" class="status-dot status-dot-pulse" />
+            <span v-else-if="isTransitioning" class="status-dot status-dot-blink" />
+            <span v-else class="status-dot" />
+            {{ phaseDisplay || statusConfig.label }}
+          </span>
         </div>
+      </div>
+    </NuxtLink>
+
+    <div class="card-actions-area">
+      <div class="menu-container">
+        <button class="btn-menu" aria-label="Project actions" @click.prevent="toggleMenu">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
+          </svg>
+        </button>
+        <Transition name="menu-fade">
+          <div v-if="showMenu" class="menu-dropdown">
+            <button v-if="canStart" class="menu-item" @click="handleStart">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Start
+            </button>
+            <button v-if="canStop" class="menu-item" @click="handleStop">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
+              Stop
+            </button>
+            <button class="menu-item" @click="openRename">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                width="16"
+                height="16"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Rename
+            </button>
+            <button v-if="project.repoUrl" class="menu-item" @click="openGithubRepo">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path
+                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+                />
+              </svg>
+              Open GitHub
+            </button>
+            <button class="menu-item menu-item-danger" @click="openDelete">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                width="16"
+                height="16"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                />
+              </svg>
+              Delete
+            </button>
+          </div>
+        </Transition>
+        <div v-if="showMenu" class="menu-backdrop" @click="closeMenu" />
       </div>
     </div>
 
-    <div class="card-footer">
-      <div v-if="actionError" class="action-error">
-        {{ actionError }}
-      </div>
-      <a
-        v-if="project.status === 'running' && projectUrl"
-        :href="projectUrl"
-        target="_blank"
-        rel="noopener"
-        class="btn-action btn-open"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          width="16"
-          height="16"
-        >
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-          <polyline points="15 3 21 3 21 9" />
-          <line x1="10" y1="14" x2="21" y2="3" />
-        </svg>
-        Open
-      </a>
-      <button
-        v-if="canStart"
-        class="btn-action btn-start"
-        :disabled="isActioning"
-        @click="handleStart"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-          <polygon points="5 3 19 12 5 21 5 3" />
-        </svg>
-        {{ currentAction === "starting" ? "Starting..." : "Start" }}
-      </button>
-      <button
-        v-if="canStop"
-        class="btn-action btn-stop"
-        :disabled="isActioning"
-        @click="handleStop"
-      >
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-          <rect x="4" y="4" width="16" height="16" rx="2" />
-        </svg>
-        {{ currentAction === "stopping" ? "Stopping..." : "Stop" }}
-      </button>
+    <div v-if="actionError" class="action-error">
+      {{ actionError }}
     </div>
 
     <!-- Rename bottom sheet -->
@@ -369,6 +344,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
                 class="input-field"
                 type="text"
                 placeholder="Project name"
+                maxlength="100"
                 @keydown="handleRenameKeydown"
               />
               <div v-if="actionError" class="sheet-error">
@@ -449,26 +425,29 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 <style scoped>
 .project-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-card);
-  transition: border-color var(--transition-base);
+  transition: border-color var(--transition-fast);
 }
 
 .project-card:hover {
-  border-color: var(--color-border-subtle);
+  border-color: var(--color-border-strong);
 }
 
-.card-header {
+/* Card link fills the card area */
+.card-link {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
 }
 
 .card-info {
@@ -481,36 +460,19 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 .project-name {
   font-family: var(--font-sans);
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
-  line-height: 1.3;
+  line-height: var(--line-height-tight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.project-slug {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.startup-phase {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  color: var(--color-warning);
-  animation: blink 1s ease-in-out infinite;
-}
-
-.card-actions-area {
+.card-status-line {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
 }
 
 /* Status indicator (dot + text) */
@@ -519,8 +481,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
   align-items: center;
   gap: 6px;
   font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
   white-space: nowrap;
 }
 
@@ -581,6 +543,13 @@ function handleRenameKeydown(e: KeyboardEvent) {
   }
 }
 
+/* Actions area */
+.card-actions-area {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 /* Menu */
 .menu-container {
   position: relative;
@@ -614,7 +583,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   top: 100%;
   right: 0;
   z-index: 200;
-  min-width: 160px;
+  min-width: 180px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -635,7 +604,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   width: 100%;
   min-height: var(--touch-min);
   padding: var(--space-2) var(--space-4);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   border-radius: var(--radius-sm);
   transition:
@@ -657,7 +626,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .menu-item-danger:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-danger-tint);
   color: var(--color-danger);
 }
 
@@ -674,77 +643,12 @@ function handleRenameKeydown(e: KeyboardEvent) {
   transform: translateY(-4px);
 }
 
-/* Card footer */
-.card-footer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
+/* Action error */
 .action-error {
   width: 100%;
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-danger);
   padding: var(--space-1) 0;
-}
-
-.btn-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  min-height: var(--touch-min);
-  padding: var(--space-2) var(--space-5);
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-radius: var(--radius-sm);
-  transition:
-    background var(--transition-fast),
-    opacity var(--transition-fast);
-}
-
-.btn-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-action svg {
-  width: 14px;
-  height: 14px;
-}
-
-.btn-open {
-  background: var(--color-bg-elevated);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  text-decoration: none;
-}
-
-.btn-open:hover {
-  background: var(--color-bg-surface);
-  color: var(--color-text);
-}
-
-.btn-start {
-  background: var(--color-accent);
-  color: #ffffff;
-}
-
-.btn-start:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.btn-stop {
-  background: var(--color-bg-elevated);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-}
-
-.btn-stop:hover:not(:disabled) {
-  background: var(--color-bg-surface);
-  color: var(--color-text);
 }
 
 /* Bottom sheet overlay */
@@ -781,8 +685,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 .sheet-title {
   font-family: var(--font-sans);
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
 }
 
 .sheet-title-danger {
@@ -819,8 +723,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .input-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-secondary);
 }
 
@@ -832,7 +736,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   color: var(--color-text);
   outline: none;
   transition:
@@ -850,14 +754,14 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .sheet-error {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-danger);
 }
 
 .delete-warning {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
 }
 
 .delete-warning strong {
@@ -868,7 +772,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
@@ -897,8 +801,8 @@ function handleRenameKeydown(e: KeyboardEvent) {
   min-height: var(--touch-min);
   padding: var(--space-2) var(--space-4);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
   border-radius: var(--radius-sm);
   transition:
     background var(--transition-fast),
@@ -923,7 +827,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
 
 .btn-sheet-save {
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-accent-text);
 }
 
 .btn-sheet-save:hover:not(:disabled) {
@@ -936,7 +840,7 @@ function handleRenameKeydown(e: KeyboardEvent) {
 }
 
 .btn-sheet-delete:hover:not(:disabled) {
-  background: var(--color-danger-hover);
+  background: #c03030;
 }
 
 /* Sheet transition */
