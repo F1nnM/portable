@@ -55,9 +55,13 @@ COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /srv
 
-# Copy pod-server build output (all dependencies are bundled by bun build)
+# Copy pod-server build output
 COPY --from=build /build/packages/pod-server/dist ./dist
 COPY --from=build /build/packages/pod-server/package.json ./package.json
+
+# The Claude Agent SDK must NOT be bundled -- it spawns cli.js as a subprocess at runtime.
+# Copy the full SDK package so the built code can resolve it via node_modules.
+COPY --from=deps /build/packages/pod-server/node_modules/@anthropic-ai/claude-agent-sdk ./node_modules/@anthropic-ai/claude-agent-sdk
 
 # Copy entrypoint script
 COPY packages/pod-server/scripts/entrypoint.sh ./scripts/entrypoint.sh
