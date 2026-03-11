@@ -3,6 +3,7 @@ import type { WebSocket as NodeWebSocket } from "ws";
 import { serveStatic } from "@hono/node-server/serve-static";
 
 import { Hono } from "hono";
+import { activeSessions } from "./routes/active-sessions.js";
 import { files } from "./routes/files.js";
 import { git } from "./routes/git.js";
 import { health } from "./routes/health.js";
@@ -12,10 +13,11 @@ import { registerWsRoute as registerWs } from "./routes/ws.js";
 export function createApp() {
   const app = new Hono();
 
-  // API routes
+  // API routes (active-sessions before sessions to avoid :id param matching "active")
   app.route("/", health);
   app.route("/", files);
   app.route("/", git);
+  app.route("/", activeSessions);
   app.route("/", sessions);
 
   function registerWsRoute(
