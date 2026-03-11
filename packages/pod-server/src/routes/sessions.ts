@@ -58,6 +58,7 @@ sessions.get("/api/sessions", async (c) => {
 interface ContentBlock {
   type: string;
   text?: string;
+  thinking?: string;
   name?: string;
   id?: string;
   input?: unknown;
@@ -90,6 +91,10 @@ sessions.get("/api/sessions/:id/messages", async (c) => {
           input: JSON.stringify(b.input, null, 2),
         }));
 
+      const thinking = blocks
+        .filter((b) => b.type === "thinking")
+        .map((b) => ({ content: b.thinking || "" }));
+
       const result: Record<string, unknown> = {
         role: m.type,
         content: typeof msg.content === "string" ? msg.content : text,
@@ -97,6 +102,10 @@ sessions.get("/api/sessions/:id/messages", async (c) => {
 
       if (toolUse.length > 0) {
         result.toolUse = toolUse;
+      }
+
+      if (thinking.length > 0) {
+        result.thinking = thinking;
       }
 
       return result;

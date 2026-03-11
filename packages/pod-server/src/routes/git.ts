@@ -96,4 +96,54 @@ git.get("/api/git", async (c) => {
   }
 });
 
+git.get("/api/git/diff/:path{.+}", async (c) => {
+  const workspace = getWorkspaceDir();
+  const filePath = c.req.param("path");
+
+  try {
+    const staged = c.req.query("staged") === "true";
+
+    // Try regular diff first
+    const args = staged ? ["diff", "--cached", "--", filePath] : ["diff", "--", filePath];
+
+    let diff: string;
+    try {
+      diff = await gitExec(args, workspace);
+    } catch {
+      diff = "";
+    }
+
+    // If no regular diff, check if it's an untracked file and generate diff with --no-index
+    if (!diff && !staged) {
+      try {
+        // Check if the file is untracked
+        const statusOutput = await gitExec(["status", "--porcelain", "--", filePath], workspace);
+        if (statusOutput.startsWith("??")) {
+          // Use --no-index to diff against /dev/null for untracked files
+          const { stdout } = await execFileAsync(
+            "git",
+            ["diff", "--no-index", "/dev/null", filePath],
+            { cwd: workspace },
+          ).catch((err: { stdout?: string }) => {
+            // git diff --no-index exits with code 1 when there are differences
+            if (err.stdout) return { stdout: err.stdout };
+            throw err;
+          });
+          diff = stdout;
+        }
+      } catch {
+        // Ignore errors in untracked file detection
+      }
+    }
+
+    if (!diff) {
+      return c.json({ error: "No changes for this file" }, 404);
+    }
+
+    return c.json({ diff });
+  } catch {
+    return c.json({ error: "Failed to get diff" }, 500);
+  }
+});
+
 export { git };

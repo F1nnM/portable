@@ -124,6 +124,55 @@ describe("sessions API", () => {
     });
   });
 
+  it("extracts thinking blocks from session messages", async () => {
+    mockGetSessionMessages.mockResolvedValue([
+      {
+        type: "assistant",
+        uuid: "a1",
+        session_id: "sess1",
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "thinking",
+              thinking: "Let me think about this...",
+              signature: "sig123",
+            },
+            { type: "text", text: "Here is my answer." },
+            {
+              type: "thinking",
+              thinking: "Actually, let me reconsider.",
+              signature: "sig456",
+            },
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "bash",
+              input: { command: "echo hello" },
+            },
+          ],
+        },
+        parent_tool_use_id: null,
+      },
+    ]);
+
+    const { app } = createApp();
+    const res = await app.request("/api/sessions/sess1/messages");
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0]).toEqual({
+      role: "assistant",
+      content: "Here is my answer.",
+      toolUse: [{ name: "bash", input: '{\n  "command": "echo hello"\n}' }],
+      thinking: [
+        { content: "Let me think about this..." },
+        { content: "Actually, let me reconsider." },
+      ],
+    });
+  });
+
   it("returns empty array for unknown session", async () => {
     mockGetSessionMessages.mockResolvedValue([]);
 
