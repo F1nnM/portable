@@ -25,6 +25,18 @@ const {
 // Scroll container ref
 const messagesContainer = ref<HTMLElement | null>(null);
 
+// Keyboard-aware layout: shrink chat view when virtual keyboard opens
+const keyboardOffset = ref(0);
+
+function onViewportResize() {
+  if (!window.visualViewport) return;
+  // The difference between the layout viewport and the visual viewport
+  // is approximately the keyboard height (plus any browser chrome changes)
+  const offset =
+    window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+  keyboardOffset.value = Math.max(0, offset);
+}
+
 // Show streaming indicator when streaming but no assistant content yet
 const showStreamingIndicator = computed(() => {
   if (!isStreaming.value) return false;
@@ -136,6 +148,9 @@ watch(
   },
 );
 
+// Auto-scroll when keyboard opens/closes
+watch(keyboardOffset, () => scrollToBottom());
+
 // Update activeSessionId when server assigns a session ID
 watch(wsSessionId, (newId) => {
   if (newId && activeSessionId.value === "new") {
@@ -177,10 +192,18 @@ function goBack() {
 onMounted(() => {
   fetchSessions();
   fetchActiveSessions();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", onViewportResize);
+    window.visualViewport.addEventListener("scroll", onViewportResize);
+  }
 });
 
 onUnmounted(() => {
   wsDisconnect();
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener("resize", onViewportResize);
+    window.visualViewport.removeEventListener("scroll", onViewportResize);
+  }
 });
 </script>
 
@@ -203,7 +226,10 @@ onUnmounted(() => {
 
     <!-- Active chat view -->
     <template v-else>
-      <div class="chat-view">
+      <div
+        class="chat-view"
+        :style="keyboardOffset > 0 ? { height: `calc(100% - ${keyboardOffset}px)` } : undefined"
+      >
         <!-- Floating back button -->
         <button class="btn-back-floating" aria-label="Back to sessions" @click="goBack">
           <svg

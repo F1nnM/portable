@@ -146,7 +146,7 @@ function isTabActive(tabPath: string): boolean {
 .project-layout {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100vh;
   overflow: hidden;
 }
 
