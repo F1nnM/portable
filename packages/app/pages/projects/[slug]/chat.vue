@@ -21,7 +21,7 @@ const messagesContainer = ref<HTMLElement | null>(null);
 
 // Build the proxy base URL for pod API calls
 function podApiUrl(path: string): string {
-  return `/api/projects/${slug.value}/proxy${path}`;
+  return `/api/projects/${slug.value}/pod${path}`;
 }
 
 // Fetch sessions from the pod server
@@ -40,8 +40,8 @@ async function fetchSessions() {
 // Fetch active sessions
 async function fetchActiveSessions() {
   try {
-    const data = await $fetch<{ sessionIds: string[] }>(podApiUrl("/api/sessions/active"));
-    activeSessions.value = data.sessionIds || [];
+    const data = await $fetch<{ activeSessionIds: string[] }>(podApiUrl("/api/sessions/active"));
+    activeSessions.value = data.activeSessionIds || [];
   } catch {
     activeSessions.value = [];
   }
@@ -243,7 +243,7 @@ onUnmounted(() => {
       <div v-if="sessionsLoading" class="loading-container">
         <div class="loading-spinner" />
       </div>
-      <SessionList
+      <ChatSessionList
         v-else
         :sessions="sessions"
         :active-sessions="activeSessions"

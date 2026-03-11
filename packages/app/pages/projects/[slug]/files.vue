@@ -16,7 +16,7 @@ const treeNodes = ref<TreeNode[]>([]);
 
 // Build the proxy base URL for pod API calls
 function podApiUrl(path: string): string {
-  return `/api/projects/${slug.value}/proxy${path}`;
+  return `/api/projects/${slug.value}/pod${path}`;
 }
 
 // Build tree from flat file list
@@ -57,8 +57,8 @@ function buildTree(paths: string[]): TreeNode[] {
 async function fetchFiles() {
   loading.value = true;
   try {
-    const data = await $fetch<string[]>(podApiUrl("/api/files"));
-    treeNodes.value = buildTree(data);
+    const data = await $fetch<{ files: string[] }>(podApiUrl("/api/files"));
+    treeNodes.value = buildTree(data.files);
   } catch {
     treeNodes.value = [];
   } finally {
@@ -134,13 +134,13 @@ onMounted(fetchFiles);
         <button class="btn-retry" @click="fetchFiles">Refresh</button>
       </div>
       <div v-else class="tree-container">
-        <FileTree :nodes="treeNodes" @select="readFile" />
+        <FilesFileTree :nodes="treeNodes" @select="readFile" />
       </div>
     </template>
 
     <!-- Code viewer -->
     <template v-else>
-      <CodeViewer
+      <FilesCodeViewer
         :filename="selectedFile"
         :content="fileContent"
         :read-only="!isEditing"

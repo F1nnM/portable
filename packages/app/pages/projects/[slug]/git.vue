@@ -15,7 +15,7 @@ const error = ref("");
 
 // Build the proxy base URL for pod API calls
 function podApiUrl(path: string): string {
-  return `/api/projects/${slug.value}/proxy${path}`;
+  return `/api/projects/${slug.value}/pod${path}`;
 }
 
 // Fetch git status
@@ -98,7 +98,7 @@ onMounted(fetchGitStatus);
       <div v-if="diffLoading" class="loading-container">
         <div class="loading-spinner" />
       </div>
-      <DiffViewer
+      <GitDiffViewer
         v-else
         :filename="selectedDiffFile"
         :diff="diffContent"
