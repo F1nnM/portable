@@ -67,6 +67,7 @@ docker_build(
         "bun.lock",
         "packages/pod-server/",
         "packages/app/package.json",
+        "packages/design-tokens/package.json",
     ],
     ignore=IGNORE_PATTERNS,
     match_in_env_vars=True,
