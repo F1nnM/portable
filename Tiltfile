@@ -40,7 +40,6 @@ docker_build(
         "packages/app/",
         "packages/design-tokens/",
         "packages/pod-server/package.json",
-        "packages/editor/package.json",
         "scaffolds/",
     ],
     ignore=IGNORE_PATTERNS,
@@ -51,7 +50,7 @@ docker_build(
     ],
 )
 
-# Pod server (Hono + editor SPA) — Dockerfile.dev.
+# Pod server (Hono API server) — Dockerfile.dev.
 #
 # Project pods are created dynamically at runtime, not in static K8s manifests.
 # A dummy Job (tilt-pod-server-anchor) anchors the image so Tilt builds it.
@@ -67,8 +66,6 @@ docker_build(
         "package.json",
         "bun.lock",
         "packages/pod-server/",
-        "packages/editor/",
-        "packages/design-tokens/",
         "packages/app/package.json",
     ],
     ignore=IGNORE_PATTERNS,

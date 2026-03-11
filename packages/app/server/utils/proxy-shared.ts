@@ -5,7 +5,7 @@
 
 export interface SubdomainInfo {
   slug: string;
-  type: "editor" | "preview";
+  type: "preview";
 }
 
 /**
@@ -21,8 +21,11 @@ export function getDomainFromBaseUrl(baseUrl: string): string {
 }
 
 /**
- * Parses the Host header to extract project slug and access type.
- * Returns null if the host is the main app domain (no subdomain).
+ * Parses the Host header to extract project slug for preview subdomains.
+ * Returns null if the host is the main app domain or not a preview subdomain.
+ *
+ * Only preview subdomains are recognized. The editor SPA has been replaced by
+ * Nuxt pages served from the main app, so editor subdomains are no longer needed.
  *
  * All project subdomains are flattened to a single DNS level using "--" as separator,
  * so that only one wildcard certificate level is needed (compatible with Cloudflare free-tier SSL).
@@ -31,9 +34,9 @@ export function getDomainFromBaseUrl(baseUrl: string): string {
  *   appLabel = "portable", parentDomain = "127.0.0.1.nip.io"
  *
  * Examples (domain = "portable.127.0.0.1.nip.io"):
- *   "my-project--portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "editor" }
  *   "my-project--preview--portable.127.0.0.1.nip.io" -> { slug: "my-project", type: "preview" }
  *   "portable.127.0.0.1.nip.io" -> null (main app)
+ *   "my-project--portable.127.0.0.1.nip.io" -> null (no longer recognized)
  *   "argocd.127.0.0.1.nip.io" -> null (not our traffic, no "--portable" suffix)
  */
 export function parseSubdomain(host: string, domain: string): SubdomainInfo | null {
@@ -71,31 +74,25 @@ export function parseSubdomain(host: string, domain: string): SubdomainInfo | nu
 
   if (!remainder) return null;
 
-  // Check if it's a preview subdomain: "<slug>--preview"
+  // Only preview subdomains are recognized: "<slug>--preview"
   if (remainder.endsWith("--preview")) {
     const slug = remainder.slice(0, -"--preview".length);
     if (!slug) return null;
     return { slug, type: "preview" };
   }
 
-  // Otherwise it's an editor subdomain: "<slug>"
-  return { slug: remainder, type: "editor" };
+  // Non-preview subdomains (former "editor" pattern) are no longer recognized
+  return null;
 }
 
 /**
- * Builds the internal K8s service URL for a project pod.
+ * Builds the internal K8s service URL for a project pod's dev server (preview).
  *
- * Examples:
- *   buildProxyTarget("my-project", "editor", "default") -> "http://project-my-project.default.svc.cluster.local:3000"
- *   buildProxyTarget("my-project", "preview", "default") -> "http://project-my-project.default.svc.cluster.local:3001"
+ * Example:
+ *   buildProxyTarget("my-project", "default") -> "http://project-my-project.default.svc.cluster.local:3001"
  */
-export function buildProxyTarget(
-  slug: string,
-  type: "editor" | "preview",
-  namespace: string,
-): string {
-  const port = type === "editor" ? 3000 : 3001;
-  return `http://project-${slug}.${namespace}.svc.cluster.local:${port}`;
+export function buildProxyTarget(slug: string, namespace: string): string {
+  return `http://project-${slug}.${namespace}.svc.cluster.local:3001`;
 }
 
 /**

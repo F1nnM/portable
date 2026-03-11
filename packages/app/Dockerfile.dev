@@ -10,7 +10,6 @@ COPY package.json bun.lock ./
 # Copy all package.json files so bun can resolve the workspace
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
-COPY packages/editor/package.json packages/editor/package.json
 COPY packages/design-tokens/package.json packages/design-tokens/package.json
 
 # Install all dependencies (bun needs the full workspace context)

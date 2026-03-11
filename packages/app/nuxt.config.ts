@@ -7,7 +7,6 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
 
 import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/proxy-shared";
-import { verifyRelayToken } from "./server/utils/relay-token";
 
 // --- Dev proxy shared state ---
 // Module-level variables shared between the Vite middleware plugin (HTTP subdomain
@@ -87,12 +86,16 @@ function suppressWsHangupErrors(): Plugin {
 }
 
 /**
- * Vite plugin that proxies subdomain HTTP requests BEFORE Vite's built-in middleware.
+ * Vite plugin that proxies preview subdomain HTTP requests BEFORE Vite's built-in middleware.
+ *
+ * Only handles preview subdomains (<slug>--preview--<appLabel>.<domain>).
+ * The editor SPA has been replaced by Nuxt pages served from the main app,
+ * so editor subdomain proxying is no longer needed.
  *
  * In dev mode, Vite serves `/_nuxt/` asset requests before Nitro ever sees them.
  * When the browser requests `/_nuxt/entry.js` on a subdomain host (e.g.
  * `my-project--preview--portable.domain`), Vite serves the main app's assets instead of
- * letting the proxy forward them to the pod. This plugin intercepts ALL subdomain
+ * letting the proxy forward them to the pod. This plugin intercepts ALL preview subdomain
  * requests before Vite can handle them.
  *
  * WebSocket proxying is handled separately by the `listen` hook (see
@@ -126,7 +129,7 @@ function devSubdomainProxy(): Plugin {
           if (!subdomain) return next();
 
           // Authenticate via session cookie before proxying
-          handleAuthenticatedProxy(req, res, subdomain, currentProxy, host).catch((err) => {
+          handlePreviewProxy(req, res, subdomain, currentProxy, host).catch((err) => {
             console.error(`[dev-proxy] Error:`, err);
             if (!res.headersSent) {
               res.writeHead(500, { "Content-Type": "text/plain" });
@@ -136,62 +139,26 @@ function devSubdomainProxy(): Plugin {
         },
       );
 
-      console.log(`[dev-proxy] Subdomain proxy installed (domain: ${DEV_DOMAIN})`);
+      console.log(`[dev-proxy] Preview subdomain proxy installed (domain: ${DEV_DOMAIN})`);
     },
   };
 }
 
-/**
- * Extracts the `__portable_relay` query parameter from a URL path+query string.
- */
-function extractDevRelayToken(url: string): { token: string; cleanUrl: string } | null {
-  const qIdx = url.indexOf("?");
-  if (qIdx === -1) return null;
-  const params = new URLSearchParams(url.slice(qIdx));
-  const token = params.get("__portable_relay");
-  if (!token) return null;
-  params.delete("__portable_relay");
-  const remaining = params.toString();
-  return { token, cleanUrl: remaining ? `${url.slice(0, qIdx)}?${remaining}` : url.slice(0, qIdx) };
-}
-
-async function handleAuthenticatedProxy(
+async function handlePreviewProxy(
   req: IncomingMessage,
   res: ServerResponse,
-  subdomain: { slug: string; type: "editor" | "preview" },
+  subdomain: { slug: string; type: "preview" },
   proxy: ReturnType<typeof createProxyServer>,
   host: string,
 ): Promise<void> {
-  const encryptionKey = process.env.NUXT_ENCRYPTION_KEY || "";
-
-  // Handle relay token exchange: validate token, set cookie, redirect to clean URL
-  const relay = extractDevRelayToken(req.url || "/");
-  if (relay && encryptionKey) {
-    const result = verifyRelayToken(relay.token, encryptionKey);
-    if (result) {
-      const cookie =
-        `portable_session=${encodeURIComponent(result.sessionId)}; ` +
-        `Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`;
-      res.writeHead(302, {
-        Location: relay.cleanUrl || "/",
-        "Set-Cookie": cookie,
-      });
-      res.end();
-      return;
-    }
-  }
-
   const userId = await validateDevSession(req.headers.cookie || "");
   if (!userId) {
-    // Redirect to auth relay on the main app domain
-    const originalUrl = `${DEV_BASE_URL.replace(/\/\/[^/]+/, `//${host}`)}${req.url || "/"}`;
-    const relayUrl = `${DEV_BASE_URL}/auth/relay?redirect=${encodeURIComponent(originalUrl)}`;
-    res.writeHead(302, { Location: relayUrl });
-    res.end();
+    res.writeHead(401, { "Content-Type": "text/plain" });
+    res.end("Unauthorized");
     return;
   }
 
-  const target = buildProxyTarget(subdomain.slug, subdomain.type, DEV_NAMESPACE);
+  const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
   await proxy.web(req, res, {
     target,
     xfwd: true,
@@ -207,7 +174,7 @@ async function handleAuthenticatedProxy(
  * server is owned by the Nitro dev server, which registers its own upgrade
  * handler to forward all WebSocket connections to the Nitro worker.
  *
- * This function intercepts upgrade events on that server to proxy subdomain
+ * This function intercepts upgrade events on that server to proxy preview subdomain
  * WebSocket connections directly to project pods, before Nitro's default
  * handler forwards them to the worker (which doesn't know about subdomains).
  */
@@ -256,12 +223,12 @@ function installDevWsProxy(server: Server): void {
 
     const subdomain = parseSubdomain(host, DEV_DOMAIN);
     if (!subdomain) {
-      // Not a subdomain request -- delegate to original handlers
+      // Not a preview subdomain request -- delegate to original handlers
       for (const listener of existingListeners) listener(req, socket, head);
       return;
     }
 
-    // Subdomain WebSocket -- authenticate and proxy to pod
+    // Preview subdomain WebSocket -- authenticate and proxy to pod
     validateDevSession(req.headers.cookie || "")
       .then((userId) => {
         if (!userId) {
@@ -269,7 +236,7 @@ function installDevWsProxy(server: Server): void {
           return;
         }
 
-        const target = buildProxyTarget(subdomain.slug, subdomain.type, DEV_NAMESPACE);
+        const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
         return proxyUpgrade(target, req, socket, head, {
           xfwd: true,
           headers: { "x-forwarded-host": host },

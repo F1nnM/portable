@@ -10,8 +10,7 @@ const SESSION_EXPIRY_DAYS = 30;
  * Returns cookie options for the session cookie on the main app domain.
  * The cookie is scoped to the app hostname (e.g. `.portable.example.com`),
  * NOT the parent domain, to avoid leaking the session to unrelated sibling services.
- * Project subdomains (e.g. `slug--portable.example.com`) receive their own cookie
- * via the auth relay flow (`/auth/relay`).
+ * Preview subdomains share the same wildcard domain so the cookie is sent automatically.
  */
 export function sessionCookieOptions(): {
   httpOnly: boolean;

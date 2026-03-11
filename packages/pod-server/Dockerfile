@@ -1,6 +1,5 @@
 # Pod server Dockerfile
-# Must be built from the REPO ROOT so it can access both
-# packages/pod-server/ (server) and packages/editor/ (SPA dist).
+# Must be built from the REPO ROOT so it can access packages/pod-server/.
 #
 # Example: docker build -f packages/pod-server/Dockerfile .
 
@@ -17,13 +16,12 @@ COPY package.json bun.lock ./
 # Copy all package.json files so bun can resolve the workspace
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
-COPY packages/editor/package.json packages/editor/package.json
 COPY packages/design-tokens/package.json packages/design-tokens/package.json
 
 # Install all dependencies
 RUN bun install --frozen-lockfile
 
-# ---- Stage 2: Build pod-server and editor ----
+# ---- Stage 2: Build pod-server ----
 FROM node:22-alpine AS build
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
@@ -33,7 +31,6 @@ WORKDIR /build
 # Copy installed node_modules from deps stage
 COPY --from=deps /build/node_modules ./node_modules
 COPY --from=deps /build/packages/pod-server/node_modules ./packages/pod-server/node_modules
-COPY --from=deps /build/packages/editor/node_modules ./packages/editor/node_modules
 
 # Copy workspace root files
 COPY package.json bun.lock ./
@@ -41,14 +38,8 @@ COPY package.json bun.lock ./
 # Copy pod-server source
 COPY packages/pod-server/ packages/pod-server/
 
-# Copy design tokens (CSS imported by the editor)
-COPY packages/design-tokens/ packages/design-tokens/
-
-# Copy editor source
-COPY packages/editor/ packages/editor/
-
-# Build both packages
-RUN bun run --filter @portable/pod-server build && bun run --filter @portable/editor build
+# Build pod-server
+RUN bun run --filter @portable/pod-server build
 
 # ---- Stage 3: Production runtime ----
 FROM node:22-alpine AS runtime
@@ -67,9 +58,6 @@ WORKDIR /srv
 # Copy pod-server build output (all dependencies are bundled by bun build)
 COPY --from=build /build/packages/pod-server/dist ./dist
 COPY --from=build /build/packages/pod-server/package.json ./package.json
-
-# Copy editor SPA dist into a known location the pod-server can serve
-COPY --from=build /build/packages/editor/dist ./public
 
 # Copy entrypoint script
 COPY packages/pod-server/scripts/entrypoint.sh ./scripts/entrypoint.sh

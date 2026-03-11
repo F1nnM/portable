@@ -11,10 +11,8 @@
   "scripts": {
     "dev:app": "bun run --filter @portable/app dev",
     "dev:pod-server": "bun run --filter @portable/pod-server dev",
-    "dev:editor": "bun run --filter @portable/editor dev",
     "build:app": "bun run --filter @portable/app build",
     "build:pod-server": "bun run --filter @portable/pod-server build",
-    "build:editor": "bun run --filter @portable/editor build",
     "build": "bun run --filter '*' build",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "eslint .",

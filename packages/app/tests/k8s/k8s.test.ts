@@ -235,7 +235,7 @@ describe("k8s utilities", () => {
 
       expect(ports).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ containerPort: 3000, name: "editor" }),
+          expect.objectContaining({ containerPort: 3000, name: "api" }),
           expect.objectContaining({ containerPort: 3001, name: "preview" }),
         ]),
       );
@@ -301,7 +301,7 @@ describe("k8s utilities", () => {
 
       expect(ports).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ port: 3000, targetPort: 3000, name: "editor" }),
+          expect.objectContaining({ port: 3000, targetPort: 3000, name: "api" }),
           expect.objectContaining({ port: 3001, targetPort: 3001, name: "preview" }),
         ]),
       );

@@ -141,7 +141,7 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
             image: config.podServerImage,
             imagePullPolicy: config.podServerImage.endsWith(":dev") ? "Always" : "IfNotPresent",
             ports: [
-              { containerPort: 3000, name: "editor" },
+              { containerPort: 3000, name: "api" },
               { containerPort: 3001, name: "preview" },
             ],
             env,
@@ -219,7 +219,7 @@ export async function createProjectService(slug: string, namespace?: string): Pr
           "portable.dev/project": slug,
         },
         ports: [
-          { port: 3000, targetPort: 3000, name: "editor" },
+          { port: 3000, targetPort: 3000, name: "api" },
           { port: 3001, targetPort: 3001, name: "preview" },
         ],
       },

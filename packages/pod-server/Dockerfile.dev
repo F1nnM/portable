@@ -11,24 +11,13 @@ COPY package.json bun.lock ./
 # Copy all package.json files so bun can resolve the workspace
 COPY packages/app/package.json packages/app/package.json
 COPY packages/pod-server/package.json packages/pod-server/package.json
-COPY packages/editor/package.json packages/editor/package.json
 COPY packages/design-tokens/package.json packages/design-tokens/package.json
 
 # Install all dependencies
 RUN bun install --frozen-lockfile
 
-# Copy design tokens (CSS imported by the editor)
-COPY packages/design-tokens/ packages/design-tokens/
-
-# Copy pod-server and editor source
+# Copy pod-server source
 COPY packages/pod-server/ packages/pod-server/
-COPY packages/editor/ packages/editor/
-
-# Build the editor SPA (pod-server serves it as static files)
-RUN bun run --filter @portable/editor build
-
-# Symlink editor dist into pod-server/public (serveStatic looks for ./public)
-RUN ln -s /build/packages/editor/dist /build/packages/pod-server/public
 
 # Make dev entrypoint executable
 RUN chmod +x packages/pod-server/scripts/entrypoint-dev.sh

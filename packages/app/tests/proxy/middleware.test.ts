@@ -100,9 +100,19 @@ describe("resolveProxyTarget", () => {
     expect(result).toBeNull();
   });
 
-  it("throws 401 for unauthenticated subdomain requests", async () => {
+  it("returns null for non-preview subdomain (formerly editor)", async () => {
+    const result = await resolveProxyTarget(
+      "my-project--portable.127.0.0.1.nip.io",
+      DOMAIN,
+      NAMESPACE,
+      TEST_USER,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("throws 401 for unauthenticated preview subdomain requests", async () => {
     await expect(
-      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, null),
+      resolveProxyTarget("my-project--preview--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, null),
     ).rejects.toMatchObject({
       statusCode: 401,
     });
@@ -114,7 +124,7 @@ describe("resolveProxyTarget", () => {
 
     await expect(
       resolveProxyTarget(
-        "unknown-project--portable.127.0.0.1.nip.io",
+        "unknown-project--preview--portable.127.0.0.1.nip.io",
         DOMAIN,
         NAMESPACE,
         TEST_USER,
@@ -129,26 +139,14 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     await expect(
-      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
+      resolveProxyTarget(
+        "my-project--preview--portable.127.0.0.1.nip.io",
+        DOMAIN,
+        NAMESPACE,
+        TEST_USER,
+      ),
     ).rejects.toMatchObject({
       statusCode: 503,
-    });
-  });
-
-  it("resolves editor request to correct target", async () => {
-    const selectChain = makeSelectChain([TEST_PROJECT]);
-    mockDb.select.mockReturnValue(selectChain);
-
-    const result = await resolveProxyTarget(
-      "my-project--portable.127.0.0.1.nip.io",
-      DOMAIN,
-      NAMESPACE,
-      TEST_USER,
-    );
-
-    expect(result).toEqual({
-      target: "http://project-my-project.default.svc.cluster.local:3000",
-      subdomain: { slug: "my-project", type: "editor" },
     });
   });
 
@@ -165,7 +163,7 @@ describe("resolveProxyTarget", () => {
 
     expect(result).toEqual({
       target: "http://project-my-project.default.svc.cluster.local:3001",
-      subdomain: { slug: "my-project", type: "preview" },
+      slug: "my-project",
     });
   });
 
@@ -174,15 +172,15 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     const result = await resolveProxyTarget(
-      "my-project--portable.127.0.0.1.nip.io:3000",
+      "my-project--preview--portable.127.0.0.1.nip.io:3000",
       DOMAIN,
       NAMESPACE,
       TEST_USER,
     );
 
     expect(result).toEqual({
-      target: "http://project-my-project.default.svc.cluster.local:3000",
-      subdomain: { slug: "my-project", type: "editor" },
+      target: "http://project-my-project.default.svc.cluster.local:3001",
+      slug: "my-project",
     });
   });
 
@@ -193,7 +191,12 @@ describe("resolveProxyTarget", () => {
     mockDb.select.mockReturnValue(selectChain);
 
     await expect(
-      resolveProxyTarget("my-project--portable.127.0.0.1.nip.io", DOMAIN, NAMESPACE, TEST_USER),
+      resolveProxyTarget(
+        "my-project--preview--portable.127.0.0.1.nip.io",
+        DOMAIN,
+        NAMESPACE,
+        TEST_USER,
+      ),
     ).rejects.toMatchObject({
       statusCode: 404,
     });

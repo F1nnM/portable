@@ -14,9 +14,9 @@ describe("parseSubdomain", () => {
     expect(result).toBeNull();
   });
 
-  it("extracts slug and type 'editor' for a single subdomain", () => {
+  it("returns null for non-preview subdomain (formerly editor)", () => {
     const result = parseSubdomain("my-project--portable.127.0.0.1.nip.io", domain);
-    expect(result).toEqual({ slug: "my-project", type: "editor" });
+    expect(result).toBeNull();
   });
 
   it("extracts slug and type 'preview' for preview subdomain", () => {
@@ -25,8 +25,8 @@ describe("parseSubdomain", () => {
   });
 
   it("handles Host header with port (strips port for matching)", () => {
-    const result = parseSubdomain("my-project--portable.127.0.0.1.nip.io:3000", domain);
-    expect(result).toEqual({ slug: "my-project", type: "editor" });
+    const result = parseSubdomain("my-project--preview--portable.127.0.0.1.nip.io:3000", domain);
+    expect(result).toEqual({ slug: "my-project", type: "preview" });
   });
 
   it("returns null for main domain with port", () => {
@@ -44,11 +44,6 @@ describe("parseSubdomain", () => {
     expect(result).toBeNull();
   });
 
-  it("handles a different base domain", () => {
-    const result = parseSubdomain("my-app--portable.example.com", "portable.example.com");
-    expect(result).toEqual({ slug: "my-app", type: "editor" });
-  });
-
   it("handles preview with a different base domain", () => {
     const result = parseSubdomain("my-app--preview--portable.example.com", "portable.example.com");
     expect(result).toEqual({ slug: "my-app", type: "preview" });
@@ -61,6 +56,11 @@ describe("parseSubdomain", () => {
 
   it("returns null when host does not end with domain", () => {
     const result = parseSubdomain("my-project.other-domain.com", domain);
+    expect(result).toBeNull();
+  });
+
+  it("returns null for non-preview subdomain with different base domain", () => {
+    const result = parseSubdomain("my-app--portable.example.com", "portable.example.com");
     expect(result).toBeNull();
   });
 });
@@ -82,19 +82,14 @@ describe("getDomainFromBaseUrl", () => {
 });
 
 describe("buildProxyTarget", () => {
-  it("builds correct URL for editor (port 3000)", () => {
-    const result = buildProxyTarget("my-project", "editor", "default");
-    expect(result).toBe("http://project-my-project.default.svc.cluster.local:3000");
-  });
-
   it("builds correct URL for preview (port 3001)", () => {
-    const result = buildProxyTarget("my-project", "preview", "default");
+    const result = buildProxyTarget("my-project", "default");
     expect(result).toBe("http://project-my-project.default.svc.cluster.local:3001");
   });
 
   it("uses the provided namespace", () => {
-    const result = buildProxyTarget("cool-app", "editor", "production");
-    expect(result).toBe("http://project-cool-app.production.svc.cluster.local:3000");
+    const result = buildProxyTarget("cool-app", "production");
+    expect(result).toBe("http://project-cool-app.production.svc.cluster.local:3001");
   });
 });
 

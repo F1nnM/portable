@@ -1,6 +1,5 @@
 import type { UpgradeWebSocket } from "hono/ws";
 import type { WebSocket as NodeWebSocket } from "ws";
-import { serveStatic } from "@hono/node-server/serve-static";
 
 import { Hono } from "hono";
 import { activeSessions } from "./routes/active-sessions.js";
@@ -26,15 +25,7 @@ export function createApp() {
     registerWs(app, upgradeWebSocket);
   }
 
-  function registerStaticFiles() {
-    // Serve the editor SPA from ./public
-    app.use("/*", serveStatic({ root: "./public" }));
-
-    // SPA fallback: serve index.html for all non-API, non-file routes
-    app.use("/*", serveStatic({ root: "./public", path: "index.html" }));
-  }
-
-  return { app, registerWsRoute, registerStaticFiles };
+  return { app, registerWsRoute };
 }
 
 // Convenience export: a pre-built app instance for tests and simple usage

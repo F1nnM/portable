@@ -6,7 +6,6 @@ import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
 import { lookupProject, resolveProxyTarget } from "../utils/proxy";
 import { getDomainFromBaseUrl, parseCookie, parseSubdomain } from "../utils/proxy-shared";
-import { verifyRelayToken } from "../utils/relay-token";
 
 const httpProxy = createProxyServer();
 
@@ -20,34 +19,22 @@ httpProxy.on("error", (err) => {
 });
 
 /**
- * Unified proxy plugin for HTTP and WebSocket subdomain requests.
+ * Proxy plugin for preview subdomain HTTP and WebSocket requests.
+ *
+ * Only handles preview subdomains (<slug>--preview--<appLabel>.<domain>).
+ * The editor SPA has been replaced by Nuxt pages served from the main app,
+ * so editor subdomain proxying is no longer needed.
+ *
+ * Preview subdomains proxy directly to the pod's dev server (port 3001)
+ * without authentication, since:
+ * - The preview iframe is loaded from the authenticated main app
+ * - Pods are isolated by network policy (only reachable from the main app)
  *
  * Hooks into the Nitro `request` event, which fires BEFORE Vite's dev
  * middleware. This is critical: without it, Vite intercepts `/_nuxt/` asset
  * requests on subdomain hosts and serves the main app's bundles (or 404s)
  * instead of letting them reach the project pod.
- *
- * Auth is handled manually (cookie parsing + session validation) because
- * Nitro middleware (including the auth middleware) hasn't run yet at this point.
  */
-/**
- * Extracts the `__portable_relay` query parameter from a raw URL string.
- * Returns the token value and the URL with the parameter stripped, or null if absent.
- */
-function extractRelayToken(url: string): { token: string; cleanUrl: string } | null {
-  const qIdx = url.indexOf("?");
-  if (qIdx === -1) return null;
-
-  const searchParams = new URLSearchParams(url.slice(qIdx));
-  const token = searchParams.get("__portable_relay");
-  if (!token) return null;
-
-  searchParams.delete("__portable_relay");
-  const remaining = searchParams.toString();
-  const cleanUrl = remaining ? `${url.slice(0, qIdx)}?${remaining}` : url.slice(0, qIdx);
-  return { token, cleanUrl };
-}
-
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook("request", async (event) => {
     const host = event.node.req.headers.host;
@@ -112,42 +99,9 @@ export default defineNitroPlugin((nitroApp) => {
     const config = useRuntimeConfig();
     const domain = getDomainFromBaseUrl(config.baseUrl);
 
-    // Quick check: is this a subdomain request at all?
+    // Quick check: is this a preview subdomain request?
     const subdomain = parseSubdomain(host, domain);
-    if (!subdomain) return; // Main app domain — let Nuxt handle it
-
-    // --- Relay token exchange ---
-    // If the URL contains a `__portable_relay` param, validate it, set a
-    // subdomain-scoped session cookie, and redirect to the clean URL.
-    if (!isWebSocket) {
-      const relay = extractRelayToken(event.node.req.url || "/");
-      if (relay) {
-        const result = verifyRelayToken(relay.token, config.encryptionKey);
-        if (result) {
-          // Validate the session is still active
-          const relayUser = await validateSession(result.sessionId);
-          if (relayUser) {
-            // Set session cookie as a host-only cookie (no Domain attribute).
-            // Omitting Domain means the browser only sends this cookie to the
-            // exact host that set it, which is the project subdomain.
-            const secure = process.env.NODE_ENV === "production";
-            const cookie =
-              `portable_session=${encodeURIComponent(result.sessionId)}; ` +
-              `Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}${
-                secure ? "; Secure" : ""
-              }`;
-            event.node.res.writeHead(302, {
-              Location: relay.cleanUrl || "/",
-              "Set-Cookie": cookie,
-            });
-            event.node.res.end();
-            event._handled = true;
-            return;
-          }
-        }
-        // Invalid or expired relay token — fall through to auth redirect
-      }
-    }
+    if (!subdomain) return; // Main app domain or unrecognized -- let Nuxt handle it
 
     // --- Session validation ---
     const cookieHeader = event.node.req.headers.cookie || "";
@@ -158,16 +112,13 @@ export default defineNitroPlugin((nitroApp) => {
       user = await validateSession(sessionToken);
     }
 
-    // --- Unauthenticated subdomain request: redirect to auth relay ---
+    // --- Unauthenticated preview request: return 401 ---
     if (!user) {
       if (isWebSocket) {
         event.node.req.socket.destroy();
       } else {
-        const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-        const originalUrl = `${protocol}://${host}${event.node.req.url || "/"}`;
-        const relayUrl = `${config.baseUrl}/auth/relay?redirect=${encodeURIComponent(originalUrl)}`;
-        event.node.res.writeHead(302, { Location: relayUrl });
-        event.node.res.end();
+        event.node.res.writeHead(401, { "Content-Type": "text/plain" });
+        event.node.res.end("Unauthorized");
       }
       event._handled = true;
       return;
@@ -209,7 +160,7 @@ export default defineNitroPlugin((nitroApp) => {
           },
         );
       } catch (err) {
-        console.error(`[proxy] Failed to proxy WebSocket for ${resolution.subdomain.slug}:`, err);
+        console.error(`[proxy] Failed to proxy WebSocket for ${resolution.slug}:`, err);
         if (!event.node.req.socket.destroyed) {
           event.node.req.socket.destroy();
         }
@@ -222,7 +173,7 @@ export default defineNitroPlugin((nitroApp) => {
           headers: { "x-forwarded-host": host },
         });
       } catch (err) {
-        console.error(`[proxy] Failed to proxy HTTP for ${resolution.subdomain.slug}:`, err);
+        console.error(`[proxy] Failed to proxy HTTP for ${resolution.slug}:`, err);
         if (!event.node.res.headersSent) {
           event.node.res.writeHead(502, { "Content-Type": "text/plain" });
           event.node.res.end("Bad Gateway");

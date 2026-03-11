@@ -38,14 +38,15 @@ export async function lookupProject(
  */
 export interface ProxyResolution {
   target: string;
-  subdomain: { slug: string; type: "editor" | "preview" };
+  slug: string;
 }
 
 /**
- * Core proxy resolution logic. Given a host header, domain, namespace, and user context,
- * determines where to proxy the request.
+ * Core proxy resolution logic for preview subdomains. Given a host header, domain,
+ * namespace, and user context, determines where to proxy the request.
  *
- * Returns null if the request is not a subdomain request (should be handled by Nuxt).
+ * Only preview subdomains (<slug>--preview--<appLabel>.<domain>) are proxied.
+ * Returns null if the request is not a preview subdomain (should be handled by Nuxt).
  * Throws errors for auth failures, missing projects, or non-running projects.
  */
 export async function resolveProxyTarget(
@@ -56,10 +57,10 @@ export async function resolveProxyTarget(
 ): Promise<ProxyResolution | null> {
   const subdomain = parseSubdomain(host, domain);
 
-  // Not a subdomain request -- let Nuxt handle it normally
+  // Not a preview subdomain request -- let Nuxt handle it normally
   if (!subdomain) return null;
 
-  // Subdomain request: require authentication
+  // Preview subdomain: require authentication
   if (!user) {
     throw Object.assign(new Error("Authentication required to access project"), {
       statusCode: 401,
@@ -87,6 +88,6 @@ export async function resolveProxyTarget(
     );
   }
 
-  const target = buildProxyTarget(subdomain.slug, subdomain.type, namespace);
-  return { target, subdomain };
+  const target = buildProxyTarget(subdomain.slug, namespace);
+  return { target, slug: subdomain.slug };
 }
