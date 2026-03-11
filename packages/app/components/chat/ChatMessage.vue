@@ -76,6 +76,7 @@ function formatThinkingDuration(ms?: number): string {
     :class="{
       'message-user': message.role === 'user',
       'message-assistant': message.role === 'assistant',
+      'message-error': message.resultMeta?.isError,
     }"
   >
     <!-- Thinking blocks (before main content) -->
@@ -142,6 +143,10 @@ function formatThinkingDuration(ms?: number): string {
   word-break: break-word;
 }
 
+.chat-message + .chat-message {
+  margin-top: var(--space-1);
+}
+
 .message-user {
   display: flex;
   flex-direction: column;
@@ -149,13 +154,14 @@ function formatThinkingDuration(ms?: number): string {
 }
 
 .message-user .message-content {
-  background: var(--color-accent-tint);
-  color: var(--color-text);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md) var(--radius-md) var(--radius-sm) var(--radius-md);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   max-width: 85%;
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
+  box-shadow: 0 1px 3px rgba(217, 122, 62, 0.2);
 }
 
 .message-assistant {
@@ -169,6 +175,10 @@ function formatThinkingDuration(ms?: number): string {
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
   color: var(--color-text);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg-surface);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 /* Markdown rendering styles (assistant) */
@@ -180,6 +190,10 @@ function formatThinkingDuration(ms?: number): string {
   margin-bottom: var(--space-2);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
+}
+
+.message-assistant .message-content :deep(:first-child) {
+  margin-top: 0;
 }
 
 .message-assistant .message-content :deep(h1) {
@@ -225,7 +239,8 @@ function formatThinkingDuration(ms?: number): string {
 
 .message-assistant .message-content :deep(pre) {
   background: var(--color-bg-inset);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   overflow-x: auto;
   margin: var(--space-3) 0;
@@ -284,17 +299,22 @@ function formatThinkingDuration(ms?: number): string {
 .thinking-toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  background: var(--color-bg-inset);
+  min-height: 32px;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .thinking-toggle:hover {
-  background: var(--color-bg-inset);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
 }
 
 .thinking-chevron {
@@ -325,27 +345,43 @@ function formatThinkingDuration(ms?: number): string {
 /* Tool use entries */
 .tool-use-list {
   width: 100%;
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .tool-use-entry {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-inset);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
+  overflow: hidden;
 }
 
 .tool-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  color: var(--color-accent);
+  letter-spacing: 0.01em;
+}
+
+.tool-name::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  flex-shrink: 0;
 }
 
 .tool-input {
@@ -356,24 +392,35 @@ function formatThinkingDuration(ms?: number): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  padding-left: calc(6px + var(--space-1));
 }
 
 /* Result metadata */
 .result-meta {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding: var(--space-1) 0;
+  margin-top: var(--space-3);
+  padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
   color: var(--color-text-muted);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-full);
 }
 
 .result-meta-error {
   color: var(--color-danger);
+  background: var(--color-danger-tint);
+}
+
+/* Error state: change the left accent border to danger color */
+.message-error .message-content {
+  border-left-color: var(--color-danger);
 }
 
 .meta-separator {
-  opacity: 0.5;
+  opacity: 0.3;
+  font-size: var(--font-size-xs);
 }
 </style>

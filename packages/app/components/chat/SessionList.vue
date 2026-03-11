@@ -91,6 +91,7 @@ function handleDelete(e: Event, sessionId: string) {
             <span v-if="isActive(session.sessionId)" class="session-active-dot" />
             <span class="session-title">{{ session.title }}</span>
           </div>
+          <span v-if="session.firstPrompt" class="session-preview">{{ session.firstPrompt }}</span>
           <span class="session-time">{{ formatRelativeTime(session.lastModified) }}</span>
         </div>
         <button
@@ -137,8 +138,9 @@ function handleDelete(e: Event, sessionId: string) {
 .session-header-title {
   font-family: var(--font-sans);
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .btn-new-session {
@@ -174,39 +176,53 @@ function handleDelete(e: Event, sessionId: string) {
 }
 
 .empty-icon {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
+  color: var(--color-accent);
+  opacity: 0.4;
+  background: var(--color-accent-tint);
+  border-radius: var(--radius-full);
 }
 
 .empty-icon svg {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
 }
 
 .empty-text {
   font-size: var(--font-size-base);
   color: var(--color-text-muted);
+  text-align: center;
 }
 
 .btn-start-conversation {
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-2) var(--space-6);
   background: var(--color-accent);
   color: var(--color-accent-text);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   min-height: var(--touch-min);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(217, 122, 62, 0.25);
 }
 
 .btn-start-conversation:hover {
   background: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(217, 122, 62, 0.3);
+}
+
+.btn-start-conversation:active {
+  transform: translateY(0);
 }
 
 /* Session items */
@@ -222,7 +238,7 @@ function handleDelete(e: Event, sessionId: string) {
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  min-height: var(--touch-min);
+  min-height: 60px;
   cursor: pointer;
   transition: background var(--transition-fast);
   border-bottom: 1px solid var(--color-border);
@@ -232,10 +248,14 @@ function handleDelete(e: Event, sessionId: string) {
   background: var(--color-bg-inset);
 }
 
+.session-item:active {
+  background: var(--color-bg-elevated);
+}
+
 .session-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
 }
@@ -275,6 +295,15 @@ function handleDelete(e: Event, sessionId: string) {
   text-overflow: ellipsis;
 }
 
+.session-preview {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: var(--line-height-tight);
+}
+
 .session-time {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
@@ -284,15 +313,28 @@ function handleDelete(e: Event, sessionId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   cursor: pointer;
   flex-shrink: 0;
+  opacity: 0;
   transition:
     color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.session-item:hover .btn-delete-session {
+  opacity: 1;
+}
+
+/* Always show on touch devices since there's no hover */
+@media (hover: none) {
+  .btn-delete-session {
+    opacity: 0.6;
+  }
 }
 
 .btn-delete-session:hover {

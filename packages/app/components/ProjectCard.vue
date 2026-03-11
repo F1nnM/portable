@@ -431,14 +431,34 @@ function openGithubRepo() {
   gap: var(--space-3);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
   box-shadow: var(--shadow-card);
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .project-card:hover {
   border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
+}
+
+.project-card:has(.status-running) {
+  border-left-color: var(--color-success);
+}
+
+.project-card:has(.status-creating),
+.project-card:has(.status-starting),
+.project-card:has(.status-stopping) {
+  border-left-color: var(--color-warning);
+}
+
+.project-card:has(.status-error) {
+  border-left-color: var(--color-danger);
 }
 
 /* Card link fills the card area */
@@ -453,20 +473,21 @@ function openGithubRepo() {
 .card-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 0;
   flex: 1;
 }
 
 .project-name {
   font-family: var(--font-sans);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-medium);
   color: var(--color-text);
   line-height: var(--line-height-tight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .card-status-line {

@@ -178,10 +178,11 @@ function isTabActive(tabPath: string): boolean {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 52px;
+  height: 56px;
   padding: 0 var(--space-2);
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   z-index: 100;
 }
@@ -225,13 +226,14 @@ function isTabActive(tabPath: string): boolean {
 .topbar-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: var(--radius-xl);
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .pill-running {
@@ -275,6 +277,7 @@ function isTabActive(tabPath: string): boolean {
   height: 56px;
   background: var(--color-bg-surface);
   border-top: 1px solid var(--color-border);
+  box-shadow: 0 -2px 8px rgba(44, 40, 37, 0.04);
   flex-shrink: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -284,7 +287,7 @@ function isTabActive(tabPath: string): boolean {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-1);
   flex: 1;
   min-height: var(--touch-min);
   color: var(--color-text-muted);
@@ -302,6 +305,10 @@ function isTabActive(tabPath: string): boolean {
   border-top-color: var(--color-accent);
 }
 
+.tab-item.active .tab-label {
+  font-weight: var(--font-weight-medium);
+}
+
 .tab-item:hover:not(.active) {
   color: var(--color-text-secondary);
 }
@@ -313,7 +320,7 @@ function isTabActive(tabPath: string): boolean {
 
 .tab-label {
   font-family: var(--font-sans);
-  font-size: 0.6875rem;
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
 }
 </style>

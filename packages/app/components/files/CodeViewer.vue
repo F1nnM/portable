@@ -318,6 +318,9 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .btn-back:hover {
@@ -357,6 +360,9 @@ onUnmounted(() => {
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .btn-edit:hover {
@@ -380,9 +386,10 @@ onUnmounted(() => {
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: background var(--transition-fast);
+  border: none;
 }
 
 .btn-save:hover {

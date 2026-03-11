@@ -91,6 +91,7 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
   background: var(--color-bg-surface);
   border-top: 1px solid var(--color-border);
   padding-bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -2px 8px rgba(44, 40, 37, 0.04);
 }
 
 .input-row {
@@ -99,13 +100,16 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
   gap: var(--space-2);
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2);
-  transition: border-color var(--transition-fast);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .input-row:focus-within {
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-tint);
 }
 
 .chat-textarea {
@@ -132,15 +136,21 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-full);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
   transition:
     background var(--transition-fast),
-    opacity var(--transition-fast);
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.btn-send:active:not(:disabled),
+.btn-interrupt:active {
+  transform: scale(0.92);
 }
 
 .btn-send {

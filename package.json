@@ -20,6 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "bun run --filter '*' test",
+    "story:dev": "bun run --filter @portable/app story:dev",
+    "story:build": "bun run --filter @portable/app story:build",
     "prepare": "husky"
   },
   "devDependencies": {

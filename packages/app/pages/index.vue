@@ -128,9 +128,10 @@ function handleProjectDeleted() {
 }
 
 .page-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 /* Project grid */
@@ -154,24 +155,25 @@ function handleProjectDeleted() {
   padding: var(--space-4) var(--space-5);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
 }
 
 .skeleton-line {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   background: var(--color-bg-inset);
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 .skeleton-name {
-  height: 18px;
-  width: 60%;
+  height: 20px;
+  width: 55%;
 }
 
 .skeleton-status {
-  height: 14px;
-  width: 30%;
+  height: 12px;
+  width: 25%;
 }
 
 @keyframes skeleton-pulse {
@@ -191,8 +193,9 @@ function handleProjectDeleted() {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-8) var(--space-4);
-  border: 1px dashed var(--color-danger);
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
+  background: var(--color-danger-tint);
   text-align: center;
 }
 
@@ -235,10 +238,10 @@ function handleProjectDeleted() {
 }
 
 .empty-icon {
-  width: 56px;
-  height: 56px;
-  color: var(--color-text-muted);
-  opacity: 0.5;
+  width: 64px;
+  height: 64px;
+  color: var(--color-accent);
+  opacity: 0.4;
 }
 
 .empty-icon svg {

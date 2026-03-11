@@ -293,15 +293,16 @@ async function removeAgeKey() {
 }
 
 .page-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .section-title {
@@ -392,8 +393,8 @@ async function removeAgeKey() {
 
 .status-dot {
   display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
 }
 
@@ -507,18 +508,20 @@ async function removeAgeKey() {
   width: 100%;
   min-height: var(--touch-min);
   background: transparent;
-  border: 1px solid var(--color-danger);
+  border: 1px solid var(--color-border);
   color: var(--color-danger);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  cursor: pointer;
   transition:
     background var(--transition-fast),
-    color var(--transition-fast);
+    border-color var(--transition-fast);
 }
 
 .btn-logout:hover {
   background: var(--color-danger-tint);
+  border-color: var(--color-danger);
 }
 </style>

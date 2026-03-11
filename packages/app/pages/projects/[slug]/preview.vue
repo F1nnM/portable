@@ -125,8 +125,10 @@ function openInNewTab() {
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   min-height: var(--touch-min);
+  z-index: 1;
 }
 
 .preview-label {

@@ -304,7 +304,7 @@ function goToDashboard() {
 /* Progress bar */
 .progress-bar {
   width: 100%;
-  height: 4px;
+  height: 6px;
   background: var(--color-bg-inset);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -331,9 +331,10 @@ function goToDashboard() {
 }
 
 .step-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .step-description {
@@ -349,7 +350,12 @@ function goToDashboard() {
 }
 
 .done-icon {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.done-icon svg {
+  width: 56px;
+  height: 56px;
 }
 
 /* Step actions */
@@ -357,6 +363,8 @@ function goToDashboard() {
   display: flex;
   gap: var(--space-3);
   justify-content: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
 }
 
 /* Option groups */

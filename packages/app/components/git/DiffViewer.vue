@@ -169,6 +169,9 @@ function handleViewFile() {
   cursor: pointer;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
 }
 
 .btn-back:hover {
@@ -185,6 +188,7 @@ function handleViewFile() {
   flex: 1;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
@@ -193,18 +197,22 @@ function handleViewFile() {
 
 .btn-view-file {
   padding: var(--space-1) var(--space-3);
+  font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   color: var(--color-accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
   min-height: 32px;
+  background: var(--color-accent-tint);
+  border: none;
 }
 
 .btn-view-file:hover {
-  background: var(--color-accent-tint);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 /* Diff content */
@@ -214,14 +222,16 @@ function handleViewFile() {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  background: var(--color-bg-surface);
 }
 
 .diff-line {
   display: flex;
   white-space: pre;
-  min-height: 22px;
+  min-height: 24px;
+  align-items: stretch;
 }
 
 .diff-line-added {
@@ -239,7 +249,8 @@ function handleViewFile() {
 .diff-hunk-header {
   background: var(--color-bg-inset);
   color: var(--color-text-muted);
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
   font-style: italic;
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
@@ -250,13 +261,15 @@ function handleViewFile() {
 }
 
 .diff-gutter {
-  display: inline-block;
-  width: 48px;
-  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 44px;
   padding-right: var(--space-2);
   color: var(--color-text-muted);
   flex-shrink: 0;
   user-select: none;
+  font-size: var(--font-size-xs);
 }
 
 .diff-gutter-old {
@@ -264,11 +277,13 @@ function handleViewFile() {
 }
 
 .diff-sign {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
-  text-align: center;
   flex-shrink: 0;
   user-select: none;
+  font-weight: var(--font-weight-bold);
 }
 
 .diff-line-added .diff-sign {
@@ -282,5 +297,7 @@ function handleViewFile() {
 .diff-text {
   flex: 1;
   padding-left: var(--space-1);
+  display: inline-flex;
+  align-items: center;
 }
 </style>

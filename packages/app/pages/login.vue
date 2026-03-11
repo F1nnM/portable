@@ -72,7 +72,7 @@ onMounted(() => {
   width: 600px;
   height: 600px;
   background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
-  opacity: 0.05;
+  opacity: 0.08;
   border-radius: 50%;
   filter: blur(80px);
   animation: drift 18s ease-in-out infinite;
@@ -106,9 +106,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-7);
   background: var(--color-bg-surface);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   padding: var(--space-7) var(--space-6);
   box-shadow: var(--shadow-elevated);
 }
@@ -119,21 +120,23 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .brand-name {
   font-family: var(--font-sans);
-  font-size: var(--font-size-2xl);
+  font-size: 2rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .brand-tagline {
   font-family: var(--font-sans);
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
 }
 
 /* Error message */
@@ -154,30 +157,35 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
-  min-height: var(--touch-min);
+  min-height: 52px;
   padding: var(--space-3) var(--space-5);
   background: var(--color-accent);
   color: var(--color-accent-text);
   font-family: var(--font-sans);
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-base);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   text-decoration: none;
+  box-shadow: 0 2px 8px rgba(217, 122, 62, 0.25);
   transition:
     background var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .btn-github:hover {
   background: var(--color-accent-hover);
   color: var(--color-accent-text);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(217, 122, 62, 0.35);
 }
 
 .btn-github:active {
   background: var(--color-accent-active);
-  transform: scale(0.98);
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(217, 122, 62, 0.2);
 }
 
 .github-icon {

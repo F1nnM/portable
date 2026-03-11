@@ -355,9 +355,10 @@ onMounted(() => {
 }
 
 .page-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 /* Tabs */
@@ -486,26 +487,30 @@ onMounted(() => {
 .scaffold-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   text-align: left;
   min-height: var(--touch-min);
   cursor: pointer;
+  box-shadow: var(--shadow-card);
   transition:
     border-color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .scaffold-card:hover {
   border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-elevated);
 }
 
 .scaffold-card.selected {
   border-color: var(--color-accent);
   background: var(--color-accent-tint);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .scaffold-name {
@@ -579,11 +584,12 @@ onMounted(() => {
 
 /* Create button */
 .btn-create {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--touch-min);
+  width: 100%;
+  min-height: 52px;
   padding: var(--space-3) var(--space-5);
   background: var(--color-accent);
   color: var(--color-accent-text);
@@ -591,25 +597,31 @@ onMounted(() => {
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-base);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(217, 122, 62, 0.2);
   transition:
     background var(--transition-fast),
     opacity var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .btn-create:hover:not(:disabled) {
   background: var(--color-accent-hover);
+  box-shadow: 0 4px 16px rgba(217, 122, 62, 0.3);
+  transform: translateY(-1px);
 }
 
 .btn-create:active:not(:disabled) {
   transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(217, 122, 62, 0.15);
 }
 
 .btn-create:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-spinner {
@@ -628,16 +640,20 @@ onMounted(() => {
   gap: var(--space-1);
   max-height: 400px;
   overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
 }
 
 .repo-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   text-align: left;
   cursor: pointer;
   transition:
@@ -647,6 +663,7 @@ onMounted(() => {
 
 .repo-card:hover {
   border-color: var(--color-border-strong);
+  background: var(--color-bg-elevated);
 }
 
 .repo-card.selected {

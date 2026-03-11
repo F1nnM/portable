@@ -52,6 +52,23 @@ function getFileName(name: string): string {
   if (dotIdx === -1) return name;
   return name.slice(0, dotIdx);
 }
+
+function getFileIconClass(name: string): string {
+  const ext = getFileExtension(name).slice(1).toLowerCase();
+  const map: Record<string, string> = {
+    ts: "icon-ts",
+    tsx: "icon-ts",
+    js: "icon-js",
+    jsx: "icon-js",
+    vue: "icon-vue",
+    json: "icon-json",
+    css: "icon-css",
+    scss: "icon-css",
+    md: "icon-md",
+    html: "icon-html",
+  };
+  return map[ext] ?? "";
+}
 </script>
 
 <template>
@@ -118,6 +135,7 @@ function getFileName(name: string): string {
 
         <svg
           class="tree-icon tree-icon-file"
+          :class="getFileIconClass(node.name)"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -131,7 +149,9 @@ function getFileName(name: string): string {
 
         <span class="tree-name">
           {{ getFileName(node.name)
-          }}<span class="tree-ext">{{ getFileExtension(node.name) }}</span>
+          }}<span class="tree-ext" :class="`tree-ext-${getFileExtension(node.name).slice(1)}`">{{
+            getFileExtension(node.name)
+          }}</span>
         </span>
       </div>
     </template>
@@ -144,14 +164,14 @@ function getFileName(name: string): string {
 }
 
 .tree-root {
-  padding: var(--space-2) 0;
+  padding: var(--space-1) 0;
 }
 
 .tree-item-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--touch-min);
+  min-height: 40px;
   padding-right: var(--space-4);
   cursor: pointer;
   position: relative;
@@ -162,6 +182,10 @@ function getFileName(name: string): string {
   background: var(--color-bg-inset);
 }
 
+.tree-item-row:active {
+  background: var(--color-accent-tint);
+}
+
 /* Indent guides */
 .indent-guide {
   position: absolute;
@@ -169,6 +193,7 @@ function getFileName(name: string): string {
   bottom: 0;
   width: 1px;
   background: var(--color-border);
+  opacity: 0.6;
 }
 
 /* Chevron */
@@ -177,7 +202,7 @@ function getFileName(name: string): string {
   height: 14px;
   flex-shrink: 0;
   color: var(--color-text-muted);
-  transition: transform var(--transition-base);
+  transition: transform var(--transition-fast);
 }
 
 .tree-chevron.expanded {
@@ -186,14 +211,13 @@ function getFileName(name: string): string {
 
 /* Icons */
 .tree-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
 .tree-icon-dir {
   color: var(--color-accent);
-  opacity: 0.8;
 }
 
 .tree-icon-file {
@@ -208,9 +232,45 @@ function getFileName(name: string): string {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: var(--line-height-tight);
+}
+
+.tree-directory .tree-name {
+  font-weight: var(--font-weight-medium);
 }
 
 .tree-ext {
   color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+}
+
+/* File type icon colors */
+.icon-ts {
+  color: #3178c6;
+}
+
+.icon-js {
+  color: #f0db4f;
+}
+
+.icon-vue {
+  color: #42b883;
+}
+
+.icon-json {
+  color: var(--color-warning);
+}
+
+.icon-css {
+  color: #a855f7;
+}
+
+.icon-md {
+  color: var(--color-text-secondary);
+}
+
+.icon-html {
+  color: #e34c26;
 }
 </style>

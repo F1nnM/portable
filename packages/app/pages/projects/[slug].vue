@@ -370,8 +370,8 @@ onUnmounted(() => {
 
 /* Status icons */
 .status-icon {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -379,8 +379,8 @@ onUnmounted(() => {
 }
 
 .status-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .status-icon-stopped {
@@ -396,9 +396,10 @@ onUnmounted(() => {
 /* Status text */
 .status-title {
   font-family: var(--font-sans);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .status-subtitle {
@@ -428,27 +429,37 @@ onUnmounted(() => {
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch-min);
-  padding: var(--space-2) var(--space-6);
+  padding: var(--space-3) var(--space-7);
   background: var(--color-accent);
   color: var(--color-accent-text);
   font-family: var(--font-sans);
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-base);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(217, 122, 62, 0.2);
   transition:
     background var(--transition-fast),
-    opacity var(--transition-fast);
+    opacity var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(217, 122, 62, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-primary svg {
@@ -466,6 +477,8 @@ onUnmounted(() => {
 
 .link-back:hover {
   color: var(--color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Progress checklist */
@@ -474,8 +487,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0;
   width: 100%;
-  max-width: 300px;
-  margin-top: var(--space-4);
+  max-width: 320px;
+  margin-top: var(--space-5);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-card);
 }
 
 .phase-item {
