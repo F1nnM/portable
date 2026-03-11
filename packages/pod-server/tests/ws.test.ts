@@ -49,6 +49,9 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: (...args: unknown[]) => mockQuery(...args),
 }));
 
+// Import resetAllSessions to clean up between tests
+import { resetAllSessions } from "../src/session-manager.js";
+
 interface ServerType {
   close: (cb: () => void) => void;
 }
@@ -82,6 +85,7 @@ describe("websocket bridge", () => {
     mockError = null;
     mockQuery = vi.fn().mockImplementation(() => createMockAsyncGenerator());
     vi.clearAllMocks();
+    resetAllSessions();
 
     const { app, registerWsRoute } = createApp();
     const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
@@ -108,6 +112,7 @@ describe("websocket bridge", () => {
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });
+    resetAllSessions();
   });
 
   it("accepts WebSocket upgrade on /ws", async () => {
@@ -242,20 +247,20 @@ describe("websocket bridge", () => {
     expect(activeQuery.interrupt).toHaveBeenCalledOnce();
   });
 
-  it("calls close() on disconnect to clean up the active query", async () => {
+  it("query continues after client disconnects (no close() called)", async () => {
     let resolveWait: () => void;
     const waitPromise = new Promise<void>((resolve) => {
       resolveWait = resolve;
     });
 
-    const closeFn = vi.fn().mockImplementation(() => {
-      resolveWait!();
-    });
+    const closeFn = vi.fn();
 
     mockQuery = vi.fn().mockImplementation(() => {
       let firstYielded = false;
+      let interrupted = false;
       return {
         async next() {
+          if (interrupted) return { done: true as const, value: undefined };
           if (!firstYielded) {
             firstYielded = true;
             return {
@@ -275,7 +280,10 @@ describe("websocket bridge", () => {
         [Symbol.asyncIterator]() {
           return this;
         },
-        interrupt: vi.fn(),
+        interrupt: vi.fn().mockImplementation(async () => {
+          interrupted = true;
+          resolveWait!();
+        }),
         close: closeFn,
       };
     });
@@ -297,7 +305,88 @@ describe("websocket bridge", () => {
     // Give the server a moment to react to the close event
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    expect(closeFn).toHaveBeenCalledOnce();
+    // close() should NOT have been called -- query continues in background
+    expect(closeFn).not.toHaveBeenCalled();
+
+    // Clean up the running query
+    resolveWait!();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  });
+
+  it("reconnect replays buffered events for running query", async () => {
+    let resolveWait: () => void;
+    const waitPromise = new Promise<void>((resolve) => {
+      resolveWait = resolve;
+    });
+
+    mockQuery = vi.fn().mockImplementation(() => {
+      let firstYielded = false;
+      let interrupted = false;
+      return {
+        async next() {
+          if (interrupted) return { done: true as const, value: undefined };
+          if (!firstYielded) {
+            firstYielded = true;
+            return {
+              done: false as const,
+              value: { type: "system", session_id: "replay-sess" },
+            };
+          }
+          await waitPromise;
+          return { done: true as const, value: undefined };
+        },
+        async return() {
+          return { done: true as const, value: undefined };
+        },
+        async throw(e: Error) {
+          throw e;
+        },
+        [Symbol.asyncIterator]() {
+          return this;
+        },
+        interrupt: vi.fn().mockImplementation(async () => {
+          interrupted = true;
+          resolveWait!();
+        }),
+        close: vi.fn(),
+      };
+    });
+
+    // First connection
+    ws = new WebSocket(`${serverUrl}/ws`);
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    ws.addEventListener("message", (event) => {
+      received.push(JSON.parse(event.data as string));
+    });
+
+    ws.send(JSON.stringify({ type: "user_message", content: "test" }));
+    await waitForMessages(2); // query_start + sdk_event
+
+    // Disconnect
+    ws.close();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Reconnect using the SDK session ID
+    const received2: Array<Record<string, unknown>> = [];
+    const ws2 = new WebSocket(`${serverUrl}/ws?session=replay-sess`);
+    await new Promise<void>((resolve) => ws2.addEventListener("open", () => resolve()));
+    ws2.addEventListener("message", (event) => {
+      received2.push(JSON.parse(event.data as string));
+    });
+
+    // Wait for replay messages
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Should have received replay_start, buffered events, replay_end
+    expect(received2[0]).toEqual({ type: "replay_start" });
+    expect(received2[received2.length - 1]).toEqual({ type: "replay_end" });
+    // Between replay_start and replay_end, there should be the buffered events
+    expect(received2.length).toBeGreaterThan(2);
+
+    // Clean up
+    ws2.close();
+    resolveWait!();
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   it("forwards SDK errors as error messages to the browser", async () => {
