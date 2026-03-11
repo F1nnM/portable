@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 
-const { user, hasCredential, hasAgeKey, isSetupComplete, refreshCredentialStatus } = useAuth();
+const { user, hasCredential, isSetupComplete, refreshCredentialStatus } = useAuth();
 
 const currentStep = ref(1);
 const credentialInput = ref("");

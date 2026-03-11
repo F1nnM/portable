@@ -1,4 +1,19 @@
+import type { WSContext } from "hono/ws";
+import type { WebSocket } from "ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Import after mocking
+import {
+  attachClient,
+  createSession,
+  detachClient,
+  getActiveSdkSessionIds,
+  getSession,
+  getSessionBySdkId,
+  interruptQuery,
+  resetAllSessions,
+  sendMessage,
+} from "../src/session-manager.js";
 
 // Mock the SDK before importing session-manager
 const mockInterrupt = vi.fn().mockResolvedValue(undefined);
@@ -46,19 +61,6 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: (...args: unknown[]) => mockQuery(...args),
 }));
 
-// Import after mocking
-import {
-  attachClient,
-  createSession,
-  detachClient,
-  getActiveSdkSessionIds,
-  getSession,
-  getSessionBySdkId,
-  interruptQuery,
-  resetAllSessions,
-  sendMessage,
-} from "../src/session-manager.js";
-
 // Mock WSContext
 function createMockWs() {
   const sent: string[] = [];
@@ -67,7 +69,7 @@ function createMockWs() {
       send(data: string) {
         sent.push(data);
       },
-    } as unknown as import("hono/ws").WSContext<import("ws").WebSocket>,
+    } as unknown as WSContext<WebSocket>,
     sent,
     getMessages(): Array<Record<string, unknown>> {
       return sent.map((s) => JSON.parse(s));
@@ -419,7 +421,10 @@ describe("session-manager", () => {
               await secondPromise;
               return {
                 done: false as const,
-                value: { type: "assistant", message: { content: [{ type: "text", text: "after detach" }] } },
+                value: {
+                  type: "assistant",
+                  message: { content: [{ type: "text", text: "after detach" }] },
+                },
               };
             }
             return { done: true as const, value: undefined };
@@ -456,19 +461,20 @@ describe("session-manager", () => {
       await vi.advanceTimersByTimeAsync(0);
 
       // The session should still have the events buffered
-      expect(session.currentQueryEvents.some(
-        (e) => e.type === "sdk_event" &&
-        (e as Record<string, unknown>).event &&
-        ((e as Record<string, unknown>).event as Record<string, unknown>).type === "assistant",
-      )).toBe(true);
+      expect(
+        session.currentQueryEvents.some(
+          (e) =>
+            e.type === "sdk_event" &&
+            (e as Record<string, unknown>).event &&
+            ((e as Record<string, unknown>).event as Record<string, unknown>).type === "assistant",
+        ),
+      ).toBe(true);
     });
   });
 
   describe("reconnect replay", () => {
     it("replays buffered events when a new client attaches to a running session", async () => {
-      mockMessages = [
-        { type: "system", session_id: "replay-id" },
-      ];
+      mockMessages = [{ type: "system", session_id: "replay-id" }];
 
       const session = createSession();
       const { ws: ws1 } = createMockWs();
@@ -673,7 +679,7 @@ describe("session-manager", () => {
       });
 
       const session = createSession();
-      const { ws, getMessages } = createMockWs();
+      const { ws } = createMockWs();
       attachClient(session, ws);
 
       // Start first query
