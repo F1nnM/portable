@@ -20,6 +20,7 @@ const allPhases = [
   { key: "creating_database", label: "Setting up database..." },
   { key: "creating_repository", label: "Creating repository..." },
   { key: "pushing_scaffold", label: "Scaffolding application..." },
+  { key: "preparing", label: "Launching container..." },
   { key: "initializing", label: "Initializing workspace..." },
   { key: "cloning", label: "Cloning repository..." },
   { key: "installing", label: "Installing dependencies..." },
