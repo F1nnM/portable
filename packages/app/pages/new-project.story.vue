@@ -68,9 +68,8 @@ const selectedRepo = ref<string | null>(null);
                   </svg>
                 </div>
                 <span class="scaffold-name">Nuxt + Postgres</span>
-                <span class="scaffold-description"
-                  >Full-stack Nuxt 3 with Drizzle ORM and Postgres</span
-                >
+                <!-- prettier-ignore -->
+                <span class="scaffold-description">Full-stack Nuxt 3 with Drizzle ORM and Postgres</span>
               </button>
               <button
                 class="scaffold-card"
