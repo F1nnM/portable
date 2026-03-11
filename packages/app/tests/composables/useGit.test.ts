@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 describe("useGit", () => {
   it("fetches git status from the pod proxy API", async () => {
-    const gitData = {
+    const data = {
       branch: "main",
       commits: [
         {
@@ -29,24 +29,27 @@ describe("useGit", () => {
       ],
       staged: [{ path: "src/index.ts", status: "modified" }],
       unstaged: [{ path: "README.md", status: "untracked" }],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
     };
-    mockFetch.mockResolvedValueOnce(gitData);
+    mockFetch.mockResolvedValueOnce(data);
 
-    const { branch, commits, staged, unstaged, fetchGitStatus } = useGit("my-project");
+    const { gitData, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
 
     expect(mockFetch).toHaveBeenCalledWith("/api/projects/my-project/pod/api/git");
-    expect(branch.value).toBe("main");
-    expect(commits.value).toHaveLength(1);
-    expect(commits.value[0].shortHash).toBe("abc123d");
-    expect(staged.value).toHaveLength(1);
-    expect(staged.value[0].path).toBe("src/index.ts");
-    expect(unstaged.value).toHaveLength(1);
-    expect(unstaged.value[0].status).toBe("untracked");
+    expect(gitData.value?.branch).toBe("main");
+    expect(gitData.value?.commits).toHaveLength(1);
+    expect(gitData.value?.commits[0].shortHash).toBe("abc123d");
+    expect(gitData.value?.staged).toHaveLength(1);
+    expect(gitData.value?.staged[0].path).toBe("src/index.ts");
+    expect(gitData.value?.unstaged).toHaveLength(1);
+    expect(gitData.value?.unstaged[0].status).toBe("untracked");
   });
 
   it("handles multiple commits", async () => {
-    const gitData = {
+    const data = {
       branch: "feature-branch",
       commits: [
         {
@@ -66,46 +69,49 @@ describe("useGit", () => {
       ],
       staged: [],
       unstaged: [],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
     };
-    mockFetch.mockResolvedValueOnce(gitData);
+    mockFetch.mockResolvedValueOnce(data);
 
-    const { branch, commits, fetchGitStatus } = useGit("my-project");
+    const { gitData, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
 
-    expect(branch.value).toBe("feature-branch");
-    expect(commits.value).toHaveLength(2);
-    expect(commits.value[0].message).toBe("Second commit");
-    expect(commits.value[1].message).toBe("First commit");
+    expect(gitData.value?.branch).toBe("feature-branch");
+    expect(gitData.value?.commits).toHaveLength(2);
+    expect(gitData.value?.commits[0].message).toBe("Second commit");
+    expect(gitData.value?.commits[1].message).toBe("First commit");
   });
 
   it("handles empty git status", async () => {
-    const gitData = {
+    mockFetch.mockResolvedValueOnce({
       branch: "main",
       commits: [],
       staged: [],
       unstaged: [],
-    };
-    mockFetch.mockResolvedValueOnce(gitData);
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
+    });
 
-    const { branch, commits, staged, unstaged, fetchGitStatus } = useGit("my-project");
+    const { gitData, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
 
-    expect(branch.value).toBe("main");
-    expect(commits.value).toHaveLength(0);
-    expect(staged.value).toHaveLength(0);
-    expect(unstaged.value).toHaveLength(0);
+    expect(gitData.value?.branch).toBe("main");
+    expect(gitData.value?.commits).toHaveLength(0);
+    expect(gitData.value?.staged).toHaveLength(0);
+    expect(gitData.value?.unstaged).toHaveLength(0);
   });
 
   it("handles fetch errors gracefully", async () => {
     mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-    const { branch, commits, staged, unstaged, fetchGitStatus } = useGit("my-project");
+    const { gitData, error, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
 
-    expect(branch.value).toBe("");
-    expect(commits.value).toHaveLength(0);
-    expect(staged.value).toHaveLength(0);
-    expect(unstaged.value).toHaveLength(0);
+    expect(gitData.value).toBeNull();
+    expect(error.value).toBe("Network error");
   });
 
   it("exposes loading state", async () => {
@@ -126,6 +132,9 @@ describe("useGit", () => {
       commits: [],
       staged: [],
       unstaged: [],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
     });
     await fetchPromise;
 
@@ -142,7 +151,7 @@ describe("useGit", () => {
   });
 
   it("handles multiple staged and unstaged files", async () => {
-    const gitData = {
+    mockFetch.mockResolvedValueOnce({
       branch: "main",
       commits: [],
       staged: [
@@ -154,17 +163,19 @@ describe("useGit", () => {
         { path: "new-file.ts", status: "untracked" },
         { path: "deleted.ts", status: "deleted" },
       ],
-    };
-    mockFetch.mockResolvedValueOnce(gitData);
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
+    });
 
-    const { staged, unstaged, fetchGitStatus } = useGit("my-project");
+    const { gitData, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
 
-    expect(staged.value).toHaveLength(2);
-    expect(staged.value[0].status).toBe("added");
-    expect(staged.value[1].status).toBe("modified");
-    expect(unstaged.value).toHaveLength(3);
-    expect(unstaged.value[2].status).toBe("deleted");
+    expect(gitData.value?.staged).toHaveLength(2);
+    expect(gitData.value?.staged[0].status).toBe("added");
+    expect(gitData.value?.staged[1].status).toBe("modified");
+    expect(gitData.value?.unstaged).toHaveLength(3);
+    expect(gitData.value?.unstaged[2].status).toBe("deleted");
   });
 
   it("updates state on subsequent fetches", async () => {
@@ -173,20 +184,98 @@ describe("useGit", () => {
       commits: [],
       staged: [],
       unstaged: [{ path: "file.ts", status: "modified" }],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
     });
 
-    const { unstaged, fetchGitStatus } = useGit("my-project");
+    const { gitData, fetchGitStatus } = useGit("my-project");
     await fetchGitStatus();
-    expect(unstaged.value).toHaveLength(1);
+    expect(gitData.value?.unstaged).toHaveLength(1);
 
     mockFetch.mockResolvedValueOnce({
       branch: "main",
       commits: [],
       staged: [{ path: "file.ts", status: "modified" }],
       unstaged: [],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
     });
 
     await fetchGitStatus();
-    expect(unstaged.value).toHaveLength(0);
+    expect(gitData.value?.unstaged).toHaveLength(0);
+  });
+
+  it("stages files via the API", async () => {
+    // Initial status fetch
+    mockFetch.mockResolvedValueOnce({ ok: true });
+    mockFetch.mockResolvedValueOnce({
+      branch: "main",
+      commits: [],
+      staged: [{ path: "file.ts", status: "added" }],
+      unstaged: [],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
+    });
+
+    const { stageFiles } = useGit("my-project");
+    const result = await stageFiles(["file.ts"]);
+
+    expect(result).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith("/api/projects/my-project/pod/api/git/stage", {
+      method: "POST",
+      body: { paths: ["file.ts"] },
+    });
+  });
+
+  it("commits staged changes via the API", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true });
+    mockFetch.mockResolvedValueOnce({
+      branch: "main",
+      commits: [
+        {
+          hash: "abc",
+          shortHash: "abc",
+          message: "test commit",
+          author: "Test",
+          date: "2025-01-15T10:00:00Z",
+        },
+      ],
+      staged: [],
+      unstaged: [],
+      ahead: 0,
+      behind: 0,
+      hasRemote: false,
+    });
+
+    const { commit } = useGit("my-project");
+    const result = await commit("test commit");
+
+    expect(result).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith("/api/projects/my-project/pod/api/git/commit", {
+      method: "POST",
+      body: { message: "test commit" },
+    });
+  });
+
+  it("includes remote tracking info", async () => {
+    mockFetch.mockResolvedValueOnce({
+      branch: "main",
+      commits: [],
+      staged: [],
+      unstaged: [],
+      ahead: 2,
+      behind: 1,
+      hasRemote: true,
+    });
+
+    const { gitData, fetchGitStatus } = useGit("my-project");
+    await fetchGitStatus();
+
+    expect(gitData.value?.hasRemote).toBe(true);
+    expect(gitData.value?.ahead).toBe(2);
+    expect(gitData.value?.behind).toBe(1);
   });
 });

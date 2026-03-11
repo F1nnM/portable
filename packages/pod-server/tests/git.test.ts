@@ -35,7 +35,7 @@ afterAll(() => {
 });
 
 describe("git api - GET /api/git", () => {
-  it("returns branch, commits, staged, and unstaged", async () => {
+  it("returns branch, commits, staged, unstaged, and remote info", async () => {
     const response = await app.request("/api/git");
     expect(response.status).toBe(200);
 
@@ -44,6 +44,13 @@ describe("git api - GET /api/git", () => {
     expect(body).toHaveProperty("commits");
     expect(body).toHaveProperty("staged");
     expect(body).toHaveProperty("unstaged");
+    expect(body).toHaveProperty("ahead");
+    expect(body).toHaveProperty("behind");
+    expect(body).toHaveProperty("hasRemote");
+    // Local repo has no remote
+    expect(body.hasRemote).toBe(false);
+    expect(body.ahead).toBe(0);
+    expect(body.behind).toBe(0);
   });
 
   it("returns the current branch name", async () => {
@@ -180,6 +187,175 @@ describe("git api - GET /api/git/diff/:path", () => {
 
     // Clean up
     rmSync(path.join(workspaceDir, "newfile.txt"));
+  });
+});
+
+describe("git api - POST /api/git/stage", () => {
+  it("stages specific files", async () => {
+    writeFileSync(path.join(workspaceDir, "to-stage.txt"), "stage me");
+
+    const response = await app.request("/api/git/stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: ["to-stage.txt"] }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+
+    // Verify file is staged
+    const statusRes = await app.request("/api/git");
+    const status = await statusRes.json();
+    expect(status.staged.some((f: { path: string }) => f.path === "to-stage.txt")).toBe(true);
+
+    // Clean up
+    execSync("git reset HEAD to-stage.txt", { cwd: workspaceDir });
+    rmSync(path.join(workspaceDir, "to-stage.txt"));
+  });
+
+  it("stages all files", async () => {
+    writeFileSync(path.join(workspaceDir, "a.txt"), "a");
+    writeFileSync(path.join(workspaceDir, "b.txt"), "b");
+
+    const response = await app.request("/api/git/stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    });
+    expect(response.status).toBe(200);
+
+    const statusRes = await app.request("/api/git");
+    const status = await statusRes.json();
+    expect(status.staged.some((f: { path: string }) => f.path === "a.txt")).toBe(true);
+    expect(status.staged.some((f: { path: string }) => f.path === "b.txt")).toBe(true);
+
+    // Clean up
+    execSync("git reset HEAD a.txt b.txt", { cwd: workspaceDir });
+    rmSync(path.join(workspaceDir, "a.txt"));
+    rmSync(path.join(workspaceDir, "b.txt"));
+  });
+
+  it("returns 400 with no paths or all", async () => {
+    const response = await app.request("/api/git/stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("git api - POST /api/git/unstage", () => {
+  it("unstages specific files", async () => {
+    writeFileSync(path.join(workspaceDir, "staged-file.txt"), "content");
+    execSync("git add staged-file.txt", { cwd: workspaceDir });
+
+    const response = await app.request("/api/git/unstage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: ["staged-file.txt"] }),
+    });
+    expect(response.status).toBe(200);
+
+    // Verify file is no longer staged
+    const statusRes = await app.request("/api/git");
+    const status = await statusRes.json();
+    expect(status.staged.some((f: { path: string }) => f.path === "staged-file.txt")).toBe(false);
+    expect(status.unstaged.some((f: { path: string }) => f.path === "staged-file.txt")).toBe(true);
+
+    // Clean up
+    rmSync(path.join(workspaceDir, "staged-file.txt"));
+  });
+
+  it("unstages all files", async () => {
+    writeFileSync(path.join(workspaceDir, "x.txt"), "x");
+    writeFileSync(path.join(workspaceDir, "y.txt"), "y");
+    execSync("git add x.txt y.txt", { cwd: workspaceDir });
+
+    const response = await app.request("/api/git/unstage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    });
+    expect(response.status).toBe(200);
+
+    const statusRes = await app.request("/api/git");
+    const status = await statusRes.json();
+    expect(status.staged.length).toBe(0);
+
+    // Clean up
+    rmSync(path.join(workspaceDir, "x.txt"));
+    rmSync(path.join(workspaceDir, "y.txt"));
+  });
+
+  it("returns 400 with no paths or all", async () => {
+    const response = await app.request("/api/git/unstage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("git api - POST /api/git/commit", () => {
+  it("commits staged changes", async () => {
+    writeFileSync(path.join(workspaceDir, "commit-test.txt"), "commit me");
+    execSync("git add commit-test.txt", { cwd: workspaceDir });
+
+    const response = await app.request("/api/git/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Test commit" }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+
+    // Verify commit appears in log
+    const statusRes = await app.request("/api/git");
+    const status = await statusRes.json();
+    expect(status.commits[0].message).toBe("Test commit");
+    expect(status.staged.length).toBe(0);
+  });
+
+  it("returns 400 with empty message", async () => {
+    const response = await app.request("/api/git/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "" }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 with whitespace-only message", async () => {
+    const response = await app.request("/api/git/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "   " }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 500 when nothing is staged", async () => {
+    const response = await app.request("/api/git/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Nothing to commit" }),
+    });
+    expect(response.status).toBe(500);
+  });
+});
+
+describe("git api - POST /api/git/push", () => {
+  it("returns 500 when no remote configured", async () => {
+    const response = await app.request("/api/git/push", { method: "POST" });
+    expect(response.status).toBe(500);
+  });
+});
+
+describe("git api - POST /api/git/pull", () => {
+  it("returns 500 when no remote configured", async () => {
+    const response = await app.request("/api/git/pull", { method: "POST" });
+    expect(response.status).toBe(500);
   });
 });
 

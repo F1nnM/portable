@@ -16,4 +16,7 @@ export interface GitStatus {
   commits: GitCommit[];
   staged: GitFileChange[];
   unstaged: GitFileChange[];
+  ahead: number;
+  behind: number;
+  hasRemote: boolean;
 }

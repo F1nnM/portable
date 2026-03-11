@@ -90,7 +90,30 @@ git.get("/api/git", async (c) => {
       }
     }
 
-    return c.json({ branch, commits, staged, unstaged });
+    // Get remote tracking info
+    let ahead = 0;
+    let behind = 0;
+    let hasRemote = false;
+    try {
+      const upstream = (
+        await gitExec(["rev-parse", "--abbrev-ref", `${branch}@{upstream}`], workspace)
+      ).trim();
+      if (upstream) {
+        hasRemote = true;
+        const revList = (
+          await gitExec(["rev-list", "--left-right", "--count", `${upstream}...HEAD`], workspace)
+        ).trim();
+        const parts = revList.split(/\s+/);
+        if (parts.length === 2) {
+          behind = Number.parseInt(parts[0], 10) || 0;
+          ahead = Number.parseInt(parts[1], 10) || 0;
+        }
+      }
+    } catch {
+      // No upstream configured
+    }
+
+    return c.json({ branch, commits, staged, unstaged, ahead, behind, hasRemote });
   } catch {
     return c.json({ error: "Not a git repository or git is not available" }, 500);
   }
@@ -143,6 +166,90 @@ git.get("/api/git/diff/:path{.+}", async (c) => {
     return c.json({ diff });
   } catch {
     return c.json({ error: "Failed to get diff" }, 500);
+  }
+});
+
+// Stage files
+git.post("/api/git/stage", async (c) => {
+  const workspace = getWorkspaceDir();
+  try {
+    const body = await c.req.json<{ paths?: string[]; all?: boolean }>();
+
+    if (body.all) {
+      await gitExec(["add", "-A"], workspace);
+    } else if (body.paths && body.paths.length > 0) {
+      await gitExec(["add", "--", ...body.paths], workspace);
+    } else {
+      return c.json({ error: "Provide 'paths' array or 'all: true'" }, 400);
+    }
+
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to stage files";
+    return c.json({ error: message }, 500);
+  }
+});
+
+// Unstage files
+git.post("/api/git/unstage", async (c) => {
+  const workspace = getWorkspaceDir();
+  try {
+    const body = await c.req.json<{ paths?: string[]; all?: boolean }>();
+
+    if (body.all) {
+      await gitExec(["reset", "HEAD"], workspace);
+    } else if (body.paths && body.paths.length > 0) {
+      await gitExec(["reset", "HEAD", "--", ...body.paths], workspace);
+    } else {
+      return c.json({ error: "Provide 'paths' array or 'all: true'" }, 400);
+    }
+
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to unstage files";
+    return c.json({ error: message }, 500);
+  }
+});
+
+// Commit staged changes
+git.post("/api/git/commit", async (c) => {
+  const workspace = getWorkspaceDir();
+  try {
+    const body = await c.req.json<{ message: string }>();
+
+    if (!body.message || !body.message.trim()) {
+      return c.json({ error: "Commit message is required" }, 400);
+    }
+
+    await gitExec(["commit", "-m", body.message.trim()], workspace);
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to commit";
+    return c.json({ error: message }, 500);
+  }
+});
+
+// Push to remote
+git.post("/api/git/push", async (c) => {
+  const workspace = getWorkspaceDir();
+  try {
+    await gitExec(["push"], workspace);
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to push";
+    return c.json({ error: message }, 500);
+  }
+});
+
+// Pull from remote
+git.post("/api/git/pull", async (c) => {
+  const workspace = getWorkspaceDir();
+  try {
+    await gitExec(["pull"], workspace);
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to pull";
+    return c.json({ error: message }, 500);
   }
 });
 
