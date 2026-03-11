@@ -23,6 +23,12 @@ export interface ChatMessage {
   resultMeta?: ResultMeta;
 }
 
+export interface ActiveTool {
+  id: string;
+  name: string;
+  elapsed: number;
+}
+
 export interface ChatSession {
   sessionId: string;
   title: string;

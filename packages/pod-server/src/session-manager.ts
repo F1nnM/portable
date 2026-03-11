@@ -175,8 +175,9 @@ export function attachClient(session: BackgroundSession, ws: WSContext<NodeWebSo
 
   session.clients.add(ws);
 
-  // Replay buffered events if there are any
-  if (session.currentQueryEvents.length > 0) {
+  // Replay buffered events only if a query is currently running
+  // (completed query results are already available via the REST API)
+  if (session.isRunning && session.currentQueryEvents.length > 0) {
     sendJson(ws, { type: "replay_start" });
     for (const event of session.currentQueryEvents) {
       sendJson(ws, event);

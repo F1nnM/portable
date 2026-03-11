@@ -6,18 +6,32 @@ const slug = computed(() => route.params.slug as string);
 
 // State: session list vs active chat
 const activeSessionId = ref<string | null>(null);
-const messages = ref<ChatMessage[]>([]);
-const isStreaming = ref(false);
 const sessions = ref<ChatSession[]>([]);
 const activeSessions = ref<string[]>([]);
 const sessionsLoading = ref(true);
 
-// WebSocket connection state
-const ws = ref<WebSocket | null>(null);
-const wsConnected = ref(false);
+// WebSocket composable
+const {
+  messages,
+  isStreaming,
+  sessionId: wsSessionId,
+  connect: wsConnect,
+  disconnect: wsDisconnect,
+  send: wsSend,
+  interrupt: wsInterrupt,
+  resetMessages,
+} = useWebSocket(slug.value);
 
 // Scroll container ref
 const messagesContainer = ref<HTMLElement | null>(null);
+
+// Show streaming indicator when streaming but no assistant content yet
+const showStreamingIndicator = computed(() => {
+  if (!isStreaming.value) return false;
+  const last = messages.value[messages.value.length - 1];
+  if (!last || last.role !== "assistant") return true;
+  return !last.content && !last.thinking?.length && !last.toolUse?.length;
+});
 
 // Build the proxy base URL for pod API calls
 function podApiUrl(path: string): string {
@@ -47,15 +61,45 @@ async function fetchActiveSessions() {
   }
 }
 
+// Merge consecutive assistant messages into one (matches live streaming behavior)
+function mergeAssistantMessages(msgs: ChatMessage[]): ChatMessage[] {
+  const result: ChatMessage[] = [];
+  for (const msg of msgs) {
+    // Filter out synthetic user messages (tool results with no text)
+    if (msg.role === "user" && !msg.content) continue;
+
+    const prev = result[result.length - 1];
+    if (msg.role === "assistant" && prev?.role === "assistant") {
+      // Merge into previous: accumulate tools, keep latest text, keep first thinking
+      if (msg.toolUse) {
+        if (!prev.toolUse) prev.toolUse = [];
+        prev.toolUse.push(...msg.toolUse);
+      }
+      if (msg.content) {
+        prev.content = msg.content;
+      }
+      if (msg.thinking && !prev.thinking?.length) {
+        prev.thinking = msg.thinking;
+      }
+      if (msg.resultMeta) {
+        prev.resultMeta = msg.resultMeta;
+      }
+    } else {
+      result.push({ ...msg });
+    }
+  }
+  return result;
+}
+
 // Load messages for a session
-async function loadSessionMessages(sessionId: string) {
+async function loadSessionMessages(sessionId: string): Promise<ChatMessage[]> {
   try {
     const data = await $fetch<{ messages: ChatMessage[] }>(
       podApiUrl(`/api/sessions/${sessionId}/messages`),
     );
-    messages.value = data.messages || [];
+    return mergeAssistantMessages(data.messages || []);
   } catch {
-    messages.value = [];
+    return [];
   }
 }
 
@@ -69,112 +113,6 @@ async function deleteSession(sessionId: string) {
   }
 }
 
-// Connect WebSocket
-function connectWs(sessionId?: string) {
-  disconnectWs();
-
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const baseUrl = `${protocol}//${window.location.host}`;
-  const wsPath = sessionId
-    ? `${podApiUrl("/ws")}?session=${encodeURIComponent(sessionId)}`
-    : podApiUrl("/ws");
-
-  const socket = new WebSocket(`${baseUrl}${wsPath}`);
-
-  socket.onopen = () => {
-    wsConnected.value = true;
-  };
-
-  socket.onclose = () => {
-    wsConnected.value = false;
-  };
-
-  socket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      handleWsMessage(data);
-    } catch {
-      // Invalid JSON
-    }
-  };
-
-  ws.value = socket;
-}
-
-function disconnectWs() {
-  if (ws.value) {
-    ws.value.close();
-    ws.value = null;
-    wsConnected.value = false;
-  }
-}
-
-interface WsMessage {
-  type: string;
-  event?: {
-    type: string;
-    delta?: { text?: string };
-    content?: Array<{ type: string; text?: string; name?: string; input?: unknown }>;
-  };
-  sessionId?: string;
-  message?: string;
-}
-
-// Handle incoming WebSocket messages
-function handleWsMessage(data: WsMessage) {
-  switch (data.type) {
-    case "query_start":
-      isStreaming.value = true;
-      // Add empty assistant message placeholder
-      messages.value.push({ role: "assistant", content: "" });
-      break;
-
-    case "sdk_event":
-      handleSdkEvent(data.event);
-      break;
-
-    case "query_end":
-      isStreaming.value = false;
-      break;
-
-    case "session_info":
-      if (data.sessionId) {
-        activeSessionId.value = data.sessionId;
-      }
-      break;
-
-    case "error":
-      isStreaming.value = false;
-      break;
-  }
-}
-
-function handleSdkEvent(event: WsMessage["event"]) {
-  if (!event) return;
-
-  const lastMsg = messages.value[messages.value.length - 1];
-  if (!lastMsg || lastMsg.role !== "assistant") return;
-
-  // Handle text delta events
-  if (event.type === "assistant" && event.delta?.text) {
-    lastMsg.content += event.delta.text;
-    scrollToBottom();
-  }
-
-  // Handle content block with tool use
-  if (event.type === "assistant" && event.content) {
-    for (const block of event.content) {
-      if (block.type === "tool_use" && block.name) {
-        if (!lastMsg.toolUse) lastMsg.toolUse = [];
-        lastMsg.toolUse.push({
-          name: block.name,
-          input: typeof block.input === "string" ? block.input : JSON.stringify(block.input),
-        });
-      }
-    }
-  }
-}
-
 function scrollToBottom() {
   nextTick(() => {
     const container = messagesContainer.value;
@@ -184,43 +122,53 @@ function scrollToBottom() {
   });
 }
 
-// Send a message
-function sendMessage(content: string) {
-  if (!ws.value || ws.value.readyState !== WebSocket.OPEN) return;
+// Auto-scroll on new messages
+watch(
+  () => messages.value.length,
+  () => scrollToBottom(),
+);
 
-  messages.value.push({ role: "user", content });
-  scrollToBottom();
+// Auto-scroll during streaming as content updates
+watch(
+  () => messages.value[messages.value.length - 1]?.content,
+  () => {
+    if (isStreaming.value) scrollToBottom();
+  },
+);
 
-  ws.value.send(JSON.stringify({ type: "user_message", content }));
-}
-
-// Interrupt current query
-function interruptQuery() {
-  if (!ws.value || ws.value.readyState !== WebSocket.OPEN) return;
-  ws.value.send(JSON.stringify({ type: "interrupt" }));
-}
+// Update activeSessionId when server assigns a session ID
+watch(wsSessionId, (newId) => {
+  if (newId && activeSessionId.value === "new") {
+    activeSessionId.value = newId;
+  }
+});
 
 // Select a session from the list
 async function selectSession(sessionId: string) {
   activeSessionId.value = sessionId;
-  await loadSessionMessages(sessionId);
-  connectWs(sessionId);
+  const loadedMessages = await loadSessionMessages(sessionId);
+  wsConnect(sessionId, loadedMessages);
   scrollToBottom();
 }
 
 // Start a new conversation
 function startNewSession() {
   activeSessionId.value = "new";
-  messages.value = [];
-  connectWs();
+  resetMessages();
+  wsConnect();
+}
+
+// Send a message
+function sendMessage(content: string) {
+  wsSend(content);
+  scrollToBottom();
 }
 
 // Go back to session list
 function goBack() {
-  disconnectWs();
+  wsDisconnect();
+  resetMessages();
   activeSessionId.value = null;
-  messages.value = [];
-  isStreaming.value = false;
   fetchSessions();
   fetchActiveSessions();
 }
@@ -232,7 +180,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  disconnectWs();
+  wsDisconnect();
 });
 </script>
 
@@ -281,13 +229,15 @@ onUnmounted(() => {
             <p class="chat-empty-text">Send a message to start the conversation.</p>
           </div>
 
-          <ChatMessage v-for="(msg, idx) in messages" :key="idx" :message="msg" />
+          <ChatMessage
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            :message="msg"
+            :is-active="isStreaming && idx === messages.length - 1"
+          />
 
           <!-- Streaming indicator -->
-          <div
-            v-if="isStreaming && messages[messages.length - 1]?.content === ''"
-            class="streaming-indicator"
-          >
+          <div v-if="showStreamingIndicator" class="streaming-indicator">
             <span class="streaming-dot" />
             <span class="streaming-dot" />
             <span class="streaming-dot" />
@@ -295,7 +245,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Input area -->
-        <ChatInput :is-streaming="isStreaming" @send="sendMessage" @interrupt="interruptQuery" />
+        <ChatInput :is-streaming="isStreaming" @send="sendMessage" @interrupt="wsInterrupt" />
       </div>
     </template>
   </div>

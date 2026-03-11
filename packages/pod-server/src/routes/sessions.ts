@@ -95,9 +95,14 @@ sessions.get("/api/sessions/:id/messages", async (c) => {
         .filter((b) => b.type === "thinking")
         .map((b) => ({ content: b.thinking || "" }));
 
+      const content = typeof msg.content === "string" ? msg.content : text;
+
+      // Skip synthetic user messages (tool results) that have no actual text
+      if (m.type === "user" && !content) return null;
+
       const result: Record<string, unknown> = {
         role: m.type,
-        content: typeof msg.content === "string" ? msg.content : text,
+        content,
       };
 
       if (toolUse.length > 0) {
@@ -109,7 +114,8 @@ sessions.get("/api/sessions/:id/messages", async (c) => {
       }
 
       return result;
-    });
+    })
+    .filter(Boolean);
 
   return c.json({ messages });
 });

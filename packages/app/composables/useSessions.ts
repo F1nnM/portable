@@ -1,4 +1,4 @@
-import type { ChatMessage } from "./useWebSocket";
+import type { ChatMessage } from "~/types/chat";
 
 export interface Session {
   sessionId: string;

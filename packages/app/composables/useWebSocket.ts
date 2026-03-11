@@ -1,32 +1,4 @@
-export interface ThinkingEntry {
-  content: string;
-}
-
-export interface ToolUseEntry {
-  name: string;
-  input: string;
-}
-
-export interface ResultMeta {
-  costUsd: number;
-  durationMs: number;
-  numTurns: number;
-  isError: boolean;
-}
-
-export interface ActiveTool {
-  id: string;
-  name: string;
-  elapsed: number;
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  toolUse?: ToolUseEntry[];
-  thinking?: ThinkingEntry[];
-  resultMeta?: ResultMeta;
-}
+import type { ActiveTool, ChatMessage } from "~/types/chat";
 
 interface StreamState {
   currentBlockType: string | null;
@@ -153,30 +125,25 @@ export function useWebSocket(slug: string) {
     const msg = getOrCreateAssistantMessage();
 
     const textBlocks = content.filter((b) => b.type === "text");
-    const toolUseBlocks = content.filter((b) => b.type === "tool_use");
     const thinkingBlocks = content.filter((b) => b.type === "thinking");
 
-    // Set text from text blocks
+    // Set text from text blocks (takes latest turn's text)
     const text = textBlocks.map((b) => b.text as string).join("");
     if (text) {
       msg.content = text;
       streamState.pendingText = text;
     }
 
-    // Set tool use
-    if (toolUseBlocks.length > 0) {
-      msg.toolUse = toolUseBlocks.map((b) => ({
-        name: b.name as string,
-        input: JSON.stringify(b.input, null, 2),
-      }));
-    }
-
-    // Set thinking
-    if (thinkingBlocks.length > 0) {
+    // Set thinking only if not already set (keep first turn's thinking)
+    if (thinkingBlocks.length > 0 && !msg.thinking?.length) {
       msg.thinking = thinkingBlocks.map((b) => ({
         content: (b.thinking as string) || "",
       }));
     }
+
+    // Tool uses are accumulated by stream events (content_block_stop).
+    // Don't overwrite here -- the full assistant message per-turn would
+    // clobber tool uses from previous turns.
   }
 
   function processResultMessage(event: Record<string, unknown>) {
@@ -240,6 +207,18 @@ export function useWebSocket(slug: string) {
           processResultMessage(event);
         } else if (event.type === "tool_progress") {
           processToolProgress(event);
+        } else if (event.type === "user") {
+          // Turn boundary: synthetic user message with tool results
+          // Reset text/block state but keep the same message so tool uses accumulate
+          streamState.pendingText = "";
+          streamState.pendingThinking = "";
+          streamState.pendingToolName = "";
+          streamState.pendingToolId = "";
+          streamState.pendingToolInput = "";
+          streamState.currentBlockType = null;
+          streamState.currentBlockIndex = -1;
+          // hasCreatedAssistantMessage stays true -- same message across turns
+          activeTools.value = [];
         }
         break;
       }
@@ -254,7 +233,6 @@ export function useWebSocket(slug: string) {
 
       case "replay_start":
       case "replay_end":
-        // No-ops -- replayed events within are processed identically
         break;
     }
   }
@@ -288,13 +266,12 @@ export function useWebSocket(slug: string) {
 
   function connect(sid?: string | null, initialMessages?: ChatMessage[]) {
     shouldReconnect = true;
+    streamState = createStreamState();
+    sessionId.value = sid ?? null;
     if (initialMessages) {
       messages.value = [...initialMessages];
     }
     createConnection(sid);
-    if (sid) {
-      sessionId.value = sid;
-    }
   }
 
   function disconnect() {
@@ -309,6 +286,7 @@ export function useWebSocket(slug: string) {
       ws = null;
     }
     isConnected.value = false;
+    isStreaming.value = false;
   }
 
   function send(content: string) {
