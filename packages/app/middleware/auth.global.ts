@@ -1,23 +1,36 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  // Skip auth check for API routes and auth routes (handled server-side)
-  if (to.path.startsWith("/api/") || to.path.startsWith("/auth/")) {
-    return;
-  }
+  // Skip middleware for server API routes and auth callbacks
+  if (to.path.startsWith("/api/") || to.path.startsWith("/auth/")) return;
 
-  const { user, refresh } = useAuth();
+  const { user, isAuthenticated, isSetupComplete, refresh, refreshCredentialStatus } = useAuth();
 
-  // On first load (SSR or client hydration), fetch the auth state
-  if (user.value === null) {
+  // On first load, fetch auth state
+  if (user.value === null && !isAuthenticated.value) {
     await refresh();
   }
 
-  const isPublicRoute = to.path === "/login";
+  const publicRoutes = ["/login"];
+  const isPublic = publicRoutes.includes(to.path);
 
-  if (!user.value && !isPublicRoute) {
+  // Unauthenticated: redirect to login
+  if (!isAuthenticated.value && !isPublic) {
     return navigateTo("/login");
   }
 
-  if (user.value && isPublicRoute) {
+  // Authenticated on login page: redirect to dashboard
+  if (isAuthenticated.value && to.path === "/login") {
     return navigateTo("/");
+  }
+
+  // If authenticated, check credential status for onboarding gating
+  if (isAuthenticated.value && to.path !== "/onboarding") {
+    // Lazy-load credential status if not yet fetched
+    const { hasCredential, hasAgeKey } = useAuth();
+    if (hasCredential.value === null || hasAgeKey.value === null) {
+      await refreshCredentialStatus();
+    }
+    if (!isSetupComplete.value) {
+      return navigateTo("/onboarding");
+    }
   }
 });
