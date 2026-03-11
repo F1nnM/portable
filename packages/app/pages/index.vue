@@ -53,7 +53,6 @@ function handleProjectStarting(projectId: string) {
   if (idx !== -1) {
     projects.value[idx] = { ...projects.value[idx], status: "starting" };
   }
-  // isAnyTransitioning watcher will start polling automatically
 }
 
 function handleProjectUpdated() {
@@ -68,29 +67,15 @@ function handleProjectDeleted() {
 <template>
   <div class="dashboard">
     <div class="page-header">
-      <div class="header-top">
-        <h1 class="page-title">Projects</h1>
-        <NuxtLink to="/new" class="btn-new">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            width="18"
-            height="18"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New Project
-        </NuxtLink>
-      </div>
+      <h1 class="page-title">Projects</h1>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner" />
-      <span class="loading-text">Loading projects...</span>
+    <!-- Loading state with skeleton cards -->
+    <div v-if="loading" class="project-grid">
+      <div v-for="n in 3" :key="n" class="skeleton-card">
+        <div class="skeleton-line skeleton-name" />
+        <div class="skeleton-line skeleton-status" />
+      </div>
     </div>
 
     <!-- Error state -->
@@ -104,14 +89,15 @@ function handleProjectDeleted() {
     <!-- Empty state -->
     <div v-else-if="projects.length === 0" class="empty-state">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="3" />
-          <line x1="12" y1="8" x2="12" y2="16" />
-          <line x1="8" y1="12" x2="16" y2="12" />
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="6" y="6" width="36" height="36" rx="6" />
+          <line x1="24" y1="16" x2="24" y2="32" />
+          <line x1="16" y1="24" x2="32" y2="24" />
         </svg>
       </div>
-      <p class="empty-text">No projects yet</p>
-      <NuxtLink to="/new" class="btn-primary"> Create your first project </NuxtLink>
+      <p class="empty-title">No projects yet</p>
+      <p class="empty-description">Create your first project to get started with Claude Code.</p>
+      <NuxtLink to="/projects/new" class="btn-primary">Create your first project</NuxtLink>
     </div>
 
     <!-- Project list -->
@@ -137,81 +123,65 @@ function handleProjectDeleted() {
 
 .page-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.header-top {
-  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
 }
 
 .page-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
 }
 
-.btn-new {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  min-height: var(--touch-min);
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-accent);
-  color: #ffffff;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition:
-    background var(--transition-fast),
-    transform var(--transition-fast);
+/* Project grid */
+.project-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
 }
 
-.btn-new:hover {
-  background: var(--color-accent-hover);
-  color: #ffffff;
-}
-
-.btn-new svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* Loading state */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-8) var(--space-4);
-}
-
-.loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@media (min-width: 720px) {
+  .project-grid {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   }
 }
 
-.loading-text {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
+/* Skeleton loading cards */
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.skeleton-line {
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-name {
+  height: 18px;
+  width: 60%;
+}
+
+.skeleton-status {
+  height: 14px;
+  width: 30%;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* Error state */
@@ -228,7 +198,7 @@ function handleProjectDeleted() {
 
 .error-text {
   color: var(--color-danger);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 .btn-retry {
@@ -240,8 +210,8 @@ function handleProjectDeleted() {
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   transition:
@@ -261,15 +231,14 @@ function handleProjectDeleted() {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-8) var(--space-4);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
   text-align: center;
 }
 
 .empty-icon {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   color: var(--color-text-muted);
+  opacity: 0.5;
 }
 
 .empty-icon svg {
@@ -277,9 +246,16 @@ function handleProjectDeleted() {
   height: 100%;
 }
 
-.empty-text {
-  color: var(--color-text-muted);
-  font-size: 0.9375rem;
+.empty-title {
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.empty-description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  max-width: 320px;
 }
 
 .btn-primary {
@@ -287,12 +263,12 @@ function handleProjectDeleted() {
   align-items: center;
   justify-content: center;
   min-height: var(--touch-min);
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-accent-text);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   border-radius: var(--radius-sm);
   text-decoration: none;
   transition:
@@ -302,19 +278,10 @@ function handleProjectDeleted() {
 
 .btn-primary:hover {
   background: var(--color-accent-hover);
-  color: #ffffff;
+  color: var(--color-accent-text);
 }
 
-/* Project grid */
-.project-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-4);
-}
-
-@media (min-width: 720px) {
-  .project-grid {
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  }
+.btn-primary:active {
+  transform: scale(0.98);
 }
 </style>
