@@ -127,11 +127,20 @@ async function createProject() {
       body.repoUrl = selectedRepo.value!.url;
     }
 
-    await $fetch<{ project: Project }>("/api/projects", {
+    const result = await $fetch<{ project: Project }>("/api/projects", {
       method: "POST",
       body,
     });
-    await navigateTo("/");
+
+    const slug = result.project.slug;
+
+    // Auto-start the project after creation
+    await $fetch(`/api/projects/${slug}/start`, { method: "POST" }).catch(() => {
+      // Start is fire-and-forget on the server, so this rarely fails.
+      // If it does, the project loading screen will show the stopped state.
+    });
+
+    await navigateTo(`/projects/${slug}`);
   } catch (err: unknown) {
     if (err && typeof err === "object" && "statusMessage" in err) {
       errorMsg.value = (err as { statusMessage: string }).statusMessage;
@@ -161,6 +170,21 @@ onMounted(() => {
 <template>
   <div class="new-project">
     <div class="page-header">
+      <NuxtLink to="/" class="back-link">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          width="20"
+          height="20"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+      </NuxtLink>
       <h1 class="page-title">New Project</h1>
     </div>
 
@@ -183,12 +207,12 @@ onMounted(() => {
       <div class="form-section">
         <label class="form-label">Template</label>
 
-        <div v-if="scaffoldsLoading" class="scaffolds-loading">
+        <div v-if="scaffoldsLoading" class="list-loading">
           <div class="loading-spinner" />
           <span class="loading-text">Loading templates...</span>
         </div>
 
-        <div v-else-if="scaffoldsError" class="scaffolds-error">
+        <div v-else-if="scaffoldsError" class="list-error">
           <p class="error-text">{{ scaffoldsError }}</p>
           <button class="btn-retry" @click="fetchScaffolds">Try again</button>
         </div>
@@ -213,12 +237,12 @@ onMounted(() => {
       <div class="form-section">
         <label class="form-label">Repository</label>
 
-        <div v-if="reposLoading" class="scaffolds-loading">
+        <div v-if="reposLoading" class="list-loading">
           <div class="loading-spinner" />
           <span class="loading-text">Loading repositories...</span>
         </div>
 
-        <div v-else-if="reposError" class="scaffolds-error">
+        <div v-else-if="reposError" class="list-error">
           <p class="error-text">{{ reposError }}</p>
           <button class="btn-retry" @click="fetchRepos">Try again</button>
         </div>
@@ -303,18 +327,69 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  max-width: 640px;
 }
 
 .page-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.back-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.back-link:hover {
+  color: var(--color-text);
+  background: var(--color-bg-inset);
 }
 
 .page-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+  min-height: var(--touch-min);
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
 /* Form sections */
@@ -326,13 +401,13 @@ onMounted(() => {
 
 .form-label {
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   color: var(--color-text);
 }
 
-/* Scaffold loading */
-.scaffolds-loading {
+/* Loading state */
+.list-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -356,12 +431,12 @@ onMounted(() => {
 }
 
 .loading-text {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
-/* Scaffold error */
-.scaffolds-error {
+/* List error */
+.list-error {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -381,8 +456,8 @@ onMounted(() => {
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   transition:
@@ -425,7 +500,7 @@ onMounted(() => {
 }
 
 .scaffold-card:hover {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
 }
 
 .scaffold-card.selected {
@@ -435,15 +510,15 @@ onMounted(() => {
 
 .scaffold-name {
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   color: var(--color-text);
 }
 
 .scaffold-description {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
 }
 
 /* Form input */
@@ -456,7 +531,7 @@ onMounted(() => {
   border-radius: var(--radius-sm);
   color: var(--color-text);
   font-family: var(--font-sans);
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   outline: none;
   transition:
     border-color var(--transition-fast),
@@ -477,7 +552,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
 }
 
 .slug-label {
@@ -494,12 +569,12 @@ onMounted(() => {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--color-danger-tint);
 }
 
 .error-text {
   color: var(--color-danger);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 /* Create button */
@@ -511,20 +586,25 @@ onMounted(() => {
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-5);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-accent-text);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     background var(--transition-fast),
-    opacity var(--transition-fast);
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .btn-create:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+
+.btn-create:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn-create:disabled {
@@ -539,37 +619,6 @@ onMounted(() => {
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-}
-
-/* Tabs */
-.tabs {
-  display: flex;
-  gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.tab {
-  padding: var(--space-2) var(--space-4);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--color-text-secondary);
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  cursor: pointer;
-  transition:
-    color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.tab:hover {
-  color: var(--color-text);
-}
-
-.tab.active {
-  color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
 }
 
 /* Repo list */
@@ -597,7 +646,7 @@ onMounted(() => {
 }
 
 .repo-card:hover {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
 }
 
 .repo-card.selected {
@@ -613,28 +662,28 @@ onMounted(() => {
 
 .repo-name {
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   color: var(--color-text);
 }
 
 .repo-badge {
-  font-size: 0.6875rem;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-xl);
   background: var(--color-bg-elevated);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
 }
 
 .repo-description {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: var(--line-height-base);
 }
 
 .repo-language {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
 }
