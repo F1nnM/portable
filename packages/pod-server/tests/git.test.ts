@@ -117,6 +117,72 @@ describe("git api - GET /api/git", () => {
   });
 });
 
+describe("git api - GET /api/git/diff/:path", () => {
+  it("returns diff for unstaged modified file", async () => {
+    writeFileSync(path.join(workspaceDir, "README.md"), "# Modified Content");
+
+    const response = await app.request("/api/git/diff/README.md");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.diff).toContain("-# Hello");
+    expect(body.diff).toContain("+# Modified Content");
+
+    // Clean up
+    execSync("git checkout -- README.md", { cwd: workspaceDir });
+  });
+
+  it("returns diff for staged file when staged=true", async () => {
+    writeFileSync(path.join(workspaceDir, "README.md"), "# Staged Change");
+    execSync("git add README.md", { cwd: workspaceDir });
+
+    const response = await app.request("/api/git/diff/README.md?staged=true");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.diff).toContain("-# Hello");
+    expect(body.diff).toContain("+# Staged Change");
+
+    // Clean up
+    execSync("git reset HEAD README.md", { cwd: workspaceDir });
+    execSync("git checkout -- README.md", { cwd: workspaceDir });
+  });
+
+  it("returns 404 when file has no changes", async () => {
+    const response = await app.request("/api/git/diff/README.md");
+    expect(response.status).toBe(404);
+
+    const body = await response.json();
+    expect(body.error).toBe("No changes for this file");
+  });
+
+  it("supports nested file paths", async () => {
+    writeFileSync(path.join(workspaceDir, "src/main.ts"), 'console.log("modified");');
+
+    const response = await app.request("/api/git/diff/src/main.ts");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.diff).toContain("main.ts");
+
+    // Clean up
+    execSync("git checkout -- src/main.ts", { cwd: workspaceDir });
+  });
+
+  it("returns diff for new untracked file using --no-index", async () => {
+    writeFileSync(path.join(workspaceDir, "newfile.txt"), "new content");
+
+    const response = await app.request("/api/git/diff/newfile.txt");
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.diff).toContain("new content");
+
+    // Clean up
+    rmSync(path.join(workspaceDir, "newfile.txt"));
+  });
+});
+
 describe("git api - non-git workspace", () => {
   let nonGitDir: string;
   let savedWorkspaceDir: string | undefined;
