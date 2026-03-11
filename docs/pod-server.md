@@ -2,7 +2,7 @@
 
 ## Overview
 
-The pod server is a lightweight Hono HTTP/WebSocket server that runs inside each project pod. It serves as the bridge between the browser-based editor UI and the project's development environment.
+The pod server is a lightweight Hono HTTP/WebSocket server that runs inside each project pod. It provides file access, session management, git operations, and a WebSocket bridge to the Claude Agent SDK. The pod server does not serve any static files -- all UI is served by the main Nuxt app and communicates with the pod through the main app's path-based pod proxy (`/api/projects/:slug/pod/*`).
 
 A single container image is used for all project pods, regardless of scaffold type. The container includes Node.js 22, Git, Python 3, make, and g++ (for native npm addons), and bun (for fast dependency installation and as the package manager/runtime).
 
@@ -15,10 +15,12 @@ A single container image is used for all project pods, regardless of scaffold ty
 |  +-------------------------+    +-------------------------+   |
 |  |  Hono Server (:3000)    |    |  Dev Server (:3001)     |   |
 |  |                         |    |  (e.g., Nuxt)           |   |
-|  |  - Static SPA (editor)  |    |                         |   |
-|  |  - File API             |    |  Managed by supervisor  |   |
-|  |  - Agent SDK WebSocket  |    |  Auto-restart on crash  |   |
-|  |  - Health check         |    +-------------------------+   |
+|  |  - File API             |    |                         |   |
+|  |  - Sessions API         |    |  Managed by supervisor  |   |
+|  |  - Git API              |    |  Auto-restart on crash  |   |
+|  |  - Agent SDK WebSocket  |    +-------------------------+   |
+|  |  - Session Manager      |                                  |
+|  |  - Health check         |                                  |
 |  +-------------------------+                                  |
 |                                                               |
 |  +-------------------------+                                  |
@@ -31,20 +33,16 @@ A single container image is used for all project pods, regardless of scaffold ty
 
 ## Ports
 
-| Port | Service     | Purpose                        |
-| ---- | ----------- | ------------------------------ |
-| 3000 | Hono server | Editor SPA, file API, Agent WS |
-| 3001 | Dev server  | Project's running application  |
+| Port | Service     | Purpose                                   |
+| ---- | ----------- | ----------------------------------------- |
+| 3000 | Hono server | File API, Sessions API, Git API, Agent WS |
+| 3001 | Dev server  | Project's running application             |
 
 ## App Factory
 
 The Hono app is created via `createApp()` in `src/app.ts`. This factory function returns the app instance and a `registerWsRoute` function. The factory pattern allows tests to create isolated app instances and enables the WebSocket upgrade helper to be injected at runtime (required because `@hono/node-ws` needs the server instance).
 
 ## Endpoints
-
-### `GET /`
-
-Serves the editor SPA. The built static files from `packages/editor` are copied into the container at `/srv/public` and served via `@hono/node-server/serve-static`. A SPA fallback route serves `index.html` for all non-API, non-file routes.
 
 ### `GET /health`
 
@@ -57,7 +55,9 @@ The HTTP server starts immediately on pod creation (before workspace setup compl
 
 ### `GET /ws`
 
-WebSocket endpoint that bridges the browser to the Claude Agent SDK.
+WebSocket endpoint that bridges the browser to the Claude Agent SDK via the session manager.
+
+**Connection URL:** `GET /ws` or `GET /ws?session=<sessionId>` to resume or reconnect to a session.
 
 **Protocol:**
 
@@ -87,18 +87,36 @@ Outbound messages (server to browser):
 ```
 
 ```json
+{ "type": "session_info", "sessionId": "..." }
+```
+
+```json
+{ "type": "replay_start" }
+```
+
+```json
+{ "type": "replay_end" }
+```
+
+```json
 { "type": "error", "message": "..." }
 ```
 
 **Implementation:**
 
-Uses the `query()` function from `@anthropic-ai/claude-agent-sdk`. Each user message starts a new query with an async `for await` loop over SDK streaming events. Events are forwarded to the browser as `sdk_event` messages.
+The WebSocket route (`src/routes/ws.ts`) is a thin bridge that delegates to the session manager (`src/session-manager.ts`). On connection open, it either reconnects to an existing background session (by SDK session ID) or creates a new one. Messages are forwarded to the session manager's `sendMessage()` and `interruptQuery()` functions. On disconnect, the client is detached but the query continues running in the background.
+
+### Session Manager
+
+`src/session-manager.ts` manages background query persistence and multi-client broadcasting.
 
 Key behaviors:
 
-- **Interrupt:** The `interrupt` message calls `query.interrupt()` on the active query.
-- **New message during active query:** If a `user_message` arrives while a query is running, the current query is interrupted and the new message is stored as a pending prompt. After the current query's loop exits, the pending prompt is automatically started as a new query.
-- **Disconnect cleanup:** On WebSocket close or error, `query.close()` is called to clean up SDK resources.
+- **Background queries:** Queries continue running even after all WebSocket clients disconnect. A 30-second cleanup timer allows clients to reconnect without losing the active query.
+- **Multi-client broadcasting:** Multiple WebSocket clients can attach to the same session. SDK events are broadcast to all connected clients simultaneously.
+- **Event buffering:** Events from the current query are buffered. When a client reconnects, it receives a replay of buffered events bracketed by `replay_start` and `replay_end` markers.
+- **Interrupt and requeue:** If a `user_message` arrives while a query is running, the current query is interrupted and the new message is queued. After the current query exits, the pending prompt is automatically started as a new query.
+- **Session lookup:** Sessions are indexed by both an internal ID and the SDK session ID, allowing reconnection by SDK session ID from the URL query parameter.
 
 SDK configuration:
 
@@ -106,6 +124,16 @@ SDK configuration:
 - `permissionMode`: `bypassPermissions` (pods are isolated and auth is handled by the main app proxy)
 - `settingSources`: `["project"]`
 - `systemPrompt`: `{ type: "preset", preset: "claude_code" }`
+
+### `GET /api/sessions/active`
+
+Returns the SDK session IDs of all sessions currently running a background query. Used by the editor to show activity indicators.
+
+**Response:**
+
+```json
+{ "activeSessionIds": ["session-uuid-1", "session-uuid-2"] }
+```
 
 ### `GET /api/files`
 
@@ -185,7 +213,7 @@ The following environment variables are available inside the pod:
 Built from `packages/pod-server/Dockerfile` using a multi-stage build:
 
 1. **deps** -- Install dependencies for the full workspace using bun
-2. **build** -- Build both `@portable/pod-server` (tsup) and `@portable/editor` (Vite)
-3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, and bun (package manager/runtime). Copies the pod-server dist, its node_modules, and the editor SPA dist into `/srv/public`
+2. **build** -- Build `@portable/pod-server` (tsup)
+3. **runtime** -- Node.js 22 Alpine with git, python3, make, g++, and bun (package manager/runtime). Copies the pod-server dist and its `package.json` into `/srv`
 
 The project workspace is mounted at `/workspace` via a PersistentVolumeClaim.

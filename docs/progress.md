@@ -378,3 +378,41 @@ Changed the Kubernetes liveness probe from HTTP (`/api/health`) to TCP socket ch
 ### 14. entrypoint.sh/entrypoint-dev.sh: setupWorkspace() properly awaited
 
 Fixed `setupWorkspace()` calls in both entrypoint scripts to be properly awaited. Previously the promise was not awaited, so the server could start before workspace setup completed.
+
+---
+
+## v2 Frontend Redesign
+
+**Status:** Complete
+
+The v2 redesign replaced the separate editor SPA (`packages/editor`) with integrated Nuxt pages in `packages/app`, introduced a new warm orange-on-stone design system, and simplified the proxy architecture.
+
+### Design System
+
+Created `packages/design-tokens` with a `tokens.css` file defining CSS custom properties for light and dark modes (with `prefers-color-scheme` fallback). The palette uses warm stone backgrounds with burnished orange (light) and amber-gold (dark) accents. Includes typography tokens (Plus Jakarta Sans, JetBrains Mono), spacing scale, border radii, transitions, and layout constants.
+
+### Editor UI Integration
+
+Moved all editor functionality from the standalone Vue SPA (`packages/editor`) into the main Nuxt app:
+
+- **Project layout** (`layouts/project.vue`): Top bar with project name, status pill, and back button. Bottom tab bar with four tabs (Chat, Files, Git, Preview).
+- **Project page** (`pages/projects/[slug].vue`): Handles project lifecycle states (loading, stopped, creating/starting with progress checklist, error) and renders child pages when running.
+- **Composables**: `useWebSocket`, `useSessions`, `useFiles`, `useGit` -- all communicate with pods through the path-based pod proxy (`/api/projects/:slug/pod/*`).
+- **Onboarding page** (`pages/onboarding.vue`): First-time setup wizard for API key and AGE key configuration.
+
+### Pod Server Changes
+
+- Removed static file serving (no longer serves the editor SPA)
+- Added `session-manager.ts` for background query persistence: queries continue running after WebSocket disconnects, with a 30-second cleanup window and event replay on reconnection
+- Added `/api/sessions/active` endpoint for checking which sessions have active queries
+- Added `/api/git/diff/:path` endpoint for file-level git diffs (supports `?staged=true`)
+- WebSocket rewritten as thin bridge delegating to session manager
+
+### Proxy Simplification
+
+- Removed editor subdomains (`<slug>--portable.example.com`) -- only preview subdomains remain
+- Removed auth relay flow (was needed for cross-subdomain session transfer to editor subdomains)
+- Removed `server/utils/relay-token.ts` and `server/routes/auth/relay`
+- Added path-based pod proxy: `server/routes/api/projects/[slug]/pod/[...path].ts` for HTTP, and WebSocket interception in `server/plugins/proxy.ts`
+- Simplified `parseSubdomain()` to only recognize preview subdomains
+- Simplified `buildProxyTarget()` to always target port 3001 (dev server)

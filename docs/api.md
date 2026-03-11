@@ -244,21 +244,26 @@ Health check endpoint.
 }
 ```
 
-## Subdomain Proxy
+## Pod Proxy
 
-In addition to the `/api/` and `/auth/` routes above, the main app handles subdomain-based reverse proxying. This is not an API endpoint but a middleware-level routing mechanism.
+The main app proxies requests to project pods through two mechanisms: path-based routing for the editor UI, and subdomain-based routing for preview access.
 
-### How it works
+### Path-Based Pod Proxy
 
-All traffic arrives at the main app through a single wildcard Ingress (`*.example.com`). A Nitro server middleware inspects the `Host` header on every request:
+`GET/PUT /api/projects/:slug/pod/*` proxies HTTP requests to the pod server at `project-<slug>.<ns>.svc.cluster.local:3000/<path>`. The catch-all route handler validates authentication, verifies project ownership and running status, then forwards the request.
+
+WebSocket connections at `/api/projects/:slug/pod/ws` are intercepted by a Nitro plugin (`server/plugins/proxy.ts`) which rewrites the URL to `/ws` and proxies via `httpxy`.
+
+### Preview Subdomain Proxy
+
+All traffic arrives at the main app through a single wildcard Ingress (`*.example.com`). A Nitro plugin inspects the `Host` header:
 
 - **Main app domain** (e.g., `portable.example.com`): Request passes through to Nuxt normally and is handled by the API/page routes documented above.
-- **Project subdomain** (e.g., `my-project--portable.example.com`): Request is authenticated, the project is looked up by slug, and the request is proxied to the pod's editor service (port 3000).
-- **Preview subdomain** (e.g., `my-project--preview--portable.example.com`): Same as above but proxied to the pod's dev server (port 3001).
+- **Preview subdomain** (e.g., `my-project--preview--portable.example.com`): Request is authenticated, the project is looked up by slug, and the request is proxied to the pod's dev server (port 3001).
 
 ### Authentication
 
-All subdomain proxy requests require a valid `portable_session` cookie. Unauthenticated requests receive a 401 response. The project must belong to the authenticated user (ownership is verified via the database).
+All proxy requests require a valid `portable_session` cookie. Unauthenticated requests receive a 401 response (or socket destruction for WebSocket). The project must belong to the authenticated user (ownership is verified via the database).
 
 ### Error responses
 
@@ -268,10 +273,6 @@ All subdomain proxy requests require a valid `portable_session` cookie. Unauthen
 | Project slug not found or not owned by user | 404    | Project not found                         |
 | Project not in `running` status             | 503    | Project is not running                    |
 
-### WebSocket proxying
-
-WebSocket upgrade requests on subdomains are handled by a separate Nitro plugin (`server/plugins/ws-proxy.ts`) which intercepts the `request` hook before the normal HTTP pipeline. The plugin manually validates the session cookie and proxies the WebSocket connection via `httpxy`. On auth or project errors, the socket is destroyed.
-
 ---
 
-Note: All API routes, auth routes, project lifecycle endpoints, and subdomain proxy are fully implemented. See `docs/progress.md` for current status.
+Note: All API routes, auth routes, project lifecycle endpoints, and proxy mechanisms are fully implemented. See `docs/progress.md` for current status.

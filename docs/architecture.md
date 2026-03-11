@@ -23,7 +23,9 @@
                     |  - GitHub OAuth               |
                     |  - Project CRUD               |
                     |  - K8s pod lifecycle           |
-                    |  - Auth-checking proxy         |
+                    |  - Editor UI (Nuxt pages)     |
+                    |  - Pod API proxy              |
+                    |  - Preview subdomain proxy    |
                     +-------------------------------+
                          |                    |
                          v                    v
@@ -31,12 +33,13 @@
               |   Postgres     |    |  Project Pod (N)  |
               |   (shared)     |    |                   |
               |                |    |  Hono server:3000 |
-              |  - users       |    |  - Editor SPA     |
-              |  - projects    |    |  - File API       |
+              |  - users       |    |  - File API       |
+              |  - projects    |    |  - Sessions API   |
               |  - sessions    |    |  - Agent WS       |
-              |  - per-project |    |                   |
-              |    databases   |    |  Dev server:3001  |
-              +----------------+    |  - Nuxt/Vite/etc  |
+              |  - per-project |    |  - Git API        |
+              |    databases   |    |                   |
+              +----------------+    |  Dev server:3001  |
+                                    |  - Nuxt/Vite/etc  |
                                     |                   |
                                     |  PVC (5Gi)        |
                                     +-------------------+
@@ -46,45 +49,49 @@
 
 ### Main App (`packages/app`)
 
-Nuxt 3 full-stack application. Serves the project management UI (dashboard, settings, new project page) and acts as the single entry point for all traffic.
+Nuxt 3 full-stack application. Serves all UI (project management, editor, onboarding) and acts as the single entry point for all traffic.
 
 Key responsibilities:
 
 - **Authentication:** GitHub OAuth via Arctic. Session cookies stored in the `sessions` table. Server middleware validates cookies on every request.
 - **Project management:** CRUD operations on projects, stored in Postgres.
+- **Editor UI:** Integrated Nuxt pages for chat, files, git, and preview. Uses composables (`useWebSocket`, `useSessions`, `useFiles`, `useGit`) that communicate with pods through the path-based pod proxy.
 - **K8s lifecycle:** Creates/deletes pods, PVCs, and headless services via `@kubernetes/client-node`. Manages the full project lifecycle (start/stop/delete) with state transitions, error rollback, and retry-safe AlreadyExists handling. See `server/utils/k8s.ts` (low-level K8s operations), `server/utils/project-db.ts` (per-project database management), and `server/utils/project-lifecycle.ts` (orchestration).
 - **GitHub integration:** Creates repos and pushes scaffold files via Octokit.
-- **Reverse proxy:** Parses the `Host` header to route subdomain traffic to the correct pod. All requests are authenticated before proxying. HTTP via `h3.proxyRequest`, WebSocket via `httpxy`.
+- **Pod API proxy:** Path-based routing (`/api/projects/:slug/pod/*`) proxies HTTP and WebSocket requests to the pod server. HTTP requests go through a catch-all route handler; WebSocket upgrades are intercepted by a Nitro plugin.
+- **Preview subdomain proxy:** Parses the `Host` header to route preview subdomain traffic (`<slug>--preview--<appLabel>.domain`) to the pod's dev server (port 3001). HTTP via `httpxy`, WebSocket via `httpxy.proxyUpgrade`.
 - **Credential encryption:** Stores GitHub tokens and Anthropic API keys encrypted with AES-256-GCM.
 - **Auto-migration:** Drizzle ORM migrations run automatically on server startup via a Nitro plugin.
 
 ### Pod Server (`packages/pod-server`)
 
-Hono HTTP/WebSocket server that runs inside each project pod. Built with `createApp()` factory in `src/app.ts`.
+Hono HTTP/WebSocket server that runs inside each project pod. Built with `createApp()` factory in `src/app.ts`. Does not serve any static files -- all UI is handled by the main Nuxt app.
 
 Endpoints:
 
-- `GET /` -- Serves the editor SPA (static files from `packages/editor` dist via `@hono/node-server/serve-static`)
 - `GET /health` -- Setup-aware readiness probe: returns 503 with `{ status: "setting_up", phase }` during setup, 200 with `{ status: "ok", phase: "ready" }` when ready
-- `GET /ws` -- WebSocket bridge between the browser and the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`)
+- `GET /ws` -- WebSocket bridge between the browser and the Claude Agent SDK, delegating to the session manager for background query persistence
 - `GET /api/files` -- File tree listing (via `fdir`, excludes `node_modules`, `.git`, and other build directories)
 - `GET /api/files/:path` -- Read file content (with path traversal protection)
 - `PUT /api/files/:path` -- Write file content (with path traversal protection, creates parent directories)
+- `GET /api/sessions` -- List conversation sessions
+- `GET /api/sessions/:id/messages` -- Retrieve messages for a session
+- `DELETE /api/sessions/:id` -- Delete a session
+- `GET /api/sessions/active` -- List SDK session IDs with active background queries
+- `GET /api/git` -- Git status (branch, commits, staged/unstaged changes)
+- `GET /api/git/diff/:path` -- File-level git diff (supports `?staged=true`)
 
 The pod server also manages:
 
+- **Session manager** (`src/session-manager.ts`): Manages background query persistence. Queries continue running after WebSocket clients disconnect, with a 30-second cleanup window. Multiple clients can attach to the same session with event replay on reconnection.
 - **Dev server supervisor** (`src/dev-server.ts`): `DevServerSupervisor` class starts the project's dev server as a child process on port 3001. Auto-restarts on crash with exponential backoff (1s to 30s cap). Backoff resets after 10 seconds of stable running. Graceful shutdown via SIGTERM.
 - **Setup phase tracking** (`src/setup-state.ts`): Tracks the current setup phase (`initializing` -> `cloning` -> `installing` -> `starting_server` -> `ready`) as module-level state. The health endpoint reads this to report progress.
 - **Workspace setup** (`src/setup.ts`): Async function that clones the project's GitHub repo into the PVC if the workspace is empty (using `GITHUB_TOKEN` for authentication), and installs dependencies via `bun install` if `node_modules` is missing. Uses spawned child processes and calls `setPhase()` before each step.
 - **Entrypoint** (`scripts/entrypoint.sh`): Exec's the Hono server directly. Workspace setup runs asynchronously within the server process, so the health endpoint is available immediately for progress polling.
 
-### Editor SPA (`packages/editor`)
+### Design Tokens (`packages/design-tokens`)
 
-Vue 3 single-page application with Vue Router, served by the pod server at the root URL. Uses a dark theme (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout. A bottom tab bar with SVG icons provides navigation between three views:
-
-- **Chat (`/chat`, default route):** Connects to the pod server's WebSocket bridge at `/ws` via the `useWebSocket` composable. Renders user and assistant messages with the `ChatMessage` component, which supports collapsible tool use blocks. The `ChatInput` component provides an auto-growing textarea with send/interrupt buttons (Enter to send, Shift+Enter for newlines). Auto-scrolls on new messages and shows a pulsing dots streaming indicator. Reconnects automatically after 2 seconds on disconnect.
-- **Files (`/files`):** Uses the `useFiles` composable to fetch the file tree from `GET /api/files` and build a nested directory structure. The `FileTree` component renders a recursive tree with expand/collapse, indent guides, and dimmed file extensions. Selecting a file opens the `CodeViewer` component -- a CodeMirror 6 editor with the One Dark theme and language detection (JavaScript, TypeScript, JSON, CSS, HTML, Vue, Markdown). Read-only by default with an edit toggle and save button that calls `PUT /api/files/:path`. Back navigation returns to the tree.
-- **Preview (`/preview`):** Full-screen iframe pointing to the preview subdomain (constructed by inserting `--preview` before the app label in `window.location.hostname`). Thin header bar with a "Preview" label, URL display, and refresh button. Loading state overlay while the iframe loads.
+CSS custom properties defining the visual design system. `tokens.css` provides a warm orange-on-stone palette with light and dark mode support (including system preference detection via `prefers-color-scheme`). Includes color tokens (backgrounds, text, borders, accent, semantic), typography (Plus Jakarta Sans, JetBrains Mono), spacing scale, border radii, transitions, and layout constants.
 
 ### Postgres
 
@@ -130,44 +137,31 @@ PVC is preserved so workspace data persists across restarts.
 
 Does NOT delete the GitHub repository (user manages this manually).
 
-## Reverse Proxy
+## Reverse Proxy and Pod Access
 
-The main app is the single gateway for all subdomain traffic. No per-pod Ingress resources are created. The proxy layer has two components:
+The main app provides two mechanisms for accessing project pods: path-based pod proxying for the editor UI, and subdomain-based proxying for preview access. No per-pod Ingress resources are created.
 
-### HTTP Proxy (Middleware)
+### Path-Based Pod Proxy
 
-`server/middleware/proxy.ts` is a Nitro server middleware that runs on every HTTP request. It inspects the `Host` header to determine whether the request is for a project subdomain. If so, it:
+The editor UI (integrated into the main Nuxt app) communicates with pods through path-based API routing:
 
-1. Uses `resolveProxyTarget()` from `server/utils/proxy.ts` to authenticate the request, look up the project, verify it is running, and build the internal K8s service URL
-2. Proxies the request via `h3.proxyRequest()`, forwarding the original path and query string
-3. Sets `x-forwarded-host` to the original Host header
+- **HTTP Proxy (Route Handler):** `server/routes/api/projects/[slug]/pod/[...path].ts` is a catch-all route that proxies HTTP requests to the pod server. It validates the session, verifies project ownership and running status, then forwards the request to `http://project-<slug>.<ns>.svc.cluster.local:3000/<path>` via `h3.proxyRequest()`.
+- **WebSocket Proxy (Plugin):** `server/plugins/proxy.ts` intercepts WebSocket upgrade requests matching `/api/projects/:slug/pod/ws`. It manually validates the session cookie, looks up the project, rewrites the URL from `/api/projects/:slug/pod/ws` to `/ws`, and proxies via `httpxy.proxyUpgrade()`.
 
-If the host matches the main app domain (no subdomain), the middleware returns early and lets Nuxt handle the request normally.
+### Preview Subdomain Proxy
 
-The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware due to Nitro's alphabetical middleware ordering, so `event.context.user` is already populated.
+Preview subdomains (`<slug>--preview--<appLabel>.domain`) route to the pod's dev server (port 3001). The same `server/plugins/proxy.ts` plugin handles this:
 
-### WebSocket Proxy (Plugin)
-
-`server/plugins/ws-proxy.ts` is a Nitro plugin that hooks into the `request` event to intercept WebSocket upgrade requests. Nitro plugins run outside the middleware chain, so this plugin manually:
-
-1. Detects WebSocket upgrade requests via the `Upgrade: websocket` header
-2. Parses the `portable_session` cookie from the raw request headers
-3. Validates the session by calling `validateSession()` directly
-4. Calls `resolveProxyTarget()` to authenticate and resolve the target
-5. Proxies the WebSocket connection via `httpxy.proxyUpgrade()`
-6. Marks the event as handled (`event._handled = true`) so Nitro does not process it further
-
-On auth or project errors, the socket is destroyed immediately.
+1. Hooks into the Nitro `request` event (fires before Vite's dev middleware)
+2. Detects preview subdomain requests via `parseSubdomain()`
+3. Validates the session cookie
+4. Resolves the proxy target via `resolveProxyTarget()`
+5. Proxies HTTP via `httpxy.web()` and WebSocket via `httpxy.proxyUpgrade()`
 
 ### Shared Utilities
 
-`server/utils/proxy.ts` contains the core proxy resolution logic shared by both the HTTP middleware and the WebSocket plugin:
-
-- `getDomainFromBaseUrl(baseUrl)` -- Extracts the hostname from `NUXT_BASE_URL`
-- `parseSubdomain(host, domain)` -- Parses the Host header into a `{ slug, type }` object (type is `"editor"` or `"preview"`)
-- `buildProxyTarget(slug, type, namespace)` -- Constructs the internal K8s service URL (`http://project-<slug>.<ns>.svc.cluster.local:<port>`)
-- `lookupProject(slug, userId)` -- Queries the database for the project, verifying ownership
-- `resolveProxyTarget(host, domain, namespace, user)` -- Orchestrates the full resolution pipeline, returning a target URL or throwing 401/404/503
+- **`server/utils/proxy-shared.ts`** -- Pure utility functions (no DB dependencies): `getDomainFromBaseUrl`, `parseSubdomain` (only recognizes preview subdomains), `buildProxyTarget` (constructs K8s URL for port 3001), `parseCookie`.
+- **`server/utils/proxy.ts`** -- DB-dependent logic: `lookupProject` (queries DB, verifies ownership), `resolveProxyTarget` (orchestrates auth + lookup + target building for preview subdomains). Returns null for main app domain requests. Throws 401/404/503 for errors.
 
 ## Data Flow
 
@@ -176,27 +170,27 @@ On auth or project errors, the socket is destroyed immediately.
 ```
 Browser -> Ingress -> Main App (Nuxt)
                          |
-                         +-> Serve dashboard/settings/new-project pages
+                         +-> Serve dashboard/settings/onboarding/editor pages
                          +-> Handle API routes (/api/projects, /api/settings, /api/auth)
                          +-> Read/write Postgres
                          +-> Manage K8s resources
 ```
 
-### User Request to Project Pod
+### Editor Request to Project Pod (Path-Based)
 
 ```
-Browser -> Ingress -> Main App (proxy middleware)
+Browser -> Ingress -> Main App (route handler / plugin)
                          |
-                         +-> Parse Host header: <slug>--portable.example.com
+                         +-> Match /api/projects/:slug/pod/* path
                          +-> Validate session cookie
-                         +-> Look up project by slug
+                         +-> Look up project by slug, verify ownership
                          +-> Proxy to pod: project-<slug>.default.svc.cluster.local:3000
 ```
 
-### User Request to Project Preview
+### User Request to Project Preview (Subdomain-Based)
 
 ```
-Browser -> Ingress -> Main App (proxy middleware)
+Browser -> Ingress -> Main App (proxy plugin)
                          |
                          +-> Parse Host header: <slug>--preview--portable.example.com
                          +-> Validate session cookie
@@ -287,15 +281,17 @@ A global Nuxt route middleware (`middleware/auth.global.ts`) uses the `useAuth()
 - Redirect authenticated users away from `/login` to `/`
 - Fetch auth state via `GET /api/auth/me` on first load
 
-## Subdomain Routing
+## Routing
 
-A single wildcard Ingress resource (`*.example.com`) sends all traffic to the main app. A Nitro server middleware inspects the `Host` header to determine what to do:
+A single wildcard Ingress resource (`*.example.com`) sends all traffic to the main app.
 
-| Host pattern                            | Action                              |
-| --------------------------------------- | ----------------------------------- |
-| `portable.example.com` (bare domain)    | Serve main app UI                   |
-| `<slug>--portable.example.com`          | Proxy to pod editor (port 3000)     |
-| `<slug>--preview--portable.example.com` | Proxy to pod dev server (port 3001) |
+| Request pattern                                 | Action                                      |
+| ----------------------------------------------- | ------------------------------------------- |
+| `portable.example.com` (bare domain)            | Serve main app UI (dashboard, editor, etc.) |
+| `portable.example.com/api/projects/:slug/pod/*` | Proxy to pod server (port 3000)             |
+| `<slug>--preview--portable.example.com`         | Proxy to pod dev server (port 3001)         |
+
+The editor UI is served as Nuxt pages from the main app domain. Pod communication uses path-based routing (`/api/projects/:slug/pod/*`) instead of subdomain routing. Only preview subdomains remain.
 
 Each project pod gets a headless Service (`clusterIP: None`) named `project-<slug>` for stable DNS resolution at `project-<slug>.<namespace>.svc.cluster.local`.
 

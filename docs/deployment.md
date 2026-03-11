@@ -16,7 +16,7 @@ Before deploying, you need to build and push both container images to your regis
 # Build the main app image
 docker build -t ghcr.io/YOUR_ORG/portable-app:0.1.0 -f packages/app/Dockerfile .
 
-# Build the pod server image (includes the editor SPA)
+# Build the pod server image
 docker build -t ghcr.io/YOUR_ORG/portable-pod-server:0.1.0 -f packages/pod-server/Dockerfile .
 
 # Push to your registry

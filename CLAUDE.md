@@ -9,23 +9,26 @@ Portable is a mobile-first web application for using Claude Code remotely. Users
 ```
 portable/
   packages/
-    app/              Nuxt 3 full-stack main app (auth, project management, proxy)
+    app/              Nuxt 3 full-stack main app (auth, project management, proxy, editor UI)
       server/
         api/          API endpoints (health, auth/me, settings/credential+age-key, projects CRUD, projects status, scaffolds, github/repos)
-        routes/       Route handlers (auth/github, auth/logout, auth/relay)
-        middleware/   Server middleware (session auth, subdomain proxy)
+        routes/       Route handlers (auth/github, auth/logout, pod proxy)
+        middleware/   Server middleware (session auth)
         db/           Drizzle schema and migrations
         plugins/      Nitro plugins (auto-migration, subdomain proxy, startup recovery)
-        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle, proxy, proxy-shared, relay-token, creation-phase)
-      composables/    Vue composables (useAuth)
+        utils/        Shared server utilities (db, auth, crypto, slug, github, k8s, project-db, project-lifecycle, proxy, proxy-shared, creation-phase)
+      composables/    Vue composables (useAuth, useWebSocket, useSessions, useFiles, useGit)
       components/     Vue components (ProjectCard)
       middleware/     Client-side route middleware (auth guard)
-      layouts/        App layouts (default with topbar + bottom nav)
-      pages/          Vue pages (login, dashboard, settings, new)
+      layouts/        App layouts (default with topbar + bottom nav, project with tabbed nav)
+      pages/          Vue pages (login, dashboard, settings, onboarding, new, projects/[slug])
       types/          Shared TypeScript interfaces (Project)
+    design-tokens/    Shared CSS custom properties (warm orange-on-stone palette)
+      tokens.css      Light/dark mode color tokens, typography, spacing, layout
     pod-server/       Hono server that runs inside each project pod
       src/
-        routes/       API routes (files, sessions, health, ws)
+        routes/       API routes (files, sessions, active-sessions, git, health, ws)
+        session-manager.ts  Background query persistence and multi-client broadcasting
         app.ts        Hono app factory (createApp)
         index.ts      Entrypoint (server + async setup + dev server supervisor)
         dev-server.ts DevServerSupervisor class
@@ -34,14 +37,6 @@ portable/
       scripts/
         entrypoint.sh    Pod startup script (exec's server directly)
         entrypoint-dev.sh Dev startup script (used by Tilt live_update)
-    editor/           Vue 3 SPA served by the pod server (chat, files, preview)
-      src/
-        views/        Route views (ChatView, FilesView, PreviewView)
-        components/   UI components (ChatMessage, ChatInput, SessionList, FileTree, CodeViewer)
-        composables/  Vue composables (useWebSocket, useSessions, useFiles)
-        router.ts     Vue Router with /chat, /files, /preview routes
-        App.vue       Root layout with bottom tab bar navigation
-        main.ts       Entrypoint (creates Vue app with router)
   scaffolds/
     nuxt-postgres/    Project template: Nuxt 3 + Postgres (Drizzle)
   deploy/
@@ -59,9 +54,9 @@ portable/
 
 ## Tech Stack
 
-- **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth), httpxy (WebSocket proxying)
+- **Main app:** Nuxt 3, Drizzle ORM, `@kubernetes/client-node`, Octokit, Arctic (GitHub OAuth), httpxy (WebSocket proxying), CodeMirror 6 (JS/TS/JSON/CSS/HTML/Vue/Markdown language support, One Dark theme)
 - **Pod server:** Hono, `@hono/node-server`, `@hono/node-ws`, `@anthropic-ai/claude-agent-sdk`, fdir
-- **Editor SPA:** Vue 3, Vue Router, Vite, CodeMirror 6 (JS/TS/JSON/CSS/HTML/Markdown language support, One Dark theme)
+- **Design tokens:** CSS custom properties in `packages/design-tokens/tokens.css` (warm orange-on-stone palette with light/dark mode)
 - **Infrastructure:** Kubernetes, Helm, k3d (local), Tilt (live dev), Postgres 16
 - **Tooling:** mise (tool management), bun (package manager/runtime), Node.js 22
 
@@ -101,11 +96,6 @@ bun run --filter @portable/app test          # Run app tests
 bun run dev:pod-server                       # Run pod server with tsx watch
 bun run build:pod-server                     # Build with tsup
 bun run --filter @portable/pod-server test   # Run pod-server tests
-
-# Editor SPA (packages/editor)
-bun run dev:editor                           # Run Vite dev server
-bun run build:editor                         # Build with Vite
-bun run --filter @portable/editor test       # Run editor tests
 ```
 
 ### Local development (K8s)
@@ -123,7 +113,6 @@ mise stop                             # Tear down cluster
 - **Methodology:** Test-driven development (red-green-refactor)
 - **App tests:** `@nuxt/test-utils` for server route testing, `happy-dom` as environment
 - **Pod server tests:** Direct Hono `app.request()` invocation
-- **Editor tests:** `@vue/test-utils` with `jsdom`
 
 Test files live in `tests/` directories within each package. Name test files `*.test.ts`.
 
@@ -202,36 +191,28 @@ The `scaffoldId` column in the `projects` table is nullable: `null` indicates an
 
 `GET /api/github/repos` lists the authenticated user's GitHub repositories (up to 100, sorted by most recently updated). Supports a `search` query parameter for client-side filtering by name, full name, or description. Returns `{ repos: [{ name, fullName, description, isPrivate, language, defaultBranch, url }] }`.
 
-## Reverse Proxy
+## Reverse Proxy and Pod Access
 
-The main app acts as a reverse proxy for all subdomain traffic. The proxy layer consists of four files:
+### Path-Based Pod Proxy
 
-- **`server/utils/proxy-shared.ts`** -- Pure utility functions usable in both Nitro and Vite contexts: `getDomainFromBaseUrl`, `parseSubdomain` (parses Host header to extract project slug and access type), `buildProxyTarget` (constructs K8s service URL), `parseCookie`.
-- **`server/utils/proxy.ts`** -- DB-dependent proxy logic: `lookupProject` (queries the DB for the project), `resolveProxyTarget` (orchestrates auth + lookup + target building). Returns null for main app domain requests so Nuxt handles them normally. Throws 401 for unauthenticated subdomain requests, 404 for unknown projects, 503 for non-running projects.
-- **`server/middleware/proxy.ts`** -- Nitro HTTP middleware that intercepts subdomain requests and proxies them via `h3.proxyRequest`. Runs after the auth middleware (which attaches `event.context.user`), so session validation is already done. Forwards the original path and sets `x-forwarded-host`.
-- **`server/plugins/proxy.ts`** -- Unified Nitro plugin that handles both HTTP subdomain proxying and WebSocket upgrade interception. Hooks into the `request` event to intercept requests before the normal HTTP pipeline. Manually parses the session cookie and validates it (since the auth middleware does not run for Nitro plugins). Handles the auth relay token exchange flow for cross-subdomain session transfer. Uses `httpxy` for both HTTP proxying and WebSocket upgrades.
+The editor UI (now part of the main Nuxt app) accesses pod APIs through path-based routing:
 
-### Subdomain Routing
+- **`server/routes/api/projects/[slug]/pod/[...path].ts`** -- Catch-all route handler that proxies HTTP requests to the pod server. Validates auth, verifies project ownership and running status, then proxies to `http://project-<slug>.<ns>.svc.cluster.local:3000/<path>`. Used for file API, sessions API, git API, etc.
+- **`server/plugins/proxy.ts`** -- Nitro plugin that intercepts WebSocket upgrade requests at `/api/projects/:slug/pod/ws` and proxies them to the pod's `/ws` endpoint via `httpxy`. Also handles preview subdomain proxying (both HTTP and WebSocket).
 
-| Host pattern                            | Target                                                         |
-| --------------------------------------- | -------------------------------------------------------------- |
-| `portable.example.com` (bare domain)    | Main app (Nuxt handles normally)                               |
-| `<slug>--portable.example.com`          | Pod editor at `project-<slug>.<ns>.svc.cluster.local:3000`     |
-| `<slug>--preview--portable.example.com` | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
+| Path/Host pattern                        | Target                                                         |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| `/api/projects/:slug/pod/*` (HTTP)       | Pod server at `project-<slug>.<ns>.svc.cluster.local:3000`     |
+| `/api/projects/:slug/pod/ws` (WebSocket) | Pod WebSocket at `project-<slug>.<ns>.svc.cluster.local:3000`  |
+| `<slug>--preview--portable.example.com`  | Pod dev server at `project-<slug>.<ns>.svc.cluster.local:3001` |
 
-### Auth Relay Flow
+### Preview Subdomain Proxy
 
-Since the session cookie is scoped to the main app domain (e.g., `.portable.example.com`), project subdomains (e.g., `slug--portable.example.com`) need their own session cookie. The auth relay flow handles this:
+Preview subdomains route to the pod's dev server (port 3001). The proxy layer consists of:
 
-1. Unauthenticated request hits a project subdomain (no `portable_session` cookie)
-2. The proxy plugin redirects to `GET /auth/relay?redirect=<original-url>` on the main app
-3. The relay handler creates a short-lived HMAC-signed token (`server/utils/relay-token.ts`) containing the session ID
-4. Redirects back to the original URL with `?__portable_relay=<token>` appended
-5. The proxy plugin intercepts this token, validates it, sets a subdomain-scoped `portable_session` cookie, strips the query parameter, and redirects cleanly
-
-### Middleware Ordering
-
-The auth middleware (`server/middleware/auth.ts`) runs before the proxy middleware (`server/middleware/proxy.ts`) due to Nitro's alphabetical middleware ordering. This ensures `event.context.user` is populated before the proxy middleware checks authentication. The proxy Nitro plugin handles its own auth since plugins run outside the middleware chain.
+- **`server/utils/proxy-shared.ts`** -- Pure utility functions: `getDomainFromBaseUrl`, `parseSubdomain` (parses Host header, only recognizes preview subdomains), `buildProxyTarget` (constructs K8s service URL for port 3001), `parseCookie`.
+- **`server/utils/proxy.ts`** -- DB-dependent proxy logic: `lookupProject` (queries the DB for the project), `resolveProxyTarget` (orchestrates auth + lookup + target building). Returns null for main app domain requests. Throws 401 for unauthenticated requests, 404 for unknown projects, 503 for non-running projects.
+- **`server/plugins/proxy.ts`** -- Nitro plugin that hooks into the `request` event to intercept preview subdomain requests before Vite's dev middleware. Manually validates session cookies and proxies both HTTP and WebSocket connections via `httpxy`.
 
 ### Startup Recovery
 
@@ -239,7 +220,7 @@ The `server/plugins/recovery.ts` plugin runs on server startup and resets any pr
 
 ## Pod Server
 
-The pod server (`packages/pod-server`) is a Hono HTTP/WebSocket server that runs inside each project pod. It is built with `createApp()` in `src/app.ts`, which returns the Hono app and a `registerWsRoute` function for injecting the WebSocket upgrade helper.
+The pod server (`packages/pod-server`) is a Hono HTTP/WebSocket server that runs inside each project pod. It provides file access, session management, git operations, and a WebSocket bridge to the Claude Agent SDK. The pod server does not serve any static files -- all UI is served by the main Nuxt app. It is built with `createApp()` in `src/app.ts`, which returns the Hono app and a `registerWsRoute` function for injecting the WebSocket upgrade helper.
 
 ### File API
 
@@ -259,36 +240,51 @@ All file operations are scoped to `WORKSPACE_DIR` (default `/workspace`). Path t
 - `GET /api/sessions/:id/messages` -- Retrieves all messages in a session, filtered to user and assistant messages only. Each message includes `role` (`"user"` or `"assistant"`), `content` (concatenated text blocks), and optional `toolUse` array containing tool calls with `name` and `input` (JSON-formatted). Extracts and structures content from the Claude Agent SDK message format.
 - `DELETE /api/sessions/:id` -- Deletes a session file. Validates the session ID format (UUID) and checks that the session exists before deletion. Returns 204 on success, 400 if the ID is invalid, or 404 if the session is not found.
 
+### Active Sessions API
+
+`src/routes/active-sessions.ts` provides an endpoint for checking which sessions have active background queries:
+
+- `GET /api/sessions/active` -- Returns `{ activeSessionIds: [...] }` containing the SDK session IDs of all sessions currently running a query. Used by the editor to show activity indicators on the session list.
+
 Session data is stored in `~/.claude/projects/<project-name>/<sessionId>.jsonl` (or `$CLAUDE_CONFIG_DIR/projects/...` if configured). The API searches across all project directories to locate session files by ID. All operations use the Claude Agent SDK's `listSessions()` and `getSessionMessages()` functions.
+
+### Session Manager
+
+`src/session-manager.ts` manages background query persistence and multi-client broadcasting. Key features:
+
+- **Background queries:** Queries continue running even after all WebSocket clients disconnect. A 30-second cleanup timer allows reconnection without losing the active query.
+- **Multi-client broadcasting:** Multiple WebSocket clients can attach to the same session. SDK events are broadcast to all connected clients.
+- **Event buffering:** Events from the current query are buffered so reconnecting clients receive a replay of events they missed (sent between `replay_start` and `replay_end` markers).
+- **Session lookup:** Sessions are indexed by both an internal ID and the SDK session ID, allowing reconnection by SDK session ID.
 
 ### WebSocket Bridge
 
-`src/routes/ws.ts` bridges the browser to the Claude Agent SDK via WebSocket at `GET /ws`.
+`src/routes/ws.ts` is a thin WebSocket bridge that delegates to the session manager at `GET /ws`.
 
-**Connection URL:** `GET /ws` or `GET /ws?session=<sessionId>` to resume a previous session. When a `sessionId` query parameter is provided, the first query on the connection uses `resume` mode to restore the session state.
+**Connection URL:** `GET /ws` or `GET /ws?session=<sessionId>` to resume or reconnect to a session. If a background session with the given SDK session ID exists, the client reconnects to it. Otherwise a new session is created (with the SDK session ID passed for resume mode).
 
 **Inbound messages (browser to server):**
 
-- `{ "type": "user_message", "content": "..." }` -- Starts a new Claude query. If a query is already active, the current query is interrupted and the new message is queued as a pending prompt.
-- `{ "type": "interrupt" }` -- Interrupts the current active query.
+- `{ "type": "user_message", "content": "..." }` -- Delegates to `sendMessage()` on the session manager. If a query is active, it is interrupted and the new message is queued.
+- `{ "type": "interrupt" }` -- Delegates to `interruptQuery()` on the session manager.
 
 **Outbound messages (server to browser):**
 
 - `{ "type": "query_start" }` -- Sent when a query begins.
 - `{ "type": "sdk_event", "event": ... }` -- Claude Agent SDK streaming events (text deltas, tool use, etc.).
 - `{ "type": "query_end" }` -- Sent when a query finishes.
-- `{ "type": "session_info", "sessionId": "..." }` -- Sent after the first query completes (if a session was created or resumed). Contains the session ID for resuming future conversations.
+- `{ "type": "session_info", "sessionId": "..." }` -- Sent after the first query completes. Contains the SDK session ID for persistence and reconnection.
+- `{ "type": "replay_start" }` / `{ "type": "replay_end" }` -- Bracket replayed events when a client reconnects to a session with buffered events.
 - `{ "type": "error", "message": "..." }` -- Error messages (invalid JSON, SDK errors, unknown message types).
-
-**Session handling:** The connection tracks session state internally. The first query uses `resume` mode if a `sessionId` was provided in the URL query parameter, or starts fresh otherwise. Subsequent queries on the same connection use `continue` mode to extend the conversation history within the session. The `session_info` message is sent after the first query completes, containing the session ID for persistence and future resumption.
 
 The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `permissionMode: "bypassPermissions"` and `settingSources: ["project"]`. The working directory is set to `WORKSPACE_DIR`.
 
 ### Git API
 
-`src/routes/git.ts` provides a single endpoint for workspace git state:
+`src/routes/git.ts` provides two endpoints for workspace git state:
 
 - `GET /api/git` -- Returns the current git status of the workspace. Response includes `branch` (current branch name), `commits` (last 50 commits with `hash`, `shortHash`, `message`, `author`, `date`), `staged` (files staged in the index with `path` and `status`), and `unstaged` (modified/untracked files with `path` and `status`). Status labels are human-readable: `modified`, `added`, `deleted`, `renamed`, `copied`, `untracked`. Returns 500 if the workspace is not a git repository.
+- `GET /api/git/diff/:path` -- Returns the git diff for a specific file. Accepts a `?staged=true` query parameter to show staged changes instead of unstaged. For untracked files, generates a diff against `/dev/null`. Returns 404 if no changes exist for the file.
 
 ### Dev Server Supervisor
 
@@ -329,50 +325,30 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 | `ANTHROPIC_API_KEY`       | User's Anthropic API key (injected by main app) | (none)        |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude (alternative to API key) | (none)        |
 
-## Editor SPA
+## Editor UI (Integrated in Main App)
 
-The editor SPA (`packages/editor`) is a Vue 3 single-page application served by the pod server at the root URL. It provides four views accessible via a bottom tab bar: Chat, Files, Git, and Preview. The app uses a dark theme with CSS variables (`#0d1117` background, `#58a6ff` accent) and a mobile-first `100dvh` layout.
+The editor UI is integrated into the main Nuxt app as pages and composables under `packages/app`. When a project is running, the `/projects/[slug]` page renders a project layout with a bottom tab bar for navigating between Chat, Files, Git, and Preview views. All pod communication goes through the path-based pod proxy (`/api/projects/:slug/pod/*`). The app uses a warm orange-on-stone design with CSS custom properties from `packages/design-tokens/tokens.css`.
 
-### Routing
+### Project Layout
 
-Vue Router with four routes: `/chat` (default), `/files`, `/git`, and `/preview`. The bottom tab bar shows SVG icons for each tab with an active state indicator (top border highlight). Navigation is handled via `<router-link>`.
+The `layouts/project.vue` layout provides the project chrome: a top bar with project name, status pill, and back button, plus a bottom tab bar with four tabs (Chat, Files, Git, Preview). The layout is used by the `pages/projects/[slug].vue` parent page, which handles project lifecycle states (loading, stopped, creating, starting, error) and renders child pages via `<NuxtPage />` when the project is running.
 
-### Chat View
+### Composables
 
-The chat tab has two states: a session list (default) and an active chat conversation.
+All editor composables live in `packages/app/composables/`:
 
-**Session list state:**
+- **`useWebSocket.ts`** -- Manages WebSocket connection to the pod via `/api/projects/:slug/pod/ws`. Sends `user_message` and `interrupt` messages, processes incoming events (`query_start`, `sdk_event`, `query_end`, `session_info`, `replay_start`, `replay_end`, `error`). Reconnects automatically on disconnect. Supports session resumption by passing a `sessionId` query parameter.
+- **`useSessions.ts`** -- Fetches and manages conversation sessions via `/api/projects/:slug/pod/api/sessions`. Provides reactive `sessions` array, `fetchSessions()`, `loadMessages(sessionId)`, `deleteSession(sessionId)`, and active session detection.
+- **`useFiles.ts`** -- Workspace file operations via `/api/projects/:slug/pod/api/files`. Fetches flat file list, builds nested tree structure, reads and writes file content.
+- **`useGit.ts`** -- Git state via `/api/projects/:slug/pod/api/git`. Provides branch, staged/unstaged changes, commit history, and file diffs via `/api/projects/:slug/pod/api/git/diff/:path`.
 
-- **SessionList component:** Displays saved conversation sessions in a scrollable list sorted by most recent. Each session shows the title (derived from custom title or first prompt), last modified time in relative format (e.g., "2m ago"), and a delete button. A "Conversations" header with a "+" button allows starting a new conversation. Empty state shows "No conversations yet" with a call-to-action button.
+### Onboarding
 
-**Chat state:**
-
-- **WebSocket composable (`composables/useWebSocket.ts`):** Manages connection lifecycle to the pod server's WebSocket bridge at `/ws`. Sends `user_message` and `interrupt` messages, processes incoming `query_start`, `sdk_event`, `query_end`, `session_info`, and `error` messages. Reconnects automatically after 2 seconds on disconnect. Accepts optional `sessionId` and `initialMessages` parameters to resume previous conversations. Exposes reactive `sessionId` ref that updates when the server responds with session info.
-- **Sessions composable (`composables/useSessions.ts`):** Fetches and manages conversation sessions via the pod server's sessions API. Provides `sessions` reactive array (sorted by most recent), `fetchSessions()` to load sessions, `loadMessages(sessionId)` to retrieve messages from a specific session, and `deleteSession(sessionId)` to remove a session. Each session includes `sessionId`, `title` (derived from custom title or first prompt), `lastModified` timestamp, and `firstPrompt` (initial user message or null).
-- **ChatMessage component:** Renders user messages and assistant messages. Assistant messages include collapsible tool use blocks (showing tool name + input). Distinguishes between text content and tool use events from the SDK stream.
-- **ChatInput component:** Auto-growing `<textarea>` with send and interrupt buttons. Enter sends the message (Shift+Enter for newlines). Shows interrupt button during active queries.
-- **Back button:** Top-left button returns to the session list, closes the WebSocket connection, and clears messages.
-- **Auto-scroll:** Scrolls to the bottom on new messages. Streaming indicator shows pulsing dots while the assistant is responding.
-
-### Files View
-
-The files view provides workspace file browsing and editing via the `useFiles` composable and the pod server's file API.
-
-- **File API composable (`composables/useFiles.ts`):** Fetches the flat file list from `GET /api/files`, builds a tree structure (nested directories and files), reads file content from `GET /api/files/:path`, and writes via `PUT /api/files/:path`.
-- **FileTree component:** Recursive tree rendering with expand/collapse for directories, indent guides, and dimmed file extensions. Clicking a file selects it and triggers content loading.
-- **CodeViewer component:** CodeMirror 6 editor with the One Dark theme. Supports language detection for JavaScript, TypeScript, JSON, CSS, HTML, Vue, and Markdown files. Defaults to read-only mode with an edit toggle button. Save button appears in edit mode and calls the file write API. Back navigation returns to the file tree.
-
-### Git View
-
-The git tab displays the workspace's git state via the `useGit` composable and the pod server's `GET /api/git` endpoint. Shows the current branch name at the top, followed by staged and unstaged file changes (each clickable to navigate to the file in the Files view), and a scrollable commit history with short hash, message, author, and relative time. The composable uses module-level refs for shared state, following the same pattern as `useFiles`.
-
-### Preview View
-
-Full-screen iframe that loads the project's dev server. The preview hostname is constructed by replacing the project's `--<appLabel>` suffix with `--preview--<appLabel>` in the current hostname (e.g., `my-project--portable.example.com` becomes `my-project--preview--portable.example.com`). This uses a flat single-level subdomain scheme so only a single wildcard DNS/cert entry is needed. Includes a thin header bar with a "Preview" label, the preview URL, an "open in new tab" button, and a refresh button. Shows a loading overlay while the iframe is loading.
+The `/onboarding` page provides a wizard for first-time setup of the Anthropic API key and AGE encryption key, required before creating projects.
 
 ## Architecture Summary
 
-The main app (Nuxt) handles authentication (GitHub OAuth), project CRUD, Kubernetes pod lifecycle, and acts as an auth-checking reverse proxy. Each project gets its own K8s pod running the pod server (Hono) which serves the editor SPA, provides file access APIs, and bridges WebSocket connections to the Claude Agent SDK. Subdomain routing: `<project>--<appLabel>.domain` goes to the editor, `<project>--preview--<appLabel>.domain` goes to the dev server.
+The main app (Nuxt) handles authentication (GitHub OAuth), project CRUD, Kubernetes pod lifecycle, the editor UI, and acts as a reverse proxy. The editor UI is served as Nuxt pages within the main app, communicating with pods through path-based API proxying (`/api/projects/:slug/pod/*`). Each project gets its own K8s pod running the pod server (Hono), which provides file access APIs, session management with background query persistence, and a WebSocket bridge to the Claude Agent SDK. Preview subdomains (`<project>--preview--<appLabel>.domain`) route to the pod's dev server.
 
 See `docs/architecture.md` for the full architecture diagram and component details.
 

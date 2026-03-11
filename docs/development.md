@@ -65,7 +65,7 @@ Everything runs inside the k3d Kubernetes cluster -- the main app, Postgres, and
 ## Development Workflow
 
 1. Start the environment: `mise start`
-2. Make code changes in `packages/app/`, `packages/pod-server/`, or `packages/editor/`
+2. Make code changes in `packages/app/`, `packages/pod-server/`, or `packages/design-tokens/`
 3. Tilt detects changes and syncs/rebuilds as needed
 4. Check the Tilt UI (press `s` in the terminal, or open http://localhost:10350) for build status and logs
 5. Run tests locally: `bun run test`
@@ -80,19 +80,16 @@ bun run test
 # Run tests for a specific package
 bun run --filter @portable/app test
 bun run --filter @portable/pod-server test
-bun run --filter @portable/editor test
 
 # Run tests in watch mode (useful during development)
 bunx --filter @portable/app vitest
 bunx --filter @portable/pod-server vitest
-bunx --filter @portable/editor vitest
 ```
 
 ### Test setup per package
 
 - **`packages/app`**: Uses `@nuxt/test-utils` which boots a real Nuxt server. Tests use `$fetch` to make HTTP requests. The vitest config has a 30-second timeout due to Nuxt server startup time. Tests cover auth, database, projects CRUD, scaffolds, settings, proxy, Kubernetes integration, and utility functions.
-- **`packages/pod-server`**: Tests import the Hono `app` directly and use `app.request()` to test routes without starting a server. Tests cover the file API, WebSocket bridge, dev server supervisor, and workspace setup.
-- **`packages/editor`**: Tests use `@vue/test-utils` with `jsdom` to mount and test Vue components. Tests cover chat messaging, file browsing/editing, navigation, and the preview iframe.
+- **`packages/pod-server`**: Tests import the Hono `app` directly and use `app.request()` to test routes without starting a server. Tests cover the file API, WebSocket bridge, session manager, dev server supervisor, and workspace setup.
 
 ## Linting and Formatting
 
@@ -112,20 +109,28 @@ Pre-commit hooks (Husky + lint-staged) automatically run ESLint fix and Prettier
 
 ```
 packages/
-  app/                       Nuxt 3 main app
+  app/                       Nuxt 3 main app (UI, API, proxy)
     components/
       ProjectCard.vue        Project card with status, actions, and lifecycle controls
     composables/
       useAuth.ts             Auth state composable (user, refresh, logout)
+      useWebSocket.ts        WebSocket connection to pod via path-based proxy
+      useSessions.ts         Session management via pod API proxy
+      useFiles.ts            File operations via pod API proxy
+      useGit.ts              Git state via pod API proxy
     layouts/
       default.vue            Main layout (topbar, bottom nav, content area)
+      project.vue            Project layout (topbar with project name, bottom tab bar)
     middleware/
       auth.global.ts         Client-side auth guard (redirects to /login)
     pages/
       login.vue              Login page (GitHub OAuth button, no layout)
       index.vue              Dashboard (project list with start/stop/delete)
       settings.vue           Settings page (Anthropic API key management)
-      new.vue                New project page (scaffold picker, GitHub repo creation)
+      onboarding.vue         First-time setup wizard (API key, AGE key)
+      projects/
+        new.vue              New project page (scaffold picker, GitHub repo import)
+        [slug].vue           Project layout with lifecycle states and child page routing
     types/
       project.ts             Shared Project interface
     server/
@@ -147,21 +152,27 @@ packages/
         settings/
           credential.get.ts  Get credential status (has key or not)
           credential.put.ts  Store encrypted Anthropic API key
+          age-key.get.ts     Get AGE key status
+          age-key.put.ts     Store AGE encryption key
+        github/
+          repos.get.ts       List user's GitHub repositories
       routes/
         auth/
           github/
             index.get.ts     GitHub OAuth redirect
             callback.get.ts  GitHub OAuth callback (upsert user, create session)
           logout.post.ts     Destroy session and clear cookie
+        api/projects/[slug]/pod/
+          [...path].ts       Catch-all pod proxy (HTTP requests to pod server)
       middleware/
         auth.ts              Session validation (attaches user to context)
-        proxy.ts             Subdomain reverse proxy (HTTP requests)
       db/
         schema.ts            Drizzle ORM schema (users, projects, sessions)
         migrations/          Generated Drizzle migrations
       plugins/
         migrate.ts           Auto-migrate on server startup
-        ws-proxy.ts          WebSocket upgrade proxy for subdomain requests
+        proxy.ts             Preview subdomain proxy + pod WebSocket proxy
+        recovery.ts          Startup recovery for stuck project states
       utils/
         db.ts                Database connection singleton
         auth.ts              GitHub OAuth client, session CRUD
@@ -171,50 +182,39 @@ packages/
         k8s.ts               Kubernetes pod/service/PVC operations
         project-db.ts        Per-project Postgres database management
         project-lifecycle.ts Project start/stop/delete orchestration
-        proxy.ts             Shared proxy logic (subdomain parsing, target building)
+        proxy.ts             Preview subdomain proxy logic (DB-dependent)
+        proxy-shared.ts      Pure proxy utilities (subdomain parsing, target building)
+        creation-phase.ts    Project creation phase tracking
     drizzle.config.ts        Drizzle Kit configuration
     tests/                   Vitest tests (auth, db, projects, proxy, k8s, settings, etc.)
     Dockerfile               Multi-stage production build
     nuxt.config.ts           Nuxt configuration (runtimeConfig, CSS, fonts)
     vitest.config.ts         Test configuration
 
+  design-tokens/             Shared CSS design tokens
+    tokens.css               Light/dark mode colors, typography, spacing, layout
+    package.json             Package metadata
+
   pod-server/                Hono server for project pods
     src/
       app.ts                 Hono app factory (createApp)
       index.ts               Server entry point (Hono + async setup + dev server supervisor)
+      session-manager.ts     Background query persistence and multi-client broadcasting
       dev-server.ts          DevServerSupervisor (auto-restart, backoff, graceful shutdown)
       setup.ts               Workspace setup (async git clone, dependency install)
       setup-state.ts         Setup phase tracking (initializing -> cloning -> installing -> starting_server -> ready)
       routes/
         health.ts            Health check route
         files.ts             File list, read, and write API
-        ws.ts                WebSocket bridge to Claude Agent SDK
+        sessions.ts          Session list, messages, delete API
+        active-sessions.ts   Active background session IDs
+        git.ts               Git status and file diff API
+        ws.ts                WebSocket bridge to Claude Agent SDK via session manager
     scripts/
       entrypoint.sh          Pod container entrypoint
-    tests/                   Vitest tests (files, ws, dev-server, setup)
-    Dockerfile               Multi-stage build (includes editor SPA + dev tools)
+    tests/                   Vitest tests (files, ws, session-manager, dev-server, setup)
+    Dockerfile               Multi-stage build with dev tools
     tsup.config.ts           Build configuration
-    vitest.config.ts         Test configuration
-
-  editor/                    Vue 3 SPA for in-pod editor UI
-    src/
-      main.ts                Vue app entry point
-      router.ts              Vue Router (/chat, /files, /preview)
-      App.vue                Root layout with bottom tab bar
-      views/
-        ChatView.vue         Chat interface with streaming messages
-        FilesView.vue        File browser with tree navigation
-        PreviewView.vue      Dev server preview iframe
-      components/
-        ChatInput.vue        Auto-growing textarea with send/interrupt
-        ChatMessage.vue      User and assistant message rendering
-        CodeViewer.vue       CodeMirror 6 editor with language support
-        FileTree.vue         Recursive directory tree with expand/collapse
-      composables/
-        useWebSocket.ts      WebSocket connection lifecycle and messaging
-        useFiles.ts          File API client (list, read, write, tree building)
-    tests/                   Vitest tests (chat, files, navigation, preview)
-    vite.config.ts           Vite build configuration
     vitest.config.ts         Test configuration
 ```
 
@@ -233,5 +233,4 @@ bun run typecheck
 # Build a specific package
 bun run build:app
 bun run build:pod-server
-bun run build:editor
 ```
