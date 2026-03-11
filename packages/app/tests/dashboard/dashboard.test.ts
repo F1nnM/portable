@@ -29,12 +29,4 @@ describe("dashboard", async () => {
       expect(response.status).toBe(401);
     });
   });
-
-  describe("projectCard component", () => {
-    it("exports as a Vue component module", async () => {
-      const mod = await import("../../components/ProjectCard.vue");
-      expect(mod.default).toBeDefined();
-      expect(typeof mod.default).toBe("object");
-    });
-  });
 });

@@ -296,7 +296,7 @@ export default defineNuxtConfig({
       title: "Portable",
       meta: [
         { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-        { name: "theme-color", content: "#fafaf9" },
+        { name: "theme-color", content: "#f6f4f1" },
         {
           name: "description",
           content: "Mobile-first remote Claude Code environment",

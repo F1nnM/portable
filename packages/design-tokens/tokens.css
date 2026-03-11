@@ -1,0 +1,158 @@
+/*
+ * Portable v2 Design Tokens
+ * Warm orange-on-stone aesthetic with amber-gold dark mode accent
+ */
+
+/* ---- Light mode (default) ---- */
+:root,
+[data-theme="light"] {
+  /* Backgrounds */
+  --color-bg: #f6f4f1;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #faf9f7;
+  --color-bg-inset: #efece8;
+
+  /* Text */
+  --color-text: #2c2825;
+  --color-text-secondary: #6b6560;
+  --color-text-muted: #a09890;
+
+  /* Borders */
+  --color-border: #e3dfda;
+  --color-border-strong: #d0cbc4;
+
+  /* Accent (burnished orange) */
+  --color-accent: #d97a3e;
+  --color-accent-hover: #c46a2e;
+  --color-accent-active: #b05e28;
+  --color-accent-tint: #fdf3ec;
+  --color-accent-text: #ffffff;
+
+  /* Semantic */
+  --color-danger: #d64545;
+  --color-danger-tint: #fdf0f0;
+  --color-success: #3a8f5c;
+  --color-success-tint: #eef8f2;
+  --color-warning: #c4880c;
+  --color-warning-tint: #fef8ec;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(44, 40, 37, 0.05);
+  --shadow-card: 0 1px 4px rgba(44, 40, 37, 0.06), 0 0 0 1px rgba(44, 40, 37, 0.03);
+  --shadow-elevated: 0 8px 24px rgba(44, 40, 37, 0.1), 0 2px 8px rgba(44, 40, 37, 0.04);
+  --shadow-overlay: 0 16px 48px rgba(44, 40, 37, 0.16), 0 4px 12px rgba(44, 40, 37, 0.06);
+}
+
+/* ---- Dark mode ---- */
+[data-theme="dark"] {
+  --color-bg: #191715;
+  --color-bg-surface: #231f1d;
+  --color-bg-elevated: #2b2724;
+  --color-bg-inset: #141210;
+
+  --color-text: #ede8e3;
+  --color-text-secondary: #9c9590;
+  --color-text-muted: #6b6460;
+
+  --color-border: #3a3532;
+  --color-border-strong: #4a4440;
+
+  /* Accent (amber-gold for dark mode) */
+  --color-accent: #e0a04a;
+  --color-accent-hover: #d08e38;
+  --color-accent-active: #c07e2c;
+  --color-accent-tint: #2e2418;
+  --color-accent-text: #191715;
+
+  --color-danger: #e05555;
+  --color-danger-tint: #2e1a1a;
+  --color-success: #4aaa6e;
+  --color-success-tint: #1a2e20;
+  --color-warning: #d4980c;
+  --color-warning-tint: #2e2610;
+
+  --shadow-sm: none;
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-elevated: 0 0 0 1px var(--color-border);
+  --shadow-overlay: 0 0 0 1px var(--color-border);
+}
+
+/* ---- System preference fallback ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #191715;
+    --color-bg-surface: #231f1d;
+    --color-bg-elevated: #2b2724;
+    --color-bg-inset: #141210;
+
+    --color-text: #ede8e3;
+    --color-text-secondary: #9c9590;
+    --color-text-muted: #6b6460;
+
+    --color-border: #3a3532;
+    --color-border-strong: #4a4440;
+
+    --color-accent: #e0a04a;
+    --color-accent-hover: #d08e38;
+    --color-accent-active: #c07e2c;
+    --color-accent-tint: #2e2418;
+    --color-accent-text: #191715;
+
+    --color-danger: #e05555;
+    --color-danger-tint: #2e1a1a;
+    --color-success: #4aaa6e;
+    --color-success-tint: #1a2e20;
+    --color-warning: #d4980c;
+    --color-warning-tint: #2e2610;
+
+    --shadow-sm: none;
+    --shadow-card: 0 0 0 1px var(--color-border);
+    --shadow-elevated: 0 0 0 1px var(--color-border);
+    --shadow-overlay: 0 0 0 1px var(--color-border);
+  }
+}
+
+/* ---- Theme-independent tokens ---- */
+:root {
+  /* Typography */
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-base: 0.9375rem; /* 15px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.375rem; /* 22px */
+  --font-size-2xl: 1.75rem; /* 28px */
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.3;
+  --line-height-base: 1.6;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Borders */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 350ms ease;
+
+  /* Layout */
+  --touch-min: 44px;
+  --content-max-width: 960px;
+  --sidebar-width: 280px;
+}
