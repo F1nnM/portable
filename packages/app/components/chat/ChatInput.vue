@@ -87,21 +87,21 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
 
 <style scoped>
 .chat-input-container {
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-bg-surface);
-  border-top: 1px solid var(--color-border);
-  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -2px 8px rgba(44, 40, 37, 0.04);
+  padding: var(--space-4);
+  padding-bottom: max(var(--space-4), env(safe-area-inset-bottom, 0px));
 }
 
 .input-row {
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
-  background: var(--color-bg);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   padding: var(--space-2) var(--space-3);
+  box-shadow:
+    0 4px 16px rgba(44, 40, 37, 0.08),
+    0 1px 4px rgba(44, 40, 37, 0.04);
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
@@ -109,7 +109,10 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
 
 .input-row:focus-within {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-tint);
+  box-shadow:
+    0 4px 16px rgba(44, 40, 37, 0.08),
+    0 1px 4px rgba(44, 40, 37, 0.04),
+    0 0 0 3px var(--color-accent-tint);
 }
 
 .chat-textarea {

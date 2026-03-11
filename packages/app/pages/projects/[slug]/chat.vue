@@ -204,24 +204,19 @@ onUnmounted(() => {
     <!-- Active chat view -->
     <template v-else>
       <div class="chat-view">
-        <!-- Chat header with back button -->
-        <div class="chat-header">
-          <button class="btn-back" aria-label="Back to sessions" @click="goBack">
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="12 4 6 10 12 16" />
-            </svg>
-          </button>
-          <span class="chat-title">{{
-            activeSessionId === "new" ? "New Conversation" : "Conversation"
-          }}</span>
-        </div>
+        <!-- Floating back button -->
+        <button class="btn-back-floating" aria-label="Back to sessions" @click="goBack">
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="12 4 6 10 12 16" />
+          </svg>
+        </button>
 
         <!-- Messages area -->
         <div ref="messagesContainer" class="messages-container">
@@ -284,50 +279,49 @@ onUnmounted(() => {
 
 /* Chat view layout */
 .chat-view {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 }
 
-.chat-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
-  flex-shrink: 0;
-}
-
-.btn-back {
+.btn-back-floating {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--touch-min);
-  height: var(--touch-min);
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-bg-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
+  box-shadow:
+    0 2px 8px rgba(44, 40, 37, 0.08),
+    0 0 0 1px rgba(44, 40, 37, 0.04);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-.btn-back:hover {
+.btn-back-floating:hover {
   color: var(--color-text);
-  background: var(--color-bg-inset);
+  background: var(--color-bg-elevated);
 }
 
-.btn-back svg {
+.btn-back-floating:active {
+  transform: scale(0.92);
+}
+
+.btn-back-floating svg {
   width: 20px;
   height: 20px;
-}
-
-.chat-title {
-  font-family: var(--font-sans);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
 }
 
 /* Messages */

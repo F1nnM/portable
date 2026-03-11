@@ -5,7 +5,6 @@ const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 
 const projectName = ref("");
-const projectStatus = ref<Project["status"]>("stopped");
 
 async function fetchProject() {
   try {
@@ -13,7 +12,6 @@ async function fetchProject() {
     const project = data.projects.find((p) => p.slug === slug.value);
     if (project) {
       projectName.value = project.name;
-      projectStatus.value = project.status;
     }
   } catch {
     // Silently fail -- the parent page handles error states
@@ -23,24 +21,6 @@ async function fetchProject() {
 onMounted(fetchProject);
 
 watch(slug, fetchProject);
-
-const statusConfig = computed(() => {
-  switch (projectStatus.value) {
-    case "running":
-      return { label: "Running", class: "pill-running" };
-    case "creating":
-      return { label: "Creating", class: "pill-creating" };
-    case "starting":
-      return { label: "Starting", class: "pill-starting" };
-    case "stopping":
-      return { label: "Stopping", class: "pill-stopping" };
-    case "error":
-      return { label: "Error", class: "pill-error" };
-    case "stopped":
-    default:
-      return { label: "Stopped", class: "pill-stopped" };
-  }
-});
 
 const tabs = computed(() => [
   { path: `/projects/${slug.value}/chat`, label: "Chat", icon: "chat" },
@@ -75,9 +55,6 @@ function isTabActive(tabPath: string): boolean {
 
       <div class="topbar-center">
         <span class="topbar-project-name">{{ projectName || slug }}</span>
-        <span class="topbar-status-pill" :class="statusConfig.class">
-          {{ statusConfig.label }}
-        </span>
       </div>
 
       <!-- Spacer to balance the back button for centering -->
@@ -221,41 +198,6 @@ function isTabActive(tabPath: string): boolean {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.topbar-status-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-xl);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.pill-running {
-  background: var(--color-success-tint);
-  color: var(--color-success);
-}
-
-.pill-creating,
-.pill-starting,
-.pill-stopping {
-  background: var(--color-warning-tint);
-  color: var(--color-warning);
-}
-
-.pill-error {
-  background: var(--color-danger-tint);
-  color: var(--color-danger);
-}
-
-.pill-stopped {
-  background: var(--color-bg-inset);
-  color: var(--color-text-muted);
 }
 
 .topbar-spacer {

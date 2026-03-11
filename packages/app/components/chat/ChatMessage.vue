@@ -362,12 +362,11 @@ function formatToolInput(tool: ToolUseEntry): string {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-0);
   border-radius: var(--radius-full);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  background: var(--color-bg-inset);
   min-height: 28px;
   transition:
     background var(--transition-fast),
