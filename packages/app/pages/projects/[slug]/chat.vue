@@ -30,11 +30,11 @@ const keyboardOffset = ref(0);
 
 function onViewportResize() {
   if (!window.visualViewport) return;
-  // The difference between the layout viewport and the visual viewport
-  // is approximately the keyboard height (plus any browser chrome changes)
-  const offset =
+  const keyboardHeight =
     window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-  keyboardOffset.value = Math.max(0, offset);
+  // The tab bar (64px) is already behind the keyboard, so only offset by the overlap
+  const TABBAR_HEIGHT = 64;
+  keyboardOffset.value = Math.max(0, keyboardHeight - TABBAR_HEIGHT);
 }
 
 // Show streaming indicator when streaming but no assistant content yet
