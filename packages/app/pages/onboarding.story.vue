@@ -1,6 +1,4 @@
-<script setup lang="ts">
-const showDoneIcon = ref(true);
-</script>
+<script setup lang="ts"></script>
 
 <template>
   <Story title="Pages / Onboarding" group="pages">
