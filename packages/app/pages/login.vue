@@ -19,14 +19,15 @@ onMounted(() => {
 <template>
   <div class="login-page">
     <div class="login-bg">
-      <div class="ambient-glow" />
+      <div class="ambient-glow glow-1" />
+      <div class="ambient-glow glow-2" />
     </div>
 
     <div class="login-content">
       <div class="login-card">
         <div class="brand">
-          <h1 class="brand-name">portable</h1>
-          <p class="brand-tagline">Your remote Claude Code environment</p>
+          <h1 class="brand-name">portable<span class="brand-cursor">_</span></h1>
+          <p class="brand-tagline">Remote Claude Code</p>
         </div>
 
         <div v-if="error === 'not_allowed'" class="error-message">
@@ -57,28 +58,51 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Ambient background */
+/* Ambient background with dot grid */
 .login-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
+.login-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--color-border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.35;
+}
+
 .ambient-glow {
   position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.glow-1 {
   top: 35%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 600px;
   height: 600px;
   background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
-  opacity: 0.08;
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: drift 18s ease-in-out infinite;
+  opacity: 0.18;
+  animation: drift1 18s ease-in-out infinite;
 }
 
-@keyframes drift {
+.glow-2 {
+  top: 60%;
+  left: 35%;
+  transform: translate(-50%, -50%);
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, var(--color-accent) 0%, transparent 70%);
+  opacity: 0.12;
+  animation: drift2 22s ease-in-out infinite;
+}
+
+@keyframes drift1 {
   0% {
     transform: translate(-50%, -50%) translate(0, 0);
   }
@@ -93,6 +117,24 @@ onMounted(() => {
   }
 }
 
+@keyframes drift2 {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0);
+  }
+  25% {
+    transform: translate(-50%, -50%) translate(-25px, 15px);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate(20px, 25px);
+  }
+  75% {
+    transform: translate(-50%, -50%) translate(15px, -20px);
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(0, 0);
+  }
+}
+
 /* Content */
 .login-content {
   position: relative;
@@ -100,6 +142,18 @@ onMounted(() => {
   width: 100%;
   padding: var(--space-4);
   max-width: 420px;
+  animation: card-enter 0.6s ease both;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .login-card {
@@ -109,9 +163,25 @@ onMounted(() => {
   gap: var(--space-7);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-accent);
   border-radius: var(--radius-xl);
   padding: var(--space-7) var(--space-6);
   box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle noise texture overlay */
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 /* Brand */
@@ -120,23 +190,66 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  animation: brand-enter 0.6s ease both;
+  animation-delay: 0.1s;
+}
+
+@keyframes brand-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .brand-name {
-  font-family: var(--font-sans);
-  font-size: 2rem;
-  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+  font-size: 2.75rem;
+  font-weight: 400;
   color: var(--color-text);
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
   line-height: 1;
+}
+
+.brand-cursor {
+  color: var(--color-accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .brand-tagline {
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 400;
+  animation: tagline-enter 0.6s ease both;
+  animation-delay: 0.25s;
+}
+
+@keyframes tagline-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Error message */
@@ -169,10 +282,50 @@ onMounted(() => {
   border-radius: var(--radius-md);
   text-decoration: none;
   box-shadow: 0 2px 8px rgba(217, 122, 62, 0.25);
+  position: relative;
+  overflow: hidden;
+  animation: btn-enter 0.6s ease both;
+  animation-delay: 0.4s;
   transition:
     background var(--transition-fast),
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+@keyframes btn-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Shimmer effect on the button */
+.btn-github::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  animation: shimmer 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  20% {
+    left: 120%;
+  }
+  100% {
+    left: 120%;
+  }
 }
 
 .btn-github:hover {

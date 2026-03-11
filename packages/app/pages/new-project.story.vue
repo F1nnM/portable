@@ -25,7 +25,7 @@ const selectedRepo = ref<string | null>(null);
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
-            <h1 class="page-title">New Project</h1>
+            <h1 class="page-title"><span class="title-prefix">//</span> New Project</h1>
           </div>
 
           <div class="tabs">
@@ -41,6 +41,32 @@ const selectedRepo = ref<string | null>(null);
                 :class="{ selected: selectedScaffold === 'nuxt-postgres' }"
                 @click="selectedScaffold = 'nuxt-postgres'"
               >
+                <div class="scaffold-icon" aria-hidden="true">
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <rect
+                      x="3"
+                      y="6"
+                      width="10"
+                      height="16"
+                      rx="2"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    />
+                    <path
+                      d="M17 10l4 4-4 4"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M21 14H15"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
                 <span class="scaffold-name">Nuxt + Postgres</span>
                 <span class="scaffold-description"
                   >Full-stack Nuxt 3 with Drizzle ORM and Postgres</span
@@ -51,6 +77,32 @@ const selectedRepo = ref<string | null>(null);
                 :class="{ selected: selectedScaffold === 'blank' }"
                 @click="selectedScaffold = 'blank'"
               >
+                <div class="scaffold-icon" aria-hidden="true">
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <rect
+                      x="3"
+                      y="6"
+                      width="10"
+                      height="16"
+                      rx="2"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    />
+                    <path
+                      d="M17 10l4 4-4 4"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M21 14H15"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </div>
                 <span class="scaffold-name">Blank</span>
                 <span class="scaffold-description">Empty workspace to start from scratch</span>
               </button>
@@ -66,7 +118,23 @@ const selectedRepo = ref<string | null>(null);
             </div>
           </div>
 
-          <button class="btn-create">Create Project</button>
+          <button class="btn-create">
+            <span>Create Project</span>
+            <svg
+              class="btn-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
         </div>
       </div>
     </Variant>
@@ -90,7 +158,7 @@ const selectedRepo = ref<string | null>(null);
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
-            <h1 class="page-title">New Project</h1>
+            <h1 class="page-title"><span class="title-prefix">//</span> New Project</h1>
           </div>
 
           <div class="tabs">
@@ -109,6 +177,7 @@ const selectedRepo = ref<string | null>(null);
                     fullName: 'finnscode/portable',
                     description: 'Remote Claude Code environment',
                     language: 'TypeScript',
+                    langColor: '#3178c6',
                     isPrivate: false,
                   },
                   {
@@ -116,6 +185,7 @@ const selectedRepo = ref<string | null>(null);
                     fullName: 'finnscode/blog',
                     description: 'Personal blog with Nuxt',
                     language: 'Vue',
+                    langColor: '#41b883',
                     isPrivate: false,
                   },
                   {
@@ -123,6 +193,7 @@ const selectedRepo = ref<string | null>(null);
                     fullName: 'finnscode/secrets-mgr',
                     description: null,
                     language: 'Go',
+                    langColor: '#00add8',
                     isPrivate: true,
                   },
                 ]"
@@ -136,7 +207,10 @@ const selectedRepo = ref<string | null>(null);
                   <span v-if="repo.isPrivate" class="repo-badge">Private</span>
                 </div>
                 <span v-if="repo.description" class="repo-description">{{ repo.description }}</span>
-                <span v-if="repo.language" class="repo-language">{{ repo.language }}</span>
+                <span v-if="repo.language" class="repo-language">
+                  <span class="lang-dot" :style="{ background: repo.langColor }" />
+                  {{ repo.language }}
+                </span>
               </button>
             </div>
           </div>
@@ -146,7 +220,23 @@ const selectedRepo = ref<string | null>(null);
             <input id="import-name" type="text" class="form-input" placeholder="My Awesome App" />
           </div>
 
-          <button class="btn-create" disabled>Import Project</button>
+          <button class="btn-create" disabled>
+            <span>Import Project</span>
+            <svg
+              class="btn-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
         </div>
       </div>
     </Variant>
@@ -170,7 +260,7 @@ const selectedRepo = ref<string | null>(null);
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
-            <h1 class="page-title">New Project</h1>
+            <h1 class="page-title"><span class="title-prefix">//</span> New Project</h1>
           </div>
 
           <div class="tabs">
@@ -208,14 +298,30 @@ const selectedRepo = ref<string | null>(null);
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
-            <h1 class="page-title">New Project</h1>
+            <h1 class="page-title"><span class="title-prefix">//</span> New Project</h1>
           </div>
 
           <div class="error-banner">
             <p class="error-text">A project with this name already exists</p>
           </div>
 
-          <button class="btn-create" disabled>Create Project</button>
+          <button class="btn-create" disabled>
+            <span>Create Project</span>
+            <svg
+              class="btn-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
         </div>
       </div>
     </Variant>
@@ -255,10 +361,17 @@ const selectedRepo = ref<string | null>(null);
 }
 
 .page-title {
+  font-family: var(--font-mono);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+}
+
+.title-prefix {
+  color: var(--color-text-muted);
+  margin-right: 0.25em;
+  font-weight: var(--font-weight-normal);
 }
 
 .tabs {
@@ -269,7 +382,7 @@ const selectedRepo = ref<string | null>(null);
 
 .tab {
   padding: var(--space-3) var(--space-4);
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   font-weight: var(--font-weight-medium);
@@ -278,7 +391,7 @@ const selectedRepo = ref<string | null>(null);
   min-height: var(--touch-min);
   transition:
     color var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-base);
 }
 
 .tab:hover {
@@ -287,6 +400,8 @@ const selectedRepo = ref<string | null>(null);
 .tab.active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
 }
 
 .form-section {
@@ -308,10 +423,12 @@ const selectedRepo = ref<string | null>(null);
 }
 
 .scaffold-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
+  padding-top: var(--space-5);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -323,6 +440,24 @@ const selectedRepo = ref<string | null>(null);
     border-color var(--transition-fast),
     background var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+.scaffold-icon {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.scaffold-card:hover .scaffold-icon {
+  opacity: 0.8;
+}
+
+.scaffold-card.selected .scaffold-icon {
+  color: var(--color-accent);
+  opacity: 1;
 }
 
 .scaffold-card:hover {
@@ -446,10 +581,22 @@ const selectedRepo = ref<string | null>(null);
   color: var(--color-text-secondary);
   line-height: var(--line-height-base);
 }
+
 .repo-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
+}
+
+.lang-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .list-loading {
@@ -512,6 +659,15 @@ const selectedRepo = ref<string | null>(null);
     opacity var(--transition-fast),
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+.btn-arrow {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.btn-create:hover:not(:disabled) .btn-arrow {
+  transform: translateX(3px);
 }
 
 .btn-create:hover:not(:disabled) {

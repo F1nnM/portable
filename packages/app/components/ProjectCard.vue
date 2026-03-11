@@ -429,40 +429,48 @@ function openGithubRepo() {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  background: var(--color-bg-surface);
+  background:
+    linear-gradient(to bottom, var(--card-border-color, var(--color-border-strong)), transparent)
+      left / 4px 100% no-repeat,
+    var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
+  padding-left: calc(var(--space-5) + 4px);
   box-shadow: var(--shadow-card);
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast),
-    transform var(--transition-fast);
+    transform var(--transition-fast),
+    background-size var(--transition-fast);
 }
 
 .project-card:hover {
   border-color: var(--color-border-strong);
   box-shadow: var(--shadow-elevated);
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.01);
+  background-size:
+    5px 100%,
+    auto;
 }
 
 .project-card:has(.status-running) {
-  border-left-color: var(--color-success);
+  --card-border-color: var(--color-success);
 }
 
 .project-card:has(.status-creating),
 .project-card:has(.status-starting),
 .project-card:has(.status-stopping) {
-  border-left-color: var(--color-warning);
+  --card-border-color: var(--color-warning);
 }
 
 .project-card:has(.status-error) {
-  border-left-color: var(--color-danger);
+  --card-border-color: var(--color-danger);
 }
 
 /* Card link fills the card area */
 .card-link {
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0;

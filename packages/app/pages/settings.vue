@@ -125,12 +125,15 @@ async function removeAgeKey() {
 <template>
   <div class="settings">
     <div class="page-header">
-      <h1 class="page-title">Settings</h1>
+      <h1 class="page-title"><span class="title-prefix">//</span> Settings</h1>
     </div>
 
     <!-- Account -->
     <section class="settings-section">
-      <h2 class="section-title">Account</h2>
+      <h2 class="section-title">
+        Account
+        <span class="section-rule" />
+      </h2>
       <div class="settings-card">
         <div class="setting-row">
           <span class="setting-label">GitHub</span>
@@ -141,7 +144,10 @@ async function removeAgeKey() {
 
     <!-- Theme -->
     <section class="settings-section">
-      <h2 class="section-title">Theme</h2>
+      <h2 class="section-title">
+        Theme
+        <span class="section-rule" />
+      </h2>
       <div class="settings-card">
         <div class="theme-toggle">
           <button
@@ -149,6 +155,21 @@ async function removeAgeKey() {
             :class="{ active: theme === 'system' }"
             @click="setTheme('system')"
           >
+            <svg
+              class="theme-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
             System
           </button>
           <button
@@ -156,6 +177,27 @@ async function removeAgeKey() {
             :class="{ active: theme === 'light' }"
             @click="setTheme('light')"
           >
+            <svg
+              class="theme-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
             Light
           </button>
           <button
@@ -163,6 +205,19 @@ async function removeAgeKey() {
             :class="{ active: theme === 'dark' }"
             @click="setTheme('dark')"
           >
+            <svg
+              class="theme-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
             Dark
           </button>
         </div>
@@ -171,7 +226,10 @@ async function removeAgeKey() {
 
     <!-- Anthropic Credential -->
     <section class="settings-section">
-      <h2 class="section-title">Anthropic Credential</h2>
+      <h2 class="section-title">
+        Anthropic Credential
+        <span class="section-rule" />
+      </h2>
       <div class="settings-card">
         <p class="setting-description">
           Your Anthropic API key or Claude Code OAuth token. Required to use Claude in your
@@ -181,7 +239,7 @@ async function removeAgeKey() {
         <div class="setting-row">
           <span class="setting-label">Status</span>
           <span class="setting-status">
-            <span class="status-dot" :class="hasCredential ? 'dot-success' : 'dot-muted'" />
+            <span class="status-dot" :class="hasCredential ? 'dot-success' : 'dot-unconfigured'" />
             {{ hasCredential ? "Configured" : "Not configured" }}
           </span>
         </div>
@@ -224,7 +282,10 @@ async function removeAgeKey() {
 
     <!-- AGE Key -->
     <section class="settings-section">
-      <h2 class="section-title">AGE Key</h2>
+      <h2 class="section-title">
+        AGE Key
+        <span class="section-rule" />
+      </h2>
       <div class="settings-card">
         <p class="setting-description">
           Your AGE private key for SOPS decryption of encrypted secrets in your projects.
@@ -233,7 +294,7 @@ async function removeAgeKey() {
         <div class="setting-row">
           <span class="setting-label">Status</span>
           <span class="setting-status">
-            <span class="status-dot" :class="hasAgeKey ? 'dot-success' : 'dot-muted'" />
+            <span class="status-dot" :class="hasAgeKey ? 'dot-success' : 'dot-unconfigured'" />
             {{ hasAgeKey ? "Configured" : "Not configured" }}
           </span>
         </div>
@@ -274,7 +335,24 @@ async function removeAgeKey() {
 
     <!-- Logout -->
     <section class="settings-section">
-      <button class="btn btn-logout" @click="logout">Sign out</button>
+      <button class="btn-logout" @click="logout">
+        <svg
+          class="logout-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        Sign out
+      </button>
     </section>
   </div>
 </template>
@@ -293,10 +371,17 @@ async function removeAgeKey() {
 }
 
 .page-title {
+  font-family: var(--font-mono);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+}
+
+.title-prefix {
+  color: var(--color-text-muted);
+  margin-right: 0.25em;
+  font-weight: var(--font-weight-normal);
 }
 
 .settings-section {
@@ -306,6 +391,9 @@ async function removeAgeKey() {
 }
 
 .section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
@@ -313,9 +401,19 @@ async function removeAgeKey() {
   letter-spacing: 0.04em;
 }
 
+.section-rule {
+  display: inline-block;
+  width: 48px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: var(--radius-full);
+  opacity: 0.5;
+}
+
 .settings-card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-accent);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   display: flex;
@@ -335,6 +433,10 @@ async function removeAgeKey() {
 .theme-option {
   flex: 1;
   min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-normal);
@@ -345,6 +447,10 @@ async function removeAgeKey() {
   transition:
     background var(--transition-fast),
     color var(--transition-fast);
+}
+
+.theme-icon {
+  flex-shrink: 0;
 }
 
 .theme-option + .theme-option {
@@ -393,17 +499,29 @@ async function removeAgeKey() {
 
 .status-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
 .dot-success {
   background: var(--color-success);
+  animation: status-pulse 2s ease-in-out infinite;
 }
 
-.dot-muted {
-  background: var(--color-text-muted);
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--color-success-tint);
+  }
+}
+
+.dot-unconfigured {
+  background: transparent;
+  border: 2px solid var(--color-text-muted);
 }
 
 .setting-description {
@@ -507,8 +625,13 @@ async function removeAgeKey() {
 .btn-logout {
   width: 100%;
   min-height: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   background: transparent;
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-danger);
   color: var(--color-danger);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
@@ -518,6 +641,10 @@ async function removeAgeKey() {
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast);
+}
+
+.logout-icon {
+  flex-shrink: 0;
 }
 
 .btn-logout:hover {

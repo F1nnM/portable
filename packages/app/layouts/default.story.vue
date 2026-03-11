@@ -15,7 +15,7 @@
       >
         <div class="app-shell">
           <header class="topbar">
-            <span class="topbar-brand">portable</span>
+            <span class="topbar-brand">portable<span class="topbar-cursor">_</span></span>
             <div class="topbar-actions">
               <button class="topbar-btn" aria-label="New project">
                 <svg
@@ -58,7 +58,7 @@
       >
         <div class="app-shell">
           <header class="topbar">
-            <span class="topbar-brand">portable</span>
+            <span class="topbar-brand">portable<span class="topbar-cursor">_</span></span>
             <div class="topbar-actions">
               <div class="topbar-avatar">
                 <span class="avatar-fallback">J</span>
@@ -98,10 +98,26 @@
 }
 
 .topbar-brand {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: 400;
   color: var(--color-text);
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
+}
+
+.topbar-cursor {
+  color: var(--color-accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .topbar-actions {

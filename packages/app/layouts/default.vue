@@ -14,7 +14,7 @@ onMounted(() => {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <NuxtLink to="/" class="topbar-brand">portable</NuxtLink>
+      <NuxtLink to="/" class="topbar-brand">portable<span class="topbar-cursor">_</span></NuxtLink>
       <div class="topbar-actions">
         <NuxtLink
           v-if="isSetupComplete"
@@ -73,11 +73,27 @@ onMounted(() => {
 }
 
 .topbar-brand {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: 400;
   color: var(--color-text);
   text-decoration: none;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.02em;
+}
+
+.topbar-cursor {
+  color: var(--color-accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .topbar-actions {

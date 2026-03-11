@@ -1,9 +1,5 @@
 <script setup lang="ts">
-const currentStep = ref(1);
-
-function setStep(step: number) {
-  currentStep.value = step;
-}
+const showDoneIcon = ref(true);
 </script>
 
 <template>
@@ -11,13 +7,28 @@ function setStep(step: number) {
     <Variant title="Step 1 - Welcome">
       <div style="max-width: 560px; padding: 16px">
         <div class="onboarding">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: 25%" />
+          <div class="progress-steps">
+            <div class="progress-step active">
+              <div class="step-circle"><span class="step-number">1</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">2</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">3</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">4</span></div>
+            </div>
           </div>
           <div class="step">
-            <div class="step-content">
-              <h1 class="step-title">Welcome, Finn</h1>
-              <p class="step-description">
+            <div class="step-content welcome-step">
+              <div class="welcome-decoration" aria-hidden="true">&gt;_</div>
+              <h1 class="step-title stagger-1">Welcome, Finn</h1>
+              <p class="step-description stagger-2">
                 Portable gives you a remote Claude Code environment accessible from anywhere. Let's
                 get your credentials configured so you can start building.
               </p>
@@ -33,8 +44,32 @@ function setStep(step: number) {
     <Variant title="Step 2 - API Key">
       <div style="max-width: 560px; padding: 16px">
         <div class="onboarding">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: 50%" />
+          <div class="progress-steps">
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step active">
+              <div class="step-circle"><span class="step-number">2</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">3</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">4</span></div>
+            </div>
           </div>
           <div class="step">
             <div class="step-content">
@@ -45,17 +80,26 @@ function setStep(step: number) {
               </p>
               <div class="option-group">
                 <div class="option-card">
-                  <h3 class="option-title">Option A: OAuth Token</h3>
+                  <div class="option-label">A</div>
+                  <h3 class="option-title">OAuth Token</h3>
                   <p class="option-description">
                     Run this command in your terminal, then paste the result:
                   </p>
-                  <div class="code-block">
-                    <code>claude setup-token</code>
-                    <button class="copy-btn">Copy</button>
+                  <div class="code-block terminal">
+                    <div class="terminal-header">
+                      <span class="terminal-dot dot-red" />
+                      <span class="terminal-dot dot-yellow" />
+                      <span class="terminal-dot dot-green" />
+                    </div>
+                    <div class="terminal-body">
+                      <code>claude setup-token</code>
+                      <button class="copy-btn">Copy</button>
+                    </div>
                   </div>
                 </div>
                 <div class="option-card">
-                  <h3 class="option-title">Option B: API Key</h3>
+                  <div class="option-label">B</div>
+                  <h3 class="option-title">API Key</h3>
                   <p class="option-description">
                     Create an API key at console.anthropic.com and paste it below.
                   </p>
@@ -78,8 +122,32 @@ function setStep(step: number) {
     <Variant title="Step 2 - Credential Saved">
       <div style="max-width: 560px; padding: 16px">
         <div class="onboarding">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: 50%" />
+          <div class="progress-steps">
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step active">
+              <div class="step-circle"><span class="step-number">2</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">3</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">4</span></div>
+            </div>
           </div>
           <div class="step">
             <div class="step-content">
@@ -99,8 +167,42 @@ function setStep(step: number) {
     <Variant title="Step 3 - AGE Key">
       <div style="max-width: 560px; padding: 16px">
         <div class="onboarding">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: 75%" />
+          <div class="progress-steps">
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step active">
+              <div class="step-circle"><span class="step-number">3</span></div>
+            </div>
+            <div class="progress-line" />
+            <div class="progress-step">
+              <div class="step-circle"><span class="step-number">4</span></div>
+            </div>
           </div>
           <div class="step">
             <div class="step-content">
@@ -111,13 +213,27 @@ function setStep(step: number) {
               <div class="option-card">
                 <h3 class="option-title">Generate a key pair</h3>
                 <p class="option-description">Run these commands in your terminal:</p>
-                <div class="code-block">
-                  <code>age-keygen -o key.txt</code>
-                  <button class="copy-btn">Copy</button>
+                <div class="code-block terminal">
+                  <div class="terminal-header">
+                    <span class="terminal-dot dot-red" />
+                    <span class="terminal-dot dot-yellow" />
+                    <span class="terminal-dot dot-green" />
+                  </div>
+                  <div class="terminal-body">
+                    <code>age-keygen -o key.txt</code>
+                    <button class="copy-btn">Copy</button>
+                  </div>
                 </div>
-                <div class="code-block">
-                  <code>cat key.txt</code>
-                  <button class="copy-btn">Copy</button>
+                <div class="code-block terminal">
+                  <div class="terminal-header">
+                    <span class="terminal-dot dot-red" />
+                    <span class="terminal-dot dot-yellow" />
+                    <span class="terminal-dot dot-green" />
+                  </div>
+                  <div class="terminal-body">
+                    <code>cat key.txt</code>
+                    <button class="copy-btn">Copy</button>
+                  </div>
                 </div>
                 <p class="option-hint">
                   Store <code class="inline-code">key.txt</code> somewhere safe. Paste the private
@@ -141,22 +257,68 @@ function setStep(step: number) {
     <Variant title="Step 4 - Complete">
       <div style="max-width: 560px; padding: 16px">
         <div class="onboarding">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: 100%" />
-          </div>
-          <div class="step">
-            <div class="step-content step-done">
-              <div class="done-icon">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <circle cx="24" cy="24" r="24" fill="var(--color-success-tint)" />
+          <div class="progress-steps">
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path
-                    d="M16 24L22 30L32 18"
-                    stroke="var(--color-success)"
-                    stroke-width="3"
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                   />
                 </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step completed">
+              <div class="step-circle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2.5 6L5 8.5L9.5 3.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="progress-line filled" />
+            <div class="progress-step active">
+              <div class="step-circle"><span class="step-number">4</span></div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-content step-done">
+              <div class="done-celebration">
+                <div class="done-icon visible">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="24" fill="var(--color-success-tint)" />
+                    <path
+                      d="M16 24L22 30L32 18"
+                      stroke="var(--color-success)"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
               <h1 class="step-title">You're all set</h1>
               <p class="step-description">
@@ -181,19 +343,63 @@ function setStep(step: number) {
   gap: var(--space-6);
 }
 
-.progress-bar {
-  width: 100%;
-  height: 6px;
-  background: var(--color-bg-inset);
-  border-radius: var(--radius-full);
-  overflow: hidden;
+/* Stepped progress indicator */
+.progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: var(--space-2) 0;
 }
 
-.progress-fill {
-  height: 100%;
+.progress-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-sans);
+  border: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  transition: all var(--transition-base);
+}
+
+.progress-step.active .step-circle {
+  border-color: var(--color-accent);
   background: var(--color-accent);
-  border-radius: var(--radius-full);
-  transition: width var(--transition-base);
+  color: var(--color-accent-text);
+}
+
+.progress-step.completed .step-circle {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  color: var(--color-accent);
+}
+
+.step-number {
+  line-height: 1;
+}
+
+.progress-line {
+  width: 32px;
+  height: 2px;
+  background: var(--color-border);
+  margin: 0 var(--space-1);
+  transition: background var(--transition-base);
+}
+
+.progress-line.filled {
+  background: var(--color-accent);
 }
 
 .step {
@@ -221,15 +427,52 @@ function setStep(step: number) {
   line-height: var(--line-height-base);
 }
 
+/* Welcome step */
+.welcome-step {
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-decoration {
+  position: absolute;
+  top: -16px;
+  right: -8px;
+  font-family: var(--font-mono);
+  font-size: 96px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  color: var(--color-accent);
+  opacity: 0.08;
+  pointer-events: none;
+  user-select: none;
+}
+
+.welcome-step .step-title,
+.welcome-step .step-description {
+  position: relative;
+  z-index: 1;
+}
+
 .step-done {
   align-items: center;
   text-align: center;
   padding: var(--space-6) 0;
 }
 
-.done-icon {
+.done-celebration {
+  position: relative;
   margin-bottom: var(--space-3);
 }
+
+.done-icon {
+  transform: scale(0);
+  transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.done-icon.visible {
+  transform: scale(1);
+}
+
 .done-icon svg {
   width: 56px;
   height: 56px;
@@ -250,14 +493,34 @@ function setStep(step: number) {
 }
 
 .option-card {
+  position: relative;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-md);
   padding: var(--space-4);
+  padding-top: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   box-shadow: var(--shadow-card);
+}
+
+.option-label {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  background: var(--color-accent-tint);
+  border-radius: var(--radius-full);
 }
 
 .option-title {
@@ -278,37 +541,71 @@ function setStep(step: number) {
   line-height: var(--line-height-base);
 }
 
-.code-block {
+/* Terminal-style code blocks */
+.code-block.terminal {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #333;
+}
+
+.terminal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-red {
+  background: #ff5f57;
+}
+.dot-yellow {
+  background: #febc2e;
+}
+.dot-green {
+  background: #28c840;
+}
+
+.terminal-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  background: var(--color-bg-inset);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: #b5e8b0;
 }
 
-.copy-btn {
+.terminal-body .copy-btn {
   flex-shrink: 0;
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
+  color: #999;
+  background: #333;
+  border: 1px solid #444;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.copy-btn:hover {
-  background: var(--color-bg-elevated);
-  color: var(--color-text);
+.terminal-body .copy-btn:hover {
+  background: #444;
+  color: #ddd;
 }
 
 .inline-code {

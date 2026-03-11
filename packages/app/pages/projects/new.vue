@@ -17,6 +17,33 @@ interface GitHubRepo {
   url: string;
 }
 
+const languageColors: Record<string, string> = {
+  TypeScript: "#3178c6",
+  JavaScript: "#f1e05a",
+  Python: "#3572a5",
+  Go: "#00add8",
+  Rust: "#dea584",
+  Vue: "#41b883",
+  Java: "#b07219",
+  Ruby: "#701516",
+  PHP: "#4f5d95",
+  C: "#555555",
+  "C++": "#f34b7d",
+  "C#": "#178600",
+  Swift: "#f05138",
+  Kotlin: "#a97bff",
+  Dart: "#00b4ab",
+  Shell: "#89e051",
+  HTML: "#e34c26",
+  CSS: "#563d7c",
+  SCSS: "#c6538c",
+};
+
+function getLanguageColor(language: string | null): string | null {
+  if (!language) return null;
+  return languageColors[language] ?? null;
+}
+
 const activeTab = ref<"scaffold" | "import">("scaffold");
 
 // Shared state
@@ -185,7 +212,7 @@ onMounted(() => {
           <polyline points="12 19 5 12 12 5" />
         </svg>
       </NuxtLink>
-      <h1 class="page-title">New Project</h1>
+      <h1 class="page-title"><span class="title-prefix">//</span> New Project</h1>
     </div>
 
     <!-- Tabs -->
@@ -225,6 +252,33 @@ onMounted(() => {
             :class="{ selected: selectedScaffold === scaffold.id }"
             @click="selectedScaffold = scaffold.id"
           >
+            <!-- Scaffold icon -->
+            <div class="scaffold-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <rect
+                  x="3"
+                  y="6"
+                  width="10"
+                  height="16"
+                  rx="2"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
+                <path
+                  d="M17 10l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M21 14H15"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
             <span class="scaffold-name">{{ scaffold.name }}</span>
             <span class="scaffold-description">{{ scaffold.description }}</span>
           </button>
@@ -269,7 +323,15 @@ onMounted(() => {
                 <span v-if="repo.isPrivate" class="repo-badge">Private</span>
               </div>
               <span v-if="repo.description" class="repo-description">{{ repo.description }}</span>
-              <span v-if="repo.language" class="repo-language">{{ repo.language }}</span>
+              <span v-if="repo.language" class="repo-language">
+                <span
+                  class="lang-dot"
+                  :style="{
+                    background: getLanguageColor(repo.language) || 'var(--color-text-muted)',
+                  }"
+                />
+                {{ repo.language }}
+              </span>
             </button>
 
             <div v-if="filteredRepos.length === 0" class="repo-empty">
@@ -318,6 +380,21 @@ onMounted(() => {
             ? "Create Project"
             : "Import Project"
       }}</span>
+      <svg
+        v-if="!creating"
+        class="btn-arrow"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="5" y1="12" x2="19" y2="12" />
+        <polyline points="12 5 19 12 12 19" />
+      </svg>
     </button>
   </div>
 </template>
@@ -355,10 +432,17 @@ onMounted(() => {
 }
 
 .page-title {
+  font-family: var(--font-mono);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+}
+
+.title-prefix {
+  color: var(--color-text-muted);
+  margin-right: 0.25em;
+  font-weight: var(--font-weight-normal);
 }
 
 /* Tabs */
@@ -372,7 +456,7 @@ onMounted(() => {
   padding: var(--space-3) var(--space-4);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   font-weight: var(--font-weight-medium);
@@ -380,7 +464,7 @@ onMounted(() => {
   cursor: pointer;
   transition:
     color var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-base);
   min-height: var(--touch-min);
 }
 
@@ -391,6 +475,8 @@ onMounted(() => {
 .tab.active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
 }
 
 /* Form sections */
@@ -485,10 +571,12 @@ onMounted(() => {
 }
 
 .scaffold-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
+  padding-top: var(--space-5);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -500,6 +588,24 @@ onMounted(() => {
     border-color var(--transition-fast),
     background var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+.scaffold-icon {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.scaffold-card:hover .scaffold-icon {
+  opacity: 0.8;
+}
+
+.scaffold-card.selected .scaffold-icon {
+  color: var(--color-accent);
+  opacity: 1;
 }
 
 .scaffold-card:hover {
@@ -607,6 +713,15 @@ onMounted(() => {
     box-shadow var(--transition-fast);
 }
 
+.btn-arrow {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.btn-create:hover:not(:disabled) .btn-arrow {
+  transform: translateX(3px);
+}
+
 .btn-create:hover:not(:disabled) {
   background: var(--color-accent-hover);
   box-shadow: 0 4px 16px rgba(217, 122, 62, 0.3);
@@ -700,9 +815,20 @@ onMounted(() => {
 }
 
 .repo-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
+}
+
+.lang-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .repo-empty {
