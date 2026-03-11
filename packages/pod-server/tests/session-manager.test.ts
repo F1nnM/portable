@@ -474,7 +474,80 @@ describe("session-manager", () => {
 
   describe("reconnect replay", () => {
     it("replays buffered events when a new client attaches to a running session", async () => {
-      mockMessages = [{ type: "system", session_id: "replay-id" }];
+      // Use a blocking query so we can attach a second client while it's still running
+      let resolveWait: () => void;
+      const waitPromise = new Promise<void>((resolve) => {
+        resolveWait = resolve;
+      });
+
+      mockQuery = vi.fn().mockImplementation(() => {
+        let firstYielded = false;
+        let interrupted = false;
+        return {
+          async next() {
+            if (interrupted) return { done: true as const, value: undefined };
+            if (!firstYielded) {
+              firstYielded = true;
+              return {
+                done: false as const,
+                value: { type: "system", session_id: "replay-id" },
+              };
+            }
+            // Block here so the query stays running
+            await waitPromise;
+            return { done: true as const, value: undefined };
+          },
+          async return() {
+            return { done: true as const, value: undefined };
+          },
+          async throw(e: Error) {
+            throw e;
+          },
+          [Symbol.asyncIterator]() {
+            return this;
+          },
+          interrupt: vi.fn().mockImplementation(async () => {
+            interrupted = true;
+            resolveWait!();
+          }),
+          close: vi.fn(),
+        };
+      });
+
+      const session = createSession();
+      const { ws: ws1 } = createMockWs();
+      attachClient(session, ws1);
+
+      sendMessage(session, "test");
+      // Let the first event (system) be consumed
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Query is still running (blocked on waitPromise)
+      expect(session.isRunning).toBe(true);
+
+      // Detach first client
+      detachClient(session, ws1);
+
+      // Attach a new client -- should get replay since query is still running
+      const { ws: ws2, getMessages: getMessages2 } = createMockWs();
+      attachClient(session, ws2);
+
+      const replayed = getMessages2();
+      // Should have replay_start, buffered events, replay_end
+      expect(replayed[0]).toEqual({ type: "replay_start" });
+      expect(replayed[replayed.length - 1]).toEqual({ type: "replay_end" });
+      // Inner events should include query_start and sdk_event(s)
+      expect(replayed.length).toBeGreaterThan(2);
+
+      // Clean up: interrupt the query so it finishes
+      const activeQuery = mockQuery.mock.results[0].value;
+      activeQuery.interrupt();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    it("does not replay when query has completed", async () => {
+      mockMessages = [{ type: "system", session_id: "done-id" }];
 
       const session = createSession();
       const { ws: ws1 } = createMockWs();
@@ -485,19 +558,16 @@ describe("session-manager", () => {
       await vi.advanceTimersByTimeAsync(0);
       await vi.advanceTimersByTimeAsync(0);
 
-      // Now detach the first client
+      // Query has completed
+      expect(session.isRunning).toBe(false);
+
       detachClient(session, ws1);
 
-      // Attach a new client -- should get replay since session had events
+      // Attach a new client -- should NOT get replay since query is done
       const { ws: ws2, getMessages: getMessages2 } = createMockWs();
       attachClient(session, ws2);
 
-      const replayed = getMessages2();
-      // Should have replay_start, buffered events, replay_end
-      expect(replayed[0]).toEqual({ type: "replay_start" });
-      expect(replayed[replayed.length - 1]).toEqual({ type: "replay_end" });
-      // Inner events should include query_start, sdk_event(s), session_info, query_end
-      expect(replayed.length).toBeGreaterThan(2);
+      expect(getMessages2()).toEqual([]);
     });
 
     it("does not replay when session has no events", () => {
