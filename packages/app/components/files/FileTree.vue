@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TreeNode } from "~/types/files";
+import { getIcon } from "material-file-icons";
 
 const props = withDefaults(
   defineProps<{
@@ -53,21 +54,8 @@ function getFileName(name: string): string {
   return name.slice(0, dotIdx);
 }
 
-function getFileIconClass(name: string): string {
-  const ext = getFileExtension(name).slice(1).toLowerCase();
-  const map: Record<string, string> = {
-    ts: "icon-ts",
-    tsx: "icon-ts",
-    js: "icon-js",
-    jsx: "icon-js",
-    vue: "icon-vue",
-    json: "icon-json",
-    css: "icon-css",
-    scss: "icon-css",
-    md: "icon-md",
-    html: "icon-html",
-  };
-  return map[ext] ?? "";
+function getFileIconSvg(name: string): string {
+  return getIcon(name).svg;
 }
 </script>
 
@@ -133,19 +121,8 @@ function getFileIconClass(name: string): string {
           :style="{ left: `${(i - 1) * 16 + 14}px` }"
         />
 
-        <svg
-          class="tree-icon tree-icon-file"
-          :class="getFileIconClass(node.name)"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <span class="tree-icon tree-icon-file" v-html="getFileIconSvg(node.name)" />
 
         <span class="tree-name">
           {{ getFileName(node.name)
@@ -221,7 +198,14 @@ function getFileIconClass(name: string): string {
 }
 
 .tree-icon-file {
-  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tree-icon-file :deep(svg) {
+  width: 100%;
+  height: 100%;
 }
 
 /* Names */
@@ -243,34 +227,5 @@ function getFileIconClass(name: string): string {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
-}
-
-/* File type icon colors */
-.icon-ts {
-  color: #3178c6;
-}
-
-.icon-js {
-  color: #f0db4f;
-}
-
-.icon-vue {
-  color: #42b883;
-}
-
-.icon-json {
-  color: var(--color-warning);
-}
-
-.icon-css {
-  color: #a855f7;
-}
-
-.icon-md {
-  color: var(--color-text-secondary);
-}
-
-.icon-html {
-  color: #e34c26;
 }
 </style>
