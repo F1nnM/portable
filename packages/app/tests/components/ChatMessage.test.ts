@@ -37,7 +37,7 @@ describe("chatMessage", () => {
         message: makeMessage({ role: "assistant", content: "**bold text**" }),
       },
     });
-    const html = wrapper.find(".message-content").html();
+    const html = wrapper.find(".assistant-bubble").html();
     expect(html).toContain("<strong>");
     expect(html).toContain("bold text");
   });
@@ -52,8 +52,10 @@ describe("chatMessage", () => {
         }),
       },
     });
+    // Tools are collapsed by default; expand them
+    await wrapper.find(".tool-summary .collapse-toggle").trigger("click");
     expect(wrapper.text()).toContain("read_file");
-    expect(wrapper.find(".tool-use-entry").exists()).toBe(true);
+    expect(wrapper.find(".tool-item").exists()).toBe(true);
   });
 
   it("renders thinking blocks as collapsible", async () => {
@@ -82,7 +84,7 @@ describe("chatMessage", () => {
         }),
       },
     });
-    await wrapper.find(".thinking-toggle").trigger("click");
+    await wrapper.find(".thinking-block .collapse-toggle").trigger("click");
     expect(wrapper.find(".thinking-content").exists()).toBe(true);
     expect(wrapper.text()).toContain("Deep thoughts here");
   });
@@ -122,6 +124,6 @@ describe("chatMessage", () => {
       },
     });
     // User messages should show raw text, not rendered markdown
-    expect(wrapper.find(".message-content").html()).not.toContain("<strong>");
+    expect(wrapper.find(".user-bubble").html()).not.toContain("<strong>");
   });
 });

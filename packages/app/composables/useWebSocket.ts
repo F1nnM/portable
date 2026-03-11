@@ -141,9 +141,20 @@ export function useWebSocket(slug: string) {
       }));
     }
 
-    // Tool uses are accumulated by stream events (content_block_stop).
-    // Don't overwrite here -- the full assistant message per-turn would
-    // clobber tool uses from previous turns.
+    // Also extract tool_use blocks (for replay/reconnect scenarios where
+    // stream events are not received).
+    const toolBlocks = content.filter((b) => b.type === "tool_use");
+    if (toolBlocks.length > 0) {
+      if (!msg.toolUse) msg.toolUse = [];
+      for (const b of toolBlocks) {
+        const name = b.name as string;
+        const input = typeof b.input === "string" ? b.input : JSON.stringify(b.input ?? {});
+        // Avoid duplicates if stream events already added this tool
+        if (!msg.toolUse.some((t) => t.name === name && t.input === input)) {
+          msg.toolUse.push({ name, input });
+        }
+      }
+    }
   }
 
   function processResultMessage(event: Record<string, unknown>) {
