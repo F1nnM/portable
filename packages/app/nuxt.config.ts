@@ -227,6 +227,33 @@ function installDevWsProxy(server: Server): void {
       return;
     }
 
+    // Path-based pod WebSocket proxy: /api/projects/:slug/pod/ws
+    const podWsMatch = (req.url || "").match(/^\/api\/projects\/([^/]+)\/pod\/ws(\?.*)?$/);
+    if (podWsMatch) {
+      const slug = podWsMatch[1];
+      const queryString = podWsMatch[2] || "";
+
+      validateDevSession(req.headers.cookie || "")
+        .then((userId) => {
+          if (!userId) {
+            socket.destroy();
+            return;
+          }
+
+          const target = `http://project-${slug}.${DEV_NAMESPACE}.svc.cluster.local:3000`;
+          req.url = `/ws${queryString}`;
+          return proxyUpgrade(target, req, socket, head, {
+            xfwd: true,
+            headers: { "x-forwarded-host": host },
+          });
+        })
+        .catch((err) => {
+          console.error(`[dev-proxy] Pod WebSocket error:`, err);
+          if (!socket.destroyed) socket.destroy();
+        });
+      return;
+    }
+
     const subdomain = parseSubdomain(host, DEV_DOMAIN);
     if (!subdomain) {
       // Not a subdomain request -- delegate to original handlers

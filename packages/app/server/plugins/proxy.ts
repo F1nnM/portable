@@ -4,7 +4,7 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
-import { resolveProxyTarget } from "../utils/proxy";
+import { lookupProject, resolveProxyTarget } from "../utils/proxy";
 import { getDomainFromBaseUrl, parseCookie, parseSubdomain } from "../utils/proxy-shared";
 import { verifyRelayToken } from "../utils/relay-token";
 
@@ -53,14 +53,68 @@ export default defineNitroPlugin((nitroApp) => {
     const host = event.node.req.headers.host;
     if (!host) return;
 
+    const isWebSocket = event.node.req.headers.upgrade?.toLowerCase() === "websocket";
+
+    // --- Path-based pod WebSocket proxy: /api/projects/:slug/pod/ws ---
+    // This handles WebSocket connections from the editor (now part of the main app)
+    // to the pod server. The HTTP API requests go through the catch-all route handler,
+    // but WebSocket upgrades need to be intercepted here in the plugin.
+    const podWsMatch = (event.node.req.url || "").match(
+      /^\/api\/projects\/([^/]+)\/pod\/ws(\?.*)?$/,
+    );
+    if (podWsMatch && isWebSocket) {
+      const slug = podWsMatch[1];
+      const queryString = podWsMatch[2] || "";
+
+      // Validate session
+      const cookieHeader = event.node.req.headers.cookie || "";
+      const sessionToken = parseCookie(cookieHeader, "portable_session");
+      let user: { id: string } | null = null;
+      if (sessionToken) {
+        user = await validateSession(sessionToken);
+      }
+
+      if (!user) {
+        event.node.req.socket.destroy();
+        event._handled = true;
+        return;
+      }
+
+      // Look up project and verify ownership + running status
+      const project = await lookupProject(slug, user.id);
+      if (!project || project.status !== "running") {
+        event.node.req.socket.destroy();
+        event._handled = true;
+        return;
+      }
+
+      // Proxy the WebSocket to the pod
+      // Rewrite the request URL from /api/projects/:slug/pod/ws to /ws
+      // so the pod server receives it on its /ws endpoint.
+      const { podNamespace } = getK8sConfig();
+      const target = `http://project-${slug}.${podNamespace}.svc.cluster.local:3000`;
+      event.node.req.url = `/ws${queryString}`;
+      try {
+        await proxyUpgrade(target, event.node.req, event.node.req.socket, Buffer.alloc(0), {
+          xfwd: true,
+          headers: { "x-forwarded-host": host },
+        });
+      } catch (err) {
+        console.error(`[proxy] Failed to proxy pod WebSocket for ${slug}:`, err);
+        if (!event.node.req.socket.destroyed) {
+          event.node.req.socket.destroy();
+        }
+      }
+      event._handled = true;
+      return;
+    }
+
     const config = useRuntimeConfig();
     const domain = getDomainFromBaseUrl(config.baseUrl);
 
     // Quick check: is this a subdomain request at all?
     const subdomain = parseSubdomain(host, domain);
     if (!subdomain) return; // Main app domain — let Nuxt handle it
-
-    const isWebSocket = event.node.req.headers.upgrade?.toLowerCase() === "websocket";
 
     // --- Relay token exchange ---
     // If the URL contains a `__portable_relay` param, validate it, set a
