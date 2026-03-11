@@ -3,6 +3,9 @@ import { createNodeWebSocket } from "@hono/node-ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app.js";
 
+// Import resetAllSessions to clean up between tests
+import { resetAllSessions } from "../src/session-manager.js";
+
 // vi.mock is auto-hoisted by vitest to run before imports
 const mockInterrupt = vi.fn().mockResolvedValue(undefined);
 const mockClose = vi.fn();
@@ -48,9 +51,6 @@ let mockQuery = vi.fn().mockImplementation(() => createMockAsyncGenerator());
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: (...args: unknown[]) => mockQuery(...args),
 }));
-
-// Import resetAllSessions to clean up between tests
-import { resetAllSessions } from "../src/session-manager.js";
 
 interface ServerType {
   close: (cb: () => void) => void;

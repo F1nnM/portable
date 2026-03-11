@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createApp } from "../src/app.js";
+import { getActiveSdkSessionIds } from "../src/session-manager.js";
+
 // Mock the session manager
 vi.mock("../src/session-manager.js", () => ({
   getActiveSdkSessionIds: vi.fn(() => []),
 }));
-
-import { getActiveSdkSessionIds } from "../src/session-manager.js";
-import { createApp } from "../src/app.js";
 
 const mockGetActiveSdkSessionIds = vi.mocked(getActiveSdkSessionIds);
 

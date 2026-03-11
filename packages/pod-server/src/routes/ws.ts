@@ -2,8 +2,8 @@ import type { Hono } from "hono";
 import type { UpgradeWebSocket, WSContext } from "hono/ws";
 import type { WebSocket as NodeWebSocket } from "ws";
 
+import type { BackgroundSession } from "../session-manager.js";
 import {
-  type BackgroundSession,
   attachClient,
   createSession,
   detachClient,

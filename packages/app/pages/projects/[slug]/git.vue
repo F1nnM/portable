@@ -59,7 +59,7 @@ function goBackToStatus() {
   diffContent.value = "";
 }
 
-function navigateToFile(path: string) {
+function navigateToFile(_path: string) {
   navigateTo(`/projects/${slug.value}/files`);
 }
 
