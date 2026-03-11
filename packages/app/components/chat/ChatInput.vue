@@ -26,11 +26,8 @@ function handleSend() {
   nextTick(adjustHeight);
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    handleSend();
-  }
+function handleKeydown(_e: KeyboardEvent) {
+  // Enter adds newlines naturally; send via button only
 }
 
 function handleInterrupt() {
