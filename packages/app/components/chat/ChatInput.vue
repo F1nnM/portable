@@ -124,7 +124,7 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
   line-height: var(--line-height-base);
-  padding: var(--space-1) var(--space-2);
+  padding: 7px var(--space-2);
 }
 
 .chat-textarea::placeholder {
@@ -170,6 +170,7 @@ const isEmpty = computed(() => inputText.value.trim().length === 0);
 .btn-send svg {
   width: 18px;
   height: 18px;
+  transform: translate(-1px, 1px);
 }
 
 .btn-interrupt {
