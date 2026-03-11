@@ -300,7 +300,12 @@ describe("project lifecycle", () => {
   });
 
   describe("createProject", () => {
+    /**
+     * Sets up mocks for both the create phase and the auto-start that follows.
+     * createProject now calls startProject at the end, so we need mocks for both.
+     */
     function setupCreateMocks() {
+      // -- Create phase mocks --
       mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-project");
       mockGetDecryptedGithubToken.mockResolvedValue("ghp_decrypted_token");
       mockCreateGitHubRepo.mockResolvedValue({
@@ -311,13 +316,48 @@ describe("project lifecycle", () => {
       });
       mockPushScaffoldToRepo.mockResolvedValue(undefined);
       mockDb.update.mockReturnValue(makeUpdateChain());
+
+      // -- Auto-start phase mocks (startProject is called after creation) --
+      // startProject calls lookupProject (select), getAnthropicKey (select), getAgeKey (select)
+      mockDb.select
+        .mockReturnValueOnce(makeSelectChain([{ ...TEST_PROJECT, status: "stopped" }]))
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAnthropicKey: "user-encrypted-key" }]))
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]));
+
+      mockDecrypt.mockReturnValue("sk-ant-decrypted");
+      mockCreateProjectPVC.mockResolvedValue(undefined);
+      mockCreateProjectPod.mockResolvedValue(undefined);
+      mockCreateProjectService.mockResolvedValue(undefined);
+      mockWaitForPodReady.mockResolvedValue(undefined);
     }
 
-    it("creates DB, GitHub repo, pushes scaffold, updates status to stopped", async () => {
+    /**
+     * Sets up mocks for an import create flow (no scaffoldId) plus auto-start.
+     */
+    function setupImportCreateMocks(slug: string) {
+      mockCreateProjectDatabase.mockResolvedValue(`postgres://localhost:5432/portable_${slug}`);
+      mockDb.update.mockReturnValue(makeUpdateChain());
+
+      // Auto-start phase
+      mockDb.select
+        .mockReturnValueOnce(makeSelectChain([{ ...TEST_PROJECT, slug, status: "stopped" }]))
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAnthropicKey: "user-encrypted-key" }]))
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]));
+
+      mockGetDecryptedGithubToken.mockResolvedValue("ghp_decrypted_token");
+      mockDecrypt.mockReturnValue("sk-ant-decrypted");
+      mockCreateProjectPVC.mockResolvedValue(undefined);
+      mockCreateProjectPod.mockResolvedValue(undefined);
+      mockCreateProjectService.mockResolvedValue(undefined);
+      mockWaitForPodReady.mockResolvedValue(undefined);
+    }
+
+    it("creates DB, GitHub repo, pushes scaffold, then auto-starts", async () => {
       setupCreateMocks();
 
       await createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres");
 
+      // Verify create phase
       expect(mockCreateProjectDatabase).toHaveBeenCalledWith("my-project");
       expect(mockGetDecryptedGithubToken).toHaveBeenCalledWith(TEST_USER_ID);
       expect(mockCreateGitHubRepo).toHaveBeenCalledWith("ghp_decrypted_token", "my-project");
@@ -327,6 +367,10 @@ describe("project lifecycle", () => {
         "my-project",
         "nuxt-postgres",
       );
+
+      // Verify auto-start happened
+      expect(mockCreateProjectPod).toHaveBeenCalled();
+      expect(mockWaitForPodReady).toHaveBeenCalledWith("my-project");
     });
 
     it("tracks creation phases correctly", async () => {
@@ -354,10 +398,9 @@ describe("project lifecycle", () => {
 
       await createProject(TEST_USER_ID, TEST_PROJECT.id, "my-project", "nuxt-postgres");
 
-      // First update should persist repoUrl (before scaffold push)
+      // First update persists repoUrl, second sets status to stopped, then auto-start updates
       expect(updateSetCalls.length).toBeGreaterThanOrEqual(2);
       expect(updateSetCalls[0]).toMatchObject({ repoUrl: "https://github.com/user/my-project" });
-      // Second update should set status to stopped (after scaffold push)
       expect(updateSetCalls[1]).toMatchObject({ status: "stopped" });
     });
 
@@ -397,21 +440,19 @@ describe("project lifecycle", () => {
     });
 
     it("skips GitHub repo creation and scaffold push for import (no scaffoldId)", async () => {
-      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
-      mockDb.update.mockReturnValue(makeUpdateChain());
+      setupImportCreateMocks("my-import");
 
       await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
 
       expect(mockCreateProjectDatabase).toHaveBeenCalledWith("my-import");
-      expect(mockGetDecryptedGithubToken).not.toHaveBeenCalled();
+      // GitHub token IS fetched for auto-start, but repo creation should not happen
       expect(mockCreateGitHubRepo).not.toHaveBeenCalled();
       expect(mockPushScaffoldToRepo).not.toHaveBeenCalled();
       expect(mockClearCreationPhase).toHaveBeenCalledWith("my-import");
     });
 
     it("only tracks creating_database phase for import", async () => {
-      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
-      mockDb.update.mockReturnValue(makeUpdateChain());
+      setupImportCreateMocks("my-import");
 
       await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
 
@@ -420,8 +461,8 @@ describe("project lifecycle", () => {
       expect(mockSetCreationPhase).not.toHaveBeenCalledWith("my-import", "pushing_scaffold");
     });
 
-    it("sets status to stopped for import flow", async () => {
-      mockCreateProjectDatabase.mockResolvedValue("postgres://localhost:5432/portable_my-import");
+    it("sets status to stopped then auto-starts for import flow", async () => {
+      setupImportCreateMocks("my-import");
 
       const updateSetCalls: Record<string, unknown>[] = [];
       mockDb.update.mockReturnValue({
@@ -433,8 +474,9 @@ describe("project lifecycle", () => {
 
       await createProject(TEST_USER_ID, "project-uuid-789", "my-import", null);
 
-      expect(updateSetCalls.length).toBe(1);
+      // First update sets status to stopped, then auto-start updates follow
       expect(updateSetCalls[0]).toMatchObject({ status: "stopped" });
+      expect(updateSetCalls.length).toBeGreaterThanOrEqual(1);
     });
 
     it("startProject rejects project in creating status with 409", async () => {

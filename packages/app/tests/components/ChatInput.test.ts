@@ -41,24 +41,13 @@ describe("chatInput", () => {
     expect(wrapper.emitted("send")).toBeFalsy();
   });
 
-  it("emits send on Enter key", async () => {
+  it("does not emit send on Enter key (send via button only)", async () => {
     const wrapper = await mountSuspended(ChatInput, {
       props: { isStreaming: false },
     });
     const textarea = wrapper.find("textarea");
     await textarea.setValue("Enter test");
     await textarea.trigger("keydown", { key: "Enter", shiftKey: false });
-    expect(wrapper.emitted("send")).toBeTruthy();
-    expect(wrapper.emitted("send")![0]).toEqual(["Enter test"]);
-  });
-
-  it("does not emit send on Shift+Enter (allows newline)", async () => {
-    const wrapper = await mountSuspended(ChatInput, {
-      props: { isStreaming: false },
-    });
-    const textarea = wrapper.find("textarea");
-    await textarea.setValue("Line one");
-    await textarea.trigger("keydown", { key: "Enter", shiftKey: true });
     expect(wrapper.emitted("send")).toBeFalsy();
   });
 
