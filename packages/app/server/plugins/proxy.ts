@@ -4,8 +4,13 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
-import { lookupProject, resolveProxyTarget } from "../utils/proxy";
-import { getDomainFromBaseUrl, parseCookie, parseSubdomain } from "../utils/proxy-shared";
+import { lookupProject } from "../utils/proxy";
+import {
+  buildProxyTarget,
+  getDomainFromBaseUrl,
+  parseCookie,
+  parseSubdomain,
+} from "../utils/proxy-shared";
 
 const httpProxy = createProxyServer();
 
@@ -103,48 +108,14 @@ export default defineNitroPlugin((nitroApp) => {
     const subdomain = parseSubdomain(host, domain);
     if (!subdomain) return; // Main app domain or unrecognized -- let Nuxt handle it
 
-    // --- Session validation ---
-    const cookieHeader = event.node.req.headers.cookie || "";
-    const sessionToken = parseCookie(cookieHeader, "portable_session");
-
-    let user: { id: string } | null = null;
-    if (sessionToken) {
-      user = await validateSession(sessionToken);
-    }
-
-    // --- Unauthenticated preview request: return 401 ---
-    if (!user) {
-      if (isWebSocket) {
-        event.node.req.socket.destroy();
-      } else {
-        event.node.res.writeHead(401, { "Content-Type": "text/plain" });
-        event.node.res.end("Unauthorized");
-      }
-      event._handled = true;
-      return;
-    }
-
-    // --- Resolve proxy target ---
+    // --- Build proxy target directly (no auth required for preview) ---
+    // Preview subdomains proxy directly without authentication because:
+    // - The preview iframe is loaded from within the authenticated main app
+    // - Pods are isolated by network policy (only reachable from the main app)
+    // - The auth relay flow has been removed, so preview subdomains have no session cookie
     const { podNamespace } = getK8sConfig();
-    let resolution;
-    try {
-      resolution = await resolveProxyTarget(host, domain, podNamespace, user);
-    } catch (err: unknown) {
-      if (isWebSocket) {
-        event.node.req.socket.destroy();
-      } else {
-        const statusCode = (err as { statusCode?: number }).statusCode || 502;
-        const statusMessage = (err as { statusMessage?: string }).statusMessage || "Bad Gateway";
-        event.node.res.writeHead(statusCode, { "Content-Type": "text/plain" });
-        event.node.res.end(statusMessage);
-      }
-      event._handled = true;
-      return;
-    }
-
-    // This shouldn't happen since we already checked parseSubdomain above,
-    // but guard against it anyway.
-    if (!resolution) return;
+    const target = buildProxyTarget(subdomain.slug, podNamespace);
+    const resolution = { target, slug: subdomain.slug };
 
     // --- Proxy the request ---
     if (isWebSocket) {

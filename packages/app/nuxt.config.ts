@@ -128,7 +128,7 @@ function devSubdomainProxy(): Plugin {
           const subdomain = parseSubdomain(host, DEV_DOMAIN);
           if (!subdomain) return next();
 
-          // Authenticate via session cookie before proxying
+          // Proxy preview subdomain directly to pod (no auth required)
           handlePreviewProxy(req, res, subdomain, currentProxy, host).catch((err) => {
             console.error(`[dev-proxy] Error:`, err);
             if (!res.headersSent) {
@@ -151,13 +151,10 @@ async function handlePreviewProxy(
   proxy: ReturnType<typeof createProxyServer>,
   host: string,
 ): Promise<void> {
-  const userId = await validateDevSession(req.headers.cookie || "");
-  if (!userId) {
-    res.writeHead(401, { "Content-Type": "text/plain" });
-    res.end("Unauthorized");
-    return;
-  }
-
+  // Preview subdomains proxy directly without authentication because:
+  // - The preview iframe is loaded from within the authenticated main app
+  // - Pods are isolated by network policy (only reachable from the main app)
+  // - The auth relay flow has been removed, so preview subdomains have no session cookie
   const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
   await proxy.web(req, res, {
     target,
@@ -228,24 +225,17 @@ function installDevWsProxy(server: Server): void {
       return;
     }
 
-    // Preview subdomain WebSocket -- authenticate and proxy to pod
-    validateDevSession(req.headers.cookie || "")
-      .then((userId) => {
-        if (!userId) {
-          socket.destroy();
-          return;
-        }
-
-        const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
-        return proxyUpgrade(target, req, socket, head, {
-          xfwd: true,
-          headers: { "x-forwarded-host": host },
-        });
-      })
-      .catch((err) => {
-        console.error(`[dev-proxy] WebSocket error:`, err);
-        if (!socket.destroyed) socket.destroy();
-      });
+    // Preview subdomain WebSocket -- proxy to pod without authentication
+    // (same reasoning as HTTP preview: iframe is loaded from authenticated main app,
+    // pods are isolated by network policy, auth relay has been removed)
+    const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
+    proxyUpgrade(target, req, socket, head, {
+      xfwd: true,
+      headers: { "x-forwarded-host": host },
+    }).catch((err) => {
+      console.error(`[dev-proxy] WebSocket error:`, err);
+      if (!socket.destroyed) socket.destroy();
+    });
   });
 
   console.log(`[dev-proxy] WebSocket proxy installed on HTTP server`);
