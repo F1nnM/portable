@@ -4,6 +4,7 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
+import { validatePreviewToken } from "../utils/preview-auth";
 import { lookupProject } from "../utils/proxy";
 import {
   buildProxyTarget,
@@ -23,17 +24,17 @@ httpProxy.on("error", (err) => {
   console.warn(`[proxy] Proxy error (suppressed):`, err.message);
 });
 
+const PREVIEW_COOKIE_NAME = "__portable_preview";
+const PREVIEW_COOKIE_TTL = 24 * 60 * 60; // 24 hours
+
 /**
  * Proxy plugin for preview subdomain HTTP and WebSocket requests.
  *
- * Only handles preview subdomains (<slug>--preview--<appLabel>.<domain>).
- * The editor SPA has been replaced by Nuxt pages served from the main app,
- * so editor subdomain proxying is no longer needed.
- *
- * Preview subdomains proxy directly to the pod's dev server (port 3001)
- * without authentication, since:
- * - The preview iframe is loaded from the authenticated main app
- * - Pods are isolated by network policy (only reachable from the main app)
+ * Handles preview subdomains (<slug>--preview--<appLabel>.<domain>) with
+ * cookie-based authentication. The session cookie from the main app is NOT
+ * sent to preview subdomains (they are siblings, not children, in DNS).
+ * Instead, an auth relay flow establishes a separate `__portable_preview`
+ * cookie on the preview subdomain via HMAC-signed tokens.
  *
  * Hooks into the Nitro `request` event, which fires BEFORE Vite's dev
  * middleware. This is critical: without it, Vite intercepts `/_nuxt/` asset
@@ -108,30 +109,86 @@ export default defineNitroPlugin((nitroApp) => {
     const subdomain = parseSubdomain(host, domain);
     if (!subdomain) return; // Main app domain or unrecognized -- let Nuxt handle it
 
-    // --- Build proxy target directly (no auth required for preview) ---
-    // Preview subdomains proxy directly without authentication because:
-    // - The preview iframe is loaded from within the authenticated main app
-    // - Pods are isolated by network policy (only reachable from the main app)
-    // - The auth relay flow has been removed, so preview subdomains have no session cookie
-    const { podNamespace } = getK8sConfig();
-    const target = buildProxyTarget(subdomain.slug, podNamespace);
-    const resolution = { target, slug: subdomain.slug };
+    const slug = subdomain.slug;
+    const requestUrl = event.node.req.url || "/";
+    const cookieHeader = event.node.req.headers.cookie || "";
 
-    // --- Proxy the request ---
+    // --- Auth callback: exchange token for preview cookie ---
+    if (!isWebSocket && requestUrl.startsWith("/__portable_auth_cb")) {
+      const params = new URL(requestUrl, "http://localhost").searchParams;
+      const token = params.get("token");
+      const redirect = params.get("redirect") || "/";
+
+      if (!token) {
+        event.node.res.writeHead(400, { "Content-Type": "text/plain" });
+        event.node.res.end("Missing token");
+        event._handled = true;
+        return;
+      }
+
+      const result = validatePreviewToken(token, slug, config.encryptionKey);
+      if (!result) {
+        event.node.res.writeHead(403, { "Content-Type": "text/plain" });
+        event.node.res.end("Invalid or expired token");
+        event._handled = true;
+        return;
+      }
+
+      // Set the preview cookie
+      const secure = process.env.NODE_ENV === "production";
+      const cookieParts = [
+        `${PREVIEW_COOKIE_NAME}=${encodeURIComponent(token)}`,
+        `Max-Age=${PREVIEW_COOKIE_TTL}`,
+        `Path=/`,
+        `HttpOnly`,
+        `SameSite=Lax`,
+      ];
+      if (secure) cookieParts.push("Secure");
+      event.node.res.setHeader("Set-Cookie", cookieParts.join("; "));
+
+      // Sanitize redirect: must start with "/" and not "//"
+      const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+      event.node.res.writeHead(302, { Location: safeRedirect });
+      event.node.res.end();
+      event._handled = true;
+      return;
+    }
+
+    // --- Validate preview cookie ---
+    const previewToken = parseCookie(cookieHeader, PREVIEW_COOKIE_NAME);
+    const tokenResult = previewToken
+      ? validatePreviewToken(previewToken, slug, config.encryptionKey)
+      : null;
+
+    if (!tokenResult) {
+      if (isWebSocket) {
+        // WebSocket upgrades can't redirect -- destroy the socket
+        event.node.req.socket.destroy();
+        event._handled = true;
+        return;
+      }
+
+      // Redirect to auth relay on the main app
+      const path = requestUrl.split("?")[0] || "/";
+      const authUrl = `${config.baseUrl}/api/preview-auth?slug=${encodeURIComponent(slug)}&redirect=${encodeURIComponent(path)}`;
+      event.node.res.writeHead(302, { Location: authUrl });
+      event.node.res.end();
+      event._handled = true;
+      return;
+    }
+
+    // --- Proxy the authenticated request ---
+    const { podNamespace } = getK8sConfig();
+    const target = buildProxyTarget(slug, podNamespace);
+
     if (isWebSocket) {
       try {
-        await proxyUpgrade(
-          resolution.target,
-          event.node.req,
-          event.node.req.socket,
-          Buffer.alloc(0),
-          {
-            xfwd: true,
-            headers: { "x-forwarded-host": host },
-          },
-        );
+        await proxyUpgrade(target, event.node.req, event.node.req.socket, Buffer.alloc(0), {
+          xfwd: true,
+          headers: { "x-forwarded-host": host },
+        });
       } catch (err) {
-        console.error(`[proxy] Failed to proxy WebSocket for ${resolution.slug}:`, err);
+        console.error(`[proxy] Failed to proxy WebSocket for ${slug}:`, err);
         if (!event.node.req.socket.destroyed) {
           event.node.req.socket.destroy();
         }
@@ -139,12 +196,12 @@ export default defineNitroPlugin((nitroApp) => {
     } else {
       try {
         await httpProxy.web(event.node.req, event.node.res, {
-          target: resolution.target,
+          target,
           xfwd: true,
           headers: { "x-forwarded-host": host },
         });
       } catch (err) {
-        console.error(`[proxy] Failed to proxy HTTP for ${resolution.slug}:`, err);
+        console.error(`[proxy] Failed to proxy HTTP for ${slug}:`, err);
         if (!event.node.res.headersSent) {
           event.node.res.writeHead(502, { "Content-Type": "text/plain" });
           event.node.res.end("Bad Gateway");

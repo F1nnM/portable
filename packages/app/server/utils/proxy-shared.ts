@@ -96,6 +96,29 @@ export function buildProxyTarget(slug: string, namespace: string): string {
 }
 
 /**
+ * Builds the full preview origin URL for a project slug.
+ *
+ * Derives appLabel and parentDomain from the base URL (same pattern as parseSubdomain),
+ * preserving the protocol and port.
+ *
+ * Examples:
+ *   ("my-project", "http://portable.127.0.0.1.nip.io") -> "http://my-project--preview--portable.127.0.0.1.nip.io"
+ *   ("my-project", "https://portable.example.com:8443") -> "https://my-project--preview--portable.example.com:8443"
+ */
+export function buildPreviewOrigin(slug: string, baseUrl: string): string {
+  const url = new URL(baseUrl);
+  const hostname = url.hostname;
+  const firstDot = hostname.indexOf(".");
+  const appLabel = hostname.slice(0, firstDot);
+  const parentDomain = hostname.slice(firstDot + 1);
+  const previewHost = `${slug}--preview--${appLabel}.${parentDomain}`;
+
+  // Preserve port if non-default
+  const port = url.port ? `:${url.port}` : "";
+  return `${url.protocol}//${previewHost}${port}`;
+}
+
+/**
  * Parses a specific cookie value from a cookie header string.
  */
 export function parseCookie(cookieHeader: string, name: string): string | null {

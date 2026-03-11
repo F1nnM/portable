@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPreviewOrigin,
   buildProxyTarget,
   getDomainFromBaseUrl,
   parseCookie,
@@ -90,6 +91,32 @@ describe("buildProxyTarget", () => {
   it("uses the provided namespace", () => {
     const result = buildProxyTarget("cool-app", "production");
     expect(result).toBe("http://project-cool-app.production.svc.cluster.local:3001");
+  });
+});
+
+describe("buildPreviewOrigin", () => {
+  it("builds preview origin from nip.io base URL", () => {
+    expect(buildPreviewOrigin("my-project", "http://portable.127.0.0.1.nip.io")).toBe(
+      "http://my-project--preview--portable.127.0.0.1.nip.io",
+    );
+  });
+
+  it("builds preview origin from production base URL", () => {
+    expect(buildPreviewOrigin("cool-app", "https://portable.example.com")).toBe(
+      "https://cool-app--preview--portable.example.com",
+    );
+  });
+
+  it("preserves port from base URL", () => {
+    expect(buildPreviewOrigin("my-app", "http://portable.127.0.0.1.nip.io:8080")).toBe(
+      "http://my-app--preview--portable.127.0.0.1.nip.io:8080",
+    );
+  });
+
+  it("preserves HTTPS protocol", () => {
+    expect(buildPreviewOrigin("test", "https://portable.mfinn.de")).toBe(
+      "https://test--preview--portable.mfinn.de",
+    );
   });
 });
 

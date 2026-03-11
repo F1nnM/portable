@@ -2,6 +2,9 @@ import { users } from "../../../db/schema";
 import { createSession, sessionCookieOptions, useGitHubClient } from "../../../utils/auth";
 import { encrypt } from "../../../utils/crypto";
 import { useDb } from "../../../utils/db";
+import { createPreviewToken } from "../../../utils/preview-auth";
+import { lookupProject } from "../../../utils/proxy";
+import { buildPreviewOrigin } from "../../../utils/proxy-shared";
 
 interface GitHubUser {
   id: number;
@@ -104,6 +107,32 @@ export default defineEventHandler(async (event) => {
     ...sessionCookieOptions(),
     maxAge: 30 * 24 * 60 * 60, // 30 days
   });
+
+  // Check for preview return cookie (set by /api/preview-auth when user wasn't logged in)
+  const previewReturn = getCookie(event, "__preview_return");
+  if (previewReturn) {
+    deleteCookie(event, "__preview_return");
+    try {
+      const { slug, redirect } = JSON.parse(previewReturn) as {
+        slug: string;
+        redirect: string;
+      };
+
+      // Sanitize redirect
+      const safeRedirect =
+        redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+
+      const project = await lookupProject(slug, userId);
+      if (project && project.status === "running") {
+        const token = createPreviewToken(userId, slug, config.encryptionKey, 5 * 60);
+        const previewOrigin = buildPreviewOrigin(slug, config.baseUrl);
+        const callbackUrl = `${previewOrigin}/__portable_auth_cb?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(safeRedirect)}`;
+        return sendRedirect(event, callbackUrl);
+      }
+    } catch {
+      // Malformed cookie -- fall through to default redirect
+    }
+  }
 
   return sendRedirect(event, "/");
 });
