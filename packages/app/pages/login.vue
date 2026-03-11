@@ -25,11 +25,8 @@ onMounted(() => {
     <div class="login-content">
       <div class="login-card">
         <div class="brand">
-          <div class="brand-line">
-            <span class="brand-mark">&gt;_</span>
-            <span class="brand-name">portable</span>
-          </div>
-          <p class="brand-tagline">Claude Code, anywhere.</p>
+          <h1 class="brand-name">portable</h1>
+          <p class="brand-tagline">Your remote Claude Code environment</p>
         </div>
 
         <div v-if="error === 'not_allowed'" class="error-message">
@@ -83,7 +80,6 @@ onMounted(() => {
 
 @keyframes drift {
   0% {
-    background-position: 0% 0%;
     transform: translate(-50%, -50%) translate(0, 0);
   }
   33% {
@@ -103,7 +99,7 @@ onMounted(() => {
   z-index: 1;
   width: 100%;
   padding: var(--space-4);
-  max-width: 400px;
+  max-width: 420px;
 }
 
 .login-card {
@@ -111,6 +107,10 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--space-6);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7) var(--space-6);
+  box-shadow: var(--shadow-elevated);
 }
 
 /* Brand */
@@ -122,30 +122,17 @@ onMounted(() => {
   gap: var(--space-3);
 }
 
-.brand-line {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.brand-mark {
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: var(--color-accent);
-}
-
 .brand-name {
   font-family: var(--font-sans);
-  font-size: 2rem;
-  font-weight: 600;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text);
   letter-spacing: -0.02em;
 }
 
 .brand-tagline {
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
 }
 
@@ -153,13 +140,13 @@ onMounted(() => {
 .error-message {
   width: 100%;
   padding: var(--space-3) var(--space-4);
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--color-danger-tint);
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
   color: var(--color-danger);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   text-align: center;
-  line-height: 1.5;
+  line-height: var(--line-height-base);
 }
 
 /* GitHub button */
@@ -169,14 +156,13 @@ onMounted(() => {
   justify-content: center;
   gap: var(--space-2);
   width: 100%;
-  max-width: 320px;
   min-height: var(--touch-min);
   padding: var(--space-3) var(--space-5);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--color-accent-text);
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-base);
   border-radius: var(--radius-sm);
   text-decoration: none;
   transition:
@@ -186,10 +172,11 @@ onMounted(() => {
 
 .btn-github:hover {
   background: var(--color-accent-hover);
-  color: #ffffff;
+  color: var(--color-accent-text);
 }
 
 .btn-github:active {
+  background: var(--color-accent-active);
   transform: scale(0.98);
 }
 
