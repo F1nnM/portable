@@ -130,17 +130,17 @@ function handleDelete(e: Event, sessionId: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
   flex-shrink: 0;
 }
 
 .session-header-title {
   font-family: var(--font-sans);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  letter-spacing: -0.01em;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .btn-new-session {
@@ -230,6 +230,7 @@ function handleDelete(e: Event, sessionId: string) {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding: 0 var(--space-2);
 }
 
 .session-item {
@@ -237,11 +238,21 @@ function handleDelete(e: Event, sessionId: string) {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  min-height: 60px;
+  padding: var(--space-3) var(--space-3);
+  min-height: 56px;
   cursor: pointer;
   transition: background var(--transition-fast);
-  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.session-item + .session-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--space-3);
+  right: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 
 .session-item:hover {
