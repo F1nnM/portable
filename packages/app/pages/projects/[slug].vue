@@ -29,24 +29,33 @@ const allPhases = [
 ] as const;
 
 // Determine which phases are relevant based on the project type.
-// Scaffold projects go through creating_database -> creating_repository -> pushing_scaffold -> pod phases.
-// Imported repo projects go through creating_database -> pod phases (skip creating_repository and pushing_scaffold).
-// When status is "starting" (not "creating"), only show pod-level phases.
+// Scaffold projects go through all phases (creation + pod).
+// Imported repo projects skip creating_repository and pushing_scaffold.
+// Manual starts (status went straight to "starting" without "creating") only show pod phases.
+const sawCreating = ref(false);
+
+watch(
+  () => project.value?.status,
+  (status) => {
+    if (status === "creating") sawCreating.value = true;
+  },
+  { immediate: true },
+);
+
 const relevantPhases = computed(() => {
   if (!project.value) return [];
 
-  const isCreating = project.value.status === "creating";
   const isScaffold = project.value.scaffoldId !== null;
 
-  if (isCreating) {
+  // If we saw "creating" during this session, show all phases including creation steps
+  if (sawCreating.value) {
     if (isScaffold) {
       return allPhases;
     }
-    // Imported repo: skip creating_repository and pushing_scaffold
     return allPhases.filter((p) => p.key !== "creating_repository" && p.key !== "pushing_scaffold");
   }
 
-  // Starting: only pod-level phases
+  // Manual start: only pod-level phases
   return allPhases.filter(
     (p) =>
       p.key !== "creating_database" &&

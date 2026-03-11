@@ -159,15 +159,7 @@ async function createProject() {
       body,
     });
 
-    const slug = result.project.slug;
-
-    // Auto-start the project after creation
-    await $fetch(`/api/projects/${slug}/start`, { method: "POST" }).catch(() => {
-      // Start is fire-and-forget on the server, so this rarely fails.
-      // If it does, the project loading screen will show the stopped state.
-    });
-
-    await navigateTo(`/projects/${slug}`);
+    await navigateTo(`/projects/${result.project.slug}`);
   } catch (err: unknown) {
     if (err && typeof err === "object" && "statusMessage" in err) {
       errorMsg.value = (err as { statusMessage: string }).statusMessage;

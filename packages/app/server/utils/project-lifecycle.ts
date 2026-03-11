@@ -183,6 +183,9 @@ export async function createProject(
     }
 
     clearCreationPhase(slug);
+
+    // Auto-start the project now that creation is complete
+    await startProject(userId, slug);
   } catch (err: unknown) {
     // Set status to error on failure
     await updateProjectStatus(projectId, "error").catch(() => {});
