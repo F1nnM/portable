@@ -1,5 +1,14 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
+
 const { user, isAuthenticated, isSetupComplete } = useAuth();
+
+onMounted(() => {
+  const theme = localStorage.getItem("portable-theme");
+  if (theme && theme !== "system") {
+    document.documentElement.dataset.theme = theme;
+  }
+});
 </script>
 
 <template>
