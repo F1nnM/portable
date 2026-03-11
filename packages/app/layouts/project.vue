@@ -216,7 +216,7 @@ function isTabActive(tabPath: string): boolean {
   display: flex;
   align-items: stretch;
   justify-content: space-around;
-  height: 56px;
+  height: 64px;
   background: var(--color-bg-surface);
   border-top: 1px solid var(--color-border);
   box-shadow: 0 -2px 8px rgba(44, 40, 37, 0.04);
@@ -232,6 +232,7 @@ function isTabActive(tabPath: string): boolean {
   gap: var(--space-1);
   flex: 1;
   min-height: var(--touch-min);
+  padding-top: var(--space-1);
   color: var(--color-text-muted);
   text-decoration: none;
   border-top: 2px solid transparent;
