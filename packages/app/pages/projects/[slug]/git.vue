@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import type { GitStatus } from "~/types/git";
 
-definePageMeta({
-  layout: "project",
-});
-
 const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 
