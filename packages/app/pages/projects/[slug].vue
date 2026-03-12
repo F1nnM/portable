@@ -208,6 +208,24 @@ onUnmounted(() => {
 
   <!-- Non-running states: show status screen -->
   <div v-else class="status-screen">
+    <header class="status-header">
+      <NuxtLink to="/" class="status-back" aria-label="Back to dashboard">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="12 4 6 10 12 16" />
+        </svg>
+      </NuxtLink>
+      <NuxtLink to="/" class="status-brand">portable<span class="status-cursor">_</span></NuxtLink>
+    </header>
+
     <!-- Loading state while fetching project -->
     <div v-if="loading" class="status-center">
       <div class="loading-spinner" />
@@ -233,7 +251,6 @@ onUnmounted(() => {
       <h2 class="status-title">Something went wrong</h2>
       <p class="status-message">{{ fetchError }}</p>
       <button class="btn-primary" @click="fetchProject">Try again</button>
-      <NuxtLink to="/" class="link-back">Back to dashboard</NuxtLink>
     </div>
 
     <!-- Creating / Starting: progress checklist -->
@@ -305,7 +322,6 @@ onUnmounted(() => {
         </svg>
         {{ startActionLoading ? "Starting..." : "Start Project" }}
       </button>
-      <NuxtLink to="/" class="link-back">Back to dashboard</NuxtLink>
     </div>
 
     <!-- Error -->
@@ -332,7 +348,6 @@ onUnmounted(() => {
       <button class="btn-primary" :disabled="startActionLoading" @click="handleRetry">
         {{ startActionLoading ? "Starting..." : "Try starting again" }}
       </button>
-      <NuxtLink to="/" class="link-back">Back to dashboard</NuxtLink>
     </div>
   </div>
 </template>
@@ -340,11 +355,65 @@ onUnmounted(() => {
 <style scoped>
 .status-screen {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100dvh;
   background: var(--color-bg);
   padding: var(--space-5);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 400px;
+}
+
+.status-screen > .status-center {
+  margin: auto 0;
+  padding-bottom: 15vh;
+}
+
+.status-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.status-back:hover {
+  color: var(--color-text);
+  background: var(--color-bg-inset);
+}
+
+.status-brand {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: 400;
+  color: var(--color-text);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.status-cursor {
+  color: var(--color-accent);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 .status-center {
@@ -475,20 +544,6 @@ onUnmounted(() => {
 .btn-primary svg {
   width: 16px;
   height: 16px;
-}
-
-/* Back link */
-.link-back {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-.link-back:hover {
-  color: var(--color-text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 /* Progress checklist */
