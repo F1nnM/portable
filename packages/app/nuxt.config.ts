@@ -7,7 +7,12 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
 
 import { createPreviewToken, validatePreviewToken } from "./server/utils/preview-auth";
-import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/proxy-shared";
+import {
+  buildProxyErrorPage,
+  buildProxyTarget,
+  parseCookie,
+  parseSubdomain,
+} from "./server/utils/proxy-shared";
 
 // --- Dev proxy shared state ---
 // Module-level variables shared between the Vite middleware plugin (HTTP subdomain
@@ -31,8 +36,14 @@ function getDevSql(): postgres.Sql {
 function getDevProxy(): ReturnType<typeof createProxyServer> {
   if (!devProxy) {
     devProxy = createProxyServer();
-    devProxy.on("error", (err) => {
+    devProxy.on("error", (err, _req, res) => {
       console.warn(`[dev-proxy] Proxy error (suppressed):`, err.message);
+      // Send a friendly auto-refreshing page for HTTP requests.
+      // For WebSocket upgrades, res is a Socket (no writeHead method).
+      if (res && "writeHead" in res && !res.headersSent) {
+        res.writeHead(502, { "Content-Type": "text/html" });
+        res.end(buildProxyErrorPage());
+      }
     });
   }
   return devProxy;

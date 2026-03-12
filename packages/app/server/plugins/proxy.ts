@@ -7,6 +7,7 @@ import { getK8sConfig } from "../utils/k8s";
 import { createPreviewToken, validatePreviewToken } from "../utils/preview-auth";
 import { lookupProject } from "../utils/proxy";
 import {
+  buildProxyErrorPage,
   buildProxyTarget,
   getDomainFromBaseUrl,
   parseCookie,
@@ -20,8 +21,14 @@ const httpProxy = createProxyServer();
 // but httpxy can also emit error events on the proxy object itself for socket-level
 // errors (e.g., upstream closes mid-stream). Without this handler, those become
 // unhandled errors that crash the Nuxt dev server.
-httpProxy.on("error", (err) => {
+httpProxy.on("error", (err, _req, res) => {
   console.warn(`[proxy] Proxy error (suppressed):`, err.message);
+  // Send a friendly auto-refreshing page for HTTP requests.
+  // For WebSocket upgrades, res is a Socket (no writeHead method).
+  if (res && "writeHead" in res && !res.headersSent) {
+    res.writeHead(502, { "Content-Type": "text/html" });
+    res.end(buildProxyErrorPage());
+  }
 });
 
 const PREVIEW_COOKIE_NAME = "__portable_preview";

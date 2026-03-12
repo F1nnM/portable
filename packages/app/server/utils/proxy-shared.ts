@@ -119,6 +119,21 @@ export function buildPreviewOrigin(slug: string, baseUrl: string): string {
 }
 
 /**
+ * Returns an auto-refreshing HTML page shown when the proxy cannot reach
+ * the pod's dev server (ECONNREFUSED / timeout). Refreshes every 3 seconds
+ * so the preview loads automatically once the dev server starts.
+ */
+export function buildProxyErrorPage(): string {
+  return `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="3">
+<title>Preview Loading...</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f6f4f1;color:#3d3a37}.c{text-align:center;padding:2rem}.s{width:32px;height:32px;border:2px solid #e5e1dc;border-top-color:#e87c4a;border-radius:50%;animation:r .8s linear infinite;margin:0 auto 1rem}@keyframes r{to{transform:rotate(360deg)}}h1{font-size:1.125rem;font-weight:600;margin:0 0 .5rem}p{font-size:.875rem;color:#8b8580;margin:0}</style>
+</head><body><div class="c"><div class="s"></div><h1>Dev server is starting</h1><p>This page will refresh automatically.</p></div></body></html>`;
+}
+
+/**
  * Parses a specific cookie value from a cookie header string.
  */
 export function parseCookie(cookieHeader: string, name: string): string | null {
