@@ -6,6 +6,7 @@ import type { Connect, Plugin, ViteDevServer } from "vite";
 import { createProxyServer, proxyUpgrade } from "httpxy";
 import postgres from "postgres";
 
+import { createPreviewToken, validatePreviewToken } from "./server/utils/preview-auth";
 import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/proxy-shared";
 
 // --- Dev proxy shared state ---
@@ -14,6 +15,10 @@ import { buildProxyTarget, parseCookie, parseSubdomain } from "./server/utils/pr
 const DEV_BASE_URL = process.env.NUXT_BASE_URL || "http://localhost:3000";
 const DEV_NAMESPACE = process.env.NUXT_POD_NAMESPACE || "default";
 const DEV_DOMAIN = new URL(DEV_BASE_URL).hostname;
+const DEV_ENCRYPTION_KEY = process.env.NUXT_ENCRYPTION_KEY || "";
+
+const PREVIEW_COOKIE_NAME = "__portable_preview";
+const PREVIEW_COOKIE_TTL = 24 * 60 * 60; // 24 hours
 
 let devSql: postgres.Sql | undefined;
 let devProxy: ReturnType<typeof createProxyServer> | undefined;
@@ -128,7 +133,6 @@ function devSubdomainProxy(): Plugin {
           const subdomain = parseSubdomain(host, DEV_DOMAIN);
           if (!subdomain) return next();
 
-          // Proxy preview subdomain directly to pod (no auth required)
           handlePreviewProxy(req, res, subdomain, currentProxy, host).catch((err) => {
             console.error(`[dev-proxy] Error:`, err);
             if (!res.headersSent) {
@@ -151,11 +155,68 @@ async function handlePreviewProxy(
   proxy: ReturnType<typeof createProxyServer>,
   host: string,
 ): Promise<void> {
-  // Preview subdomains proxy directly without authentication because:
-  // - The preview iframe is loaded from within the authenticated main app
-  // - Pods are isolated by network policy (only reachable from the main app)
-  // - The auth relay flow has been removed, so preview subdomains have no session cookie
-  const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
+  const slug = subdomain.slug;
+  const requestUrl = req.url || "/";
+  const cookieHeader = req.headers.cookie || "";
+
+  // --- Auth callback: exchange token for preview cookie ---
+  if (requestUrl.startsWith("/__portable_auth_cb")) {
+    const params = new URL(requestUrl, "http://localhost").searchParams;
+    const token = params.get("token");
+    const redirect = params.get("redirect") || "/";
+
+    if (!token) {
+      res.writeHead(400, { "Content-Type": "text/plain" });
+      res.end("Missing token");
+      return;
+    }
+
+    const result = validatePreviewToken(token, slug, DEV_ENCRYPTION_KEY);
+    if (!result) {
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      res.end("Invalid or expired token");
+      return;
+    }
+
+    // Mint a fresh long-lived token for the cookie
+    const cookieToken = createPreviewToken(
+      result.userId,
+      slug,
+      DEV_ENCRYPTION_KEY,
+      PREVIEW_COOKIE_TTL,
+    );
+    const cookieParts = [
+      `${PREVIEW_COOKIE_NAME}=${encodeURIComponent(cookieToken)}`,
+      `Max-Age=${PREVIEW_COOKIE_TTL}`,
+      `Path=/`,
+      `HttpOnly`,
+      `SameSite=Lax`,
+    ];
+    res.setHeader("Set-Cookie", cookieParts.join("; "));
+
+    const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+    res.writeHead(302, { Location: safeRedirect });
+    res.end();
+    return;
+  }
+
+  // --- Validate preview cookie ---
+  const previewToken = parseCookie(cookieHeader, PREVIEW_COOKIE_NAME);
+  const tokenResult = previewToken
+    ? validatePreviewToken(previewToken, slug, DEV_ENCRYPTION_KEY)
+    : null;
+
+  if (!tokenResult) {
+    // Redirect to auth relay on the main app
+    const path = requestUrl.split("?")[0] || "/";
+    const authUrl = `${DEV_BASE_URL}/api/preview-auth?slug=${encodeURIComponent(slug)}&redirect=${encodeURIComponent(path)}`;
+    res.writeHead(302, { Location: authUrl });
+    res.end();
+    return;
+  }
+
+  // --- Proxy the authenticated request ---
+  const target = buildProxyTarget(slug, DEV_NAMESPACE);
   await proxy.web(req, res, {
     target,
     xfwd: true,
@@ -225,9 +286,18 @@ function installDevWsProxy(server: Server): void {
       return;
     }
 
-    // Preview subdomain WebSocket -- proxy to pod without authentication
-    // (same reasoning as HTTP preview: iframe is loaded from authenticated main app,
-    // pods are isolated by network policy, auth relay has been removed)
+    // Preview subdomain WebSocket -- validate preview cookie before proxying
+    const wsCookieHeader = req.headers.cookie || "";
+    const wsPreviewToken = parseCookie(wsCookieHeader, PREVIEW_COOKIE_NAME);
+    const wsTokenResult = wsPreviewToken
+      ? validatePreviewToken(wsPreviewToken, subdomain.slug, DEV_ENCRYPTION_KEY)
+      : null;
+
+    if (!wsTokenResult) {
+      socket.destroy();
+      return;
+    }
+
     const target = buildProxyTarget(subdomain.slug, DEV_NAMESPACE);
     proxyUpgrade(target, req, socket, head, {
       xfwd: true,

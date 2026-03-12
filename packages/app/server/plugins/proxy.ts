@@ -4,7 +4,7 @@ import { createProxyServer, proxyUpgrade } from "httpxy";
 
 import { validateSession } from "../utils/auth";
 import { getK8sConfig } from "../utils/k8s";
-import { validatePreviewToken } from "../utils/preview-auth";
+import { createPreviewToken, validatePreviewToken } from "../utils/preview-auth";
 import { lookupProject } from "../utils/proxy";
 import {
   buildProxyTarget,
@@ -134,10 +134,18 @@ export default defineNitroPlugin((nitroApp) => {
         return;
       }
 
+      // Mint a fresh long-lived token for the cookie (the redirect token has a short TTL)
+      const cookieToken = createPreviewToken(
+        result.userId,
+        slug,
+        config.encryptionKey,
+        PREVIEW_COOKIE_TTL,
+      );
+
       // Set the preview cookie
       const secure = process.env.NODE_ENV === "production";
       const cookieParts = [
-        `${PREVIEW_COOKIE_NAME}=${encodeURIComponent(token)}`,
+        `${PREVIEW_COOKIE_NAME}=${encodeURIComponent(cookieToken)}`,
         `Max-Age=${PREVIEW_COOKIE_TTL}`,
         `Path=/`,
         `HttpOnly`,
