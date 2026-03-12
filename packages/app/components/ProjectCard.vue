@@ -16,6 +16,8 @@ const isActioning = computed(() => currentAction.value !== null);
 const showRenameSheet = ref(false);
 const showDeleteSheet = ref(false);
 const showMenu = ref(false);
+const menuButtonRef = ref<HTMLElement | null>(null);
+const menuPosition = ref({ top: 0, right: 0 });
 const renameInput = ref(props.project.name);
 const deleteGithubRepo = ref(false);
 const actionError = ref("");
@@ -116,6 +118,13 @@ const canStop = computed(
 );
 
 function toggleMenu() {
+  if (!showMenu.value && menuButtonRef.value) {
+    const rect = menuButtonRef.value.getBoundingClientRect();
+    menuPosition.value = {
+      top: rect.bottom,
+      right: window.innerWidth - rect.right,
+    };
+  }
   showMenu.value = !showMenu.value;
 }
 
@@ -246,74 +255,87 @@ function openGithubRepo() {
 
     <div class="card-actions-area">
       <div class="menu-container">
-        <button class="btn-menu" aria-label="Project actions" @click.prevent="toggleMenu">
+        <button
+          ref="menuButtonRef"
+          class="btn-menu"
+          aria-label="Project actions"
+          @click.prevent="toggleMenu"
+        >
           <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
             <circle cx="12" cy="5" r="1.5" />
             <circle cx="12" cy="12" r="1.5" />
             <circle cx="12" cy="19" r="1.5" />
           </svg>
         </button>
-        <Transition name="menu-fade">
-          <div v-if="showMenu" class="menu-dropdown">
-            <button v-if="canStart" class="menu-item" @click="handleStart">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              Start
-            </button>
-            <button v-if="canStop" class="menu-item" @click="handleStop">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-              </svg>
-              Stop
-            </button>
-            <button class="menu-item" @click="openRename">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                width="16"
-                height="16"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Rename
-            </button>
-            <button v-if="project.repoUrl" class="menu-item" @click="openGithubRepo">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                <path
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
-                />
-              </svg>
-              Open GitHub
-            </button>
-            <button class="menu-item menu-item-danger" @click="openDelete">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                width="16"
-                height="16"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path
-                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                />
-              </svg>
-              Delete
-            </button>
-          </div>
-        </Transition>
-        <div v-if="showMenu" class="menu-backdrop" @click="closeMenu" />
       </div>
     </div>
 
     <div v-if="actionError" class="action-error">
       {{ actionError }}
     </div>
+
+    <!-- Context menu -->
+    <Teleport to="body">
+      <div v-if="showMenu" class="menu-backdrop" @click="closeMenu" />
+      <Transition name="menu-fade">
+        <div
+          v-if="showMenu"
+          class="menu-dropdown"
+          :style="{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }"
+        >
+          <button v-if="canStart" class="menu-item" @click="handleStart">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Start
+          </button>
+          <button v-if="canStop" class="menu-item" @click="handleStop">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
+            Stop
+          </button>
+          <button class="menu-item" @click="openRename">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            Rename
+          </button>
+          <button v-if="project.repoUrl" class="menu-item" @click="openGithubRepo">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+              />
+            </svg>
+            Open GitHub
+          </button>
+          <button class="menu-item menu-item-danger" @click="openDelete">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
+            </svg>
+            Delete
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- Rename bottom sheet -->
     <Teleport to="body">
@@ -579,11 +601,6 @@ function openGithubRepo() {
   flex-shrink: 0;
 }
 
-/* Menu */
-.menu-container {
-  position: relative;
-}
-
 .btn-menu {
   display: flex;
   align-items: center;
@@ -605,71 +622,6 @@ function openGithubRepo() {
 .btn-menu svg {
   width: 20px;
   height: 20px;
-}
-
-.menu-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 200;
-  min-width: 180px;
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-1);
-  box-shadow: var(--shadow-elevated);
-}
-
-.menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 199;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: var(--touch-min);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--transition-fast),
-    background var(--transition-fast);
-}
-
-.menu-item:hover {
-  background: var(--color-bg-surface);
-  color: var(--color-text);
-}
-
-.menu-item svg {
-  flex-shrink: 0;
-}
-
-.menu-item-danger {
-  color: var(--color-danger);
-}
-
-.menu-item-danger:hover {
-  background: var(--color-danger-tint);
-  color: var(--color-danger);
-}
-
-.menu-fade-enter-active,
-.menu-fade-leave-active {
-  transition:
-    opacity var(--transition-fast),
-    transform var(--transition-fast);
-}
-
-.menu-fade-enter-from,
-.menu-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 
 /* Action error */
@@ -909,5 +861,71 @@ function openGithubRepo() {
   .sheet-leave-to .sheet-content {
     transform: translateY(20px);
   }
+}
+</style>
+
+<style>
+/* Teleported menu dropdown — unscoped so styles apply at body level */
+.menu-dropdown {
+  position: fixed;
+  z-index: 200;
+  min-width: 180px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+  box-shadow: var(--shadow-elevated);
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.menu-item:hover {
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+}
+
+.menu-item svg {
+  flex-shrink: 0;
+}
+
+.menu-item-danger {
+  color: var(--color-danger);
+}
+
+.menu-item-danger:hover {
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition:
+    opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
