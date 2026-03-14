@@ -113,6 +113,25 @@ function buildMigrationPrompt(): string {
 5. After setup is complete, please tell me to stop and restart the project so the changes take effect.`;
   }
 
+  if (m.reason === "malformed_file") {
+    const scaffoldPath = m.projectScaffoldPath || `scaffolds/${m.scaffoldId}`;
+    return `The \`.portable.yaml\` file in this project appears to be malformed. Please fix it and ensure the project is up to date with the latest scaffold version.
+
+1. Clone the scaffold repository to a temporary directory:
+   \`git clone ${repoUrl} /tmp/scaffold-migration\`
+2. Read the Portable requirements from the scaffold:
+   \`cat /tmp/scaffold-migration/${scaffoldPath}/CLAUDE.md\`
+3. Ensure this project has all necessary configuration from the scaffold at commit \`${m.currentVersion}\`.
+4. Replace \`.portable.yaml\` in the project root with:
+   \`\`\`yaml
+   scaffold:
+     repo: ${repoUrl}
+     path: ${scaffoldPath}
+     version: ${m.currentVersion}
+   \`\`\`
+5. After the fix is complete, please tell me to stop and restart the project so the changes take effect.`;
+  }
+
   return "";
 }
 

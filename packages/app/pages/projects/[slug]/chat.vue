@@ -6,7 +6,7 @@ const slug = computed(() => route.params.slug as string);
 
 const migratePrompt = computed(() => {
   const param = route.query.migrate;
-  return typeof param === "string" ? decodeURIComponent(param) : "";
+  return typeof param === "string" ? param : "";
 });
 
 // State: session list vs active chat
