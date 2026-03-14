@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!user) throw createError({ statusCode: 401 });
 
   const slug = getRouterParam(event, "slug");
-  if (!slug) throw createError({ statusCode: 400, message: "Missing slug" });
+  if (!slug) throw createError({ statusCode: 400, statusMessage: "Missing slug" });
 
   const db = useDb();
   const [project] = await db
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
     .where(and(eq(projects.slug, slug), eq(projects.userId, user.id)))
     .limit(1);
 
-  if (!project) throw createError({ statusCode: 404, message: "Project not found" });
+  if (!project) throw createError({ statusCode: 404, statusMessage: "Project not found" });
   if (project.status !== "running") {
     return { needsMigration: false, reason: "not_running" };
   }

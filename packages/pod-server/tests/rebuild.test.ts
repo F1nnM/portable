@@ -45,10 +45,10 @@ beforeEach(() => {
   resetBuildState();
 });
 
-describe("pOST /api/rebuild", () => {
+describe("post /api/rebuild", () => {
   it("runs build and restarts supervisor on success", async () => {
     const { app, mockSupervisor, mockSpawnAsync } = createTestApp({
-      spawnAsync: vi.fn().mockImplementation((cmd: string, args: string[]) => {
+      spawnAsync: vi.fn().mockImplementation((cmd: string) => {
         if (cmd === "git") {
           return Promise.resolve({ stdout: "abc123\n", stderr: "" });
         }
@@ -126,7 +126,7 @@ describe("pOST /api/rebuild", () => {
     });
 
     let callCount = 0;
-    const mockSpawnAsync = vi.fn().mockImplementation((cmd: string, args: string[]) => {
+    const mockSpawnAsync = vi.fn().mockImplementation((cmd: string) => {
       if (cmd === "git") {
         return Promise.resolve({ stdout: "abc123\n", stderr: "" });
       }
@@ -256,7 +256,7 @@ describe("pOST /api/rebuild", () => {
   });
 });
 
-describe("gET /api/rebuild/status", () => {
+describe("get /api/rebuild/status", () => {
   it("returns correct status fields when no build has happened", async () => {
     const mockSpawnAsync = vi.fn().mockImplementation((cmd: string, args: string[]) => {
       if (cmd === "git" && args[0] === "rev-parse") {
@@ -358,5 +358,17 @@ describe("gET /api/rebuild/status", () => {
     const body = await res.json();
 
     expect(body.lastBuildError).toBe("Build failed: syntax error");
+  });
+
+  it("returns 500 when git commands fail", async () => {
+    const mockSpawnAsync = vi.fn().mockRejectedValue(new Error("git not found"));
+
+    const { app } = createTestApp({ spawnAsync: mockSpawnAsync });
+
+    const res = await app.request("/api/rebuild/status");
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.status).toBe("error");
+    expect(body.message).toContain("git not found");
   });
 });

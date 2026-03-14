@@ -106,30 +106,39 @@ export function rebuild(options: RebuildOptions): Hono {
   app.get("/api/rebuild/status", async (c) => {
     const state = getBuildState();
 
-    const { stdout: headOut } = await spawnAsync("git", ["rev-parse", "HEAD"], workspaceDir);
-    const currentHead = headOut.trim();
+    try {
+      const { stdout: headOut } = await spawnAsync("git", ["rev-parse", "HEAD"], workspaceDir);
+      const currentHead = headOut.trim();
 
-    const { stdout: statusOut } = await spawnAsync("git", ["status", "--porcelain"], workspaceDir);
-    const isDirty = statusOut.trim().length > 0;
-
-    let unbuiltCommitCount: number | null = null;
-    if (state.lastBuiltCommit) {
-      const { stdout: countOut } = await spawnAsync(
+      const { stdout: statusOut } = await spawnAsync(
         "git",
-        ["rev-list", "--count", `${state.lastBuiltCommit}..HEAD`],
+        ["status", "--porcelain"],
         workspaceDir,
       );
-      unbuiltCommitCount = Number.parseInt(countOut.trim(), 10);
-    }
+      const isDirty = statusOut.trim().length > 0;
 
-    return c.json({
-      lastBuiltCommit: state.lastBuiltCommit,
-      currentHead,
-      isDirty,
-      isBuilding: state.isBuilding,
-      lastBuildError: state.lastBuildError,
-      unbuiltCommitCount,
-    });
+      let unbuiltCommitCount: number | null = null;
+      if (state.lastBuiltCommit) {
+        const { stdout: countOut } = await spawnAsync(
+          "git",
+          ["rev-list", "--count", `${state.lastBuiltCommit}..HEAD`],
+          workspaceDir,
+        );
+        unbuiltCommitCount = Number.parseInt(countOut.trim(), 10);
+      }
+
+      return c.json({
+        lastBuiltCommit: state.lastBuiltCommit,
+        currentHead,
+        isDirty,
+        isBuilding: state.isBuilding,
+        lastBuildError: state.lastBuildError,
+        unbuiltCommitCount,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to read git status";
+      return c.json({ status: "error", message }, 500);
+    }
   });
 
   return app;
