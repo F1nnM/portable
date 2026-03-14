@@ -137,10 +137,12 @@ function buildMigrationPrompt(): string {
 
 function handleMigrate() {
   const prompt = buildMigrationPrompt();
+  migrationCheck.value = { needsMigration: false };
   navigateTo(`/projects/${slug.value}/chat?migrate=${encodeURIComponent(prompt)}`);
 }
 
 function handleSkipMigration() {
+  migrationCheck.value = { needsMigration: false };
   navigateTo(`/projects/${slug.value}/chat`);
 }
 
