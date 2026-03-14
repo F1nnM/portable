@@ -2,6 +2,12 @@ import type { SpawnOptions } from "node:child_process";
 import type { DevServerSupervisor } from "../dev-server.js";
 import { spawn } from "node:child_process";
 import { Hono } from "hono";
+import {
+  getBuildState,
+  setBuildingState,
+  setLastBuildError,
+  setLastBuiltCommit,
+} from "../build-state.js";
 
 function defaultSpawnAsync(
   command: string,
@@ -34,29 +40,115 @@ export interface RebuildOptions {
     args: string[],
     cwd: string,
   ) => Promise<{ stdout: string; stderr: string }>;
+  /** Inject for testing debounce timers. */
+  setTimeoutFn?: (cb: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  /** Inject for testing debounce timers. */
+  clearTimeoutFn?: (id: ReturnType<typeof setTimeout>) => void;
 }
 
 export function rebuild(options: RebuildOptions): Hono {
-  const { supervisor, workspaceDir, spawnAsync = defaultSpawnAsync } = options;
+  const {
+    supervisor,
+    workspaceDir,
+    spawnAsync = defaultSpawnAsync,
+    setTimeoutFn = globalThis.setTimeout.bind(globalThis),
+    clearTimeoutFn = globalThis.clearTimeout.bind(globalThis),
+  } = options;
+
   const app = new Hono();
   let building = false;
+  let pendingRebuild = false;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  app.post("/api/rebuild", async (c) => {
-    if (building) {
-      return c.json({ status: "error", message: "Build already in progress" }, 409);
-    }
-
+  async function runBuild(): Promise<void> {
     building = true;
+    setBuildingState(true);
     try {
       await spawnAsync("bun", ["run", "build"], workspaceDir);
+      const { stdout } = await spawnAsync("git", ["rev-parse", "HEAD"], workspaceDir);
+      const commit = stdout.trim();
+      setLastBuiltCommit(commit);
+      setLastBuildError(null);
       supervisor.restart();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Build failed";
+      setLastBuildError(message);
+      throw err;
+    } finally {
+      building = false;
+      setBuildingState(false);
+
+      if (pendingRebuild) {
+        pendingRebuild = false;
+        // Fire-and-forget the pending rebuild
+        runBuild().catch(() => {
+          // Error already stored in build state
+        });
+      }
+    }
+  }
+
+  app.post("/api/rebuild", async (c) => {
+    const debounceParam = c.req.query("debounce");
+
+    if (debounceParam) {
+      const ms = Number.parseInt(debounceParam, 10);
+
+      if (debounceTimer !== null) {
+        clearTimeoutFn(debounceTimer);
+      }
+
+      debounceTimer = setTimeoutFn(() => {
+        debounceTimer = null;
+        runBuild().catch(() => {
+          // Error already stored in build state
+        });
+      }, ms);
+
+      return c.json({ status: "scheduled" }, 202);
+    }
+
+    if (building) {
+      pendingRebuild = true;
+      return c.json({ status: "queued" }, 202);
+    }
+
+    try {
+      await runBuild();
       return c.json({ status: "ok" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Build failed";
       return c.json({ status: "error", message }, 500);
-    } finally {
-      building = false;
     }
+  });
+
+  app.get("/api/rebuild/status", async (c) => {
+    const state = getBuildState();
+
+    const { stdout: headOut } = await spawnAsync("git", ["rev-parse", "HEAD"], workspaceDir);
+    const currentHead = headOut.trim();
+
+    const { stdout: statusOut } = await spawnAsync("git", ["status", "--porcelain"], workspaceDir);
+    const isDirty = statusOut.trim().length > 0;
+
+    let unbuiltCommitCount: number | null = null;
+    if (state.lastBuiltCommit) {
+      const { stdout: countOut } = await spawnAsync(
+        "git",
+        ["rev-list", "--count", `${state.lastBuiltCommit}..HEAD`],
+        workspaceDir,
+      );
+      unbuiltCommitCount = Number.parseInt(countOut.trim(), 10);
+    }
+
+    return c.json({
+      lastBuiltCommit: state.lastBuiltCommit,
+      currentHead,
+      isDirty,
+      isBuilding: state.isBuilding,
+      lastBuildError: state.lastBuildError,
+      unbuiltCommitCount,
+    });
   });
 
   return app;
