@@ -9,6 +9,8 @@ export interface CreateProjectPodOptions {
   githubToken: string;
   repoUrl?: string;
   ageKey?: string;
+  gitUserName?: string;
+  gitUserEmail?: string;
 }
 
 export interface K8sConfig {
@@ -105,6 +107,15 @@ export async function createProjectPod(options: CreateProjectPodOptions): Promis
 
   if (options.ageKey) {
     env.push({ name: "SOPS_AGE_KEY", value: options.ageKey });
+  }
+
+  if (options.gitUserName) {
+    env.push({ name: "GIT_AUTHOR_NAME", value: options.gitUserName });
+    env.push({ name: "GIT_COMMITTER_NAME", value: options.gitUserName });
+  }
+  if (options.gitUserEmail) {
+    env.push({ name: "GIT_AUTHOR_EMAIL", value: options.gitUserEmail });
+    env.push({ name: "GIT_COMMITTER_EMAIL", value: options.gitUserEmail });
   }
 
   await api.createNamespacedPod({

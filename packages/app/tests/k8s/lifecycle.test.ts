@@ -175,11 +175,17 @@ describe("project lifecycle", () => {
       // AGE key lookup (select encryptedAgeKey from users)
       const ageKeySelectChain = makeSelectChain([{ encryptedAgeKey: null }]);
 
-      // First select = project lookup, second = user anthropic key lookup, third = AGE key lookup
+      // User info lookup (select username, displayName from users)
+      const userInfoSelectChain = makeSelectChain([
+        { username: "testuser", displayName: "Test User" },
+      ]);
+
+      // select order: project lookup, user anthropic key, AGE key, user info
       mockDb.select
         .mockReturnValueOnce(projectSelectChain)
         .mockReturnValueOnce(userSelectChain)
-        .mockReturnValueOnce(ageKeySelectChain);
+        .mockReturnValueOnce(ageKeySelectChain)
+        .mockReturnValueOnce(userInfoSelectChain);
 
       // Status updates
       mockDb.update.mockReturnValue(makeUpdateChain());
@@ -318,11 +324,12 @@ describe("project lifecycle", () => {
       mockDb.update.mockReturnValue(makeUpdateChain());
 
       // -- Auto-start phase mocks (startProject is called after creation) --
-      // startProject calls lookupProject (select), getAnthropicKey (select), getAgeKey (select)
+      // startProject calls lookupProject (select), getAnthropicKey (select), getAgeKey (select), user info (select)
       mockDb.select
         .mockReturnValueOnce(makeSelectChain([{ ...TEST_PROJECT, status: "stopped" }]))
         .mockReturnValueOnce(makeSelectChain([{ encryptedAnthropicKey: "user-encrypted-key" }]))
-        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]));
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]))
+        .mockReturnValueOnce(makeSelectChain([{ username: "testuser", displayName: "Test User" }]));
 
       mockDecrypt.mockReturnValue("sk-ant-decrypted");
       mockCreateProjectPVC.mockResolvedValue(undefined);
@@ -342,7 +349,8 @@ describe("project lifecycle", () => {
       mockDb.select
         .mockReturnValueOnce(makeSelectChain([{ ...TEST_PROJECT, slug, status: "stopped" }]))
         .mockReturnValueOnce(makeSelectChain([{ encryptedAnthropicKey: "user-encrypted-key" }]))
-        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]));
+        .mockReturnValueOnce(makeSelectChain([{ encryptedAgeKey: null }]))
+        .mockReturnValueOnce(makeSelectChain([{ username: "testuser", displayName: "Test User" }]));
 
       mockGetDecryptedGithubToken.mockResolvedValue("ghp_decrypted_token");
       mockDecrypt.mockReturnValue("sk-ant-decrypted");

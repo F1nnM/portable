@@ -213,10 +213,22 @@ export async function startProject(userId: string, slug: string): Promise<void> 
   await updateProjectStatus(project.id, "starting");
 
   try {
-    // Get credentials
+    // Get credentials and user info
     const githubToken = await getDecryptedGithubToken(userId);
     const claudeKey = await getAnthropicKey(userId, project.encryptedAnthropicKey);
     const ageKey = await getAgeKey(userId);
+
+    // Fetch user info for git identity
+    const db2 = useDb();
+    const userResult = await db2
+      .select({ username: users.username, displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const gitUserName = userResult[0]?.displayName || userResult[0]?.username;
+    const gitUserEmail = userResult[0]
+      ? `${userResult[0].username}@users.noreply.github.com`
+      : undefined;
 
     // Detect whether the key is an OAuth token or a regular API key
     const isOAuthToken = claudeKey?.startsWith("sk-ant-oat");
@@ -243,6 +255,8 @@ export async function startProject(userId: string, slug: string): Promise<void> 
         claudeOAuthToken,
         ageKey,
         repoUrl: project.repoUrl ?? undefined,
+        gitUserName,
+        gitUserEmail,
       });
     } catch (err: unknown) {
       if (!isK8sAlreadyExists(err)) throw err;
