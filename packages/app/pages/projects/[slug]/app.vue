@@ -163,7 +163,7 @@ onUnmounted(() => {
                   <template v-else-if="status!.lastBuildError">Build failed</template>
                   <template v-else-if="hasUnbuiltCommits">
                     {{ status!.unbuiltCommitCount }}
-                    commit{{ status!.unbuiltCommitCount === 1 ? "" : "s" }} ahead
+                    commit{{ status!.unbuiltCommitCount === 1 ? "" : "s" }} behind
                   </template>
                   <template v-else>Up to date</template>
                 </span>
