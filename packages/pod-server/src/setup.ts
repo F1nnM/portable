@@ -14,6 +14,8 @@ export interface SetupOptions {
   workspaceDir: string;
   githubRepoUrl?: string;
   githubToken?: string;
+  /** Build command to run after install. Default: "bun run build". */
+  buildCommand?: string;
   /** Inject for testing. Defaults to spawn-based async exec. */
   execFn?: ExecFn;
   /** Inject for testing. Defaults to fs.existsSync. */
@@ -55,12 +57,14 @@ function spawnAsync(file: string, args: readonly string[], options?: SpawnOption
  * Runs workspace setup steps:
  * 1. Clone the repo if workspace is empty and GITHUB_REPO_URL is set
  * 2. Install dependencies if node_modules is missing
+ * 3. Build the application (runs the configured build command)
  */
 export async function setupWorkspace(options: SetupOptions): Promise<void> {
   const {
     workspaceDir,
     githubRepoUrl,
     githubToken,
+    buildCommand = "bun run build",
     execFn = spawnAsync,
     existsSyncFn = existsSync,
     readdirSyncFn = readdirSync,
@@ -112,6 +116,13 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
   } else {
     console.log("[setup] node_modules exists, skipping install.");
   }
+
+  // Step 3: Build the application
+  const buildParts = buildCommand.split(/\s+/);
+  setPhase("building");
+  console.log(`[setup] Building with: ${buildCommand}...`);
+  await execFn(buildParts[0], buildParts.slice(1), execOpts);
+  console.log("[setup] Build complete.");
 }
 
 function hasFiles(

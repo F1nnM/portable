@@ -36,6 +36,7 @@ const phaseLabels: Record<string, string> = {
   initializing: "Initializing workspace...",
   cloning: "Cloning repository...",
   installing: "Installing dependencies...",
+  building: "Building application...",
   starting_server: "Starting server...",
   ready: "Almost ready...",
 };

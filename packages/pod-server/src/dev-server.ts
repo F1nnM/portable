@@ -76,6 +76,11 @@ export class DevServerSupervisor {
     }
   }
 
+  restart(): void {
+    this.stop();
+    this.start();
+  }
+
   private spawn(): void {
     if (!this.running || this.stopping) return;
 

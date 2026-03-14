@@ -1,4 +1,10 @@
-export type SetupPhase = "initializing" | "cloning" | "installing" | "starting_server" | "ready";
+export type SetupPhase =
+  | "initializing"
+  | "cloning"
+  | "installing"
+  | "building"
+  | "starting_server"
+  | "ready";
 
 let phase: SetupPhase = "initializing";
 

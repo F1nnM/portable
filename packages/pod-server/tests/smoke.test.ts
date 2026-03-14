@@ -25,7 +25,7 @@ describe("pod-server smoke tests", () => {
 
   it("returns 503 with phase during setup phases", async () => {
     const { setPhase } = await import("../src/setup-state.js");
-    const setupPhases = ["cloning", "installing", "starting_server"] as const;
+    const setupPhases = ["cloning", "installing", "building", "starting_server"] as const;
 
     for (const phase of setupPhases) {
       setPhase(phase);

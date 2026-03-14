@@ -69,6 +69,16 @@ bun run build     # Build for production
 bun run preview   # Preview production build locally
 ```
 
+## Preview & Rebuild
+
+The preview pane serves a **production build** (not a dev server). Code changes are not automatically reflected in the preview.
+
+To update the preview after making changes:
+- Use the rebuild button in the preview header, or
+- Run `bun run build` manually, then call `POST /api/rebuild`
+
+The rebuild endpoint (`POST /api/rebuild`) rebuilds the app and restarts the preview server.
+
 ## Deployment
 
 ### Docker

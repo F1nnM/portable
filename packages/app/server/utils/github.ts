@@ -96,18 +96,19 @@ export function readScaffoldFiles(scaffoldId: string): ScaffoldFile[] {
     throw new Error(`Scaffold "${scaffoldId}" not found`);
   }
 
+  const isIgnored = loadGitignore(scaffoldDir);
   const files: ScaffoldFile[] = [];
 
   function walkDir(dir: string) {
     const entries = readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
+      const relativePath = relative(scaffoldDir, fullPath);
       if (entry.isDirectory()) {
-        // Skip node_modules and .git
-        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        if (entry.name === ".git" || isIgnored(relativePath, true)) continue;
         walkDir(fullPath);
       } else if (entry.isFile()) {
-        const relativePath = relative(scaffoldDir, fullPath);
+        if (isIgnored(relativePath, false)) continue;
         const content = readFileSync(fullPath, "utf-8");
         files.push({ path: relativePath, content });
       }
@@ -116,6 +117,44 @@ export function readScaffoldFiles(scaffoldId: string): ScaffoldFile[] {
 
   walkDir(scaffoldDir);
   return files;
+}
+
+/**
+ * Parses a .gitignore file and returns a function that tests whether a relative path is ignored.
+ */
+function loadGitignore(dir: string): (path: string, isDir: boolean) => boolean {
+  const gitignorePath = join(dir, ".gitignore");
+  if (!existsSync(gitignorePath)) return () => false;
+
+  const lines = readFileSync(gitignorePath, "utf-8")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"));
+
+  const patterns = lines.map((line) => {
+    const dirOnly = line.endsWith("/");
+    const pattern = dirOnly ? line.slice(0, -1) : line;
+    return { pattern, dirOnly };
+  });
+
+  return (relPath: string, isDir: boolean) => {
+    const segments = relPath.split("/");
+    for (const { pattern, dirOnly } of patterns) {
+      if (dirOnly && !isDir) continue;
+      // Simple glob: *.ext matches filename
+      if (pattern.startsWith("*")) {
+        const ext = pattern.slice(1);
+        if (segments[segments.length - 1].endsWith(ext)) return true;
+      } else if (!pattern.includes("/")) {
+        // Bare name matches any segment (directory or final filename)
+        if (segments.includes(pattern)) return true;
+      } else {
+        // Pattern with slash matches from root
+        if (relPath === pattern || relPath.startsWith(`${pattern}/`)) return true;
+      }
+    }
+    return false;
+  };
 }
 
 /**

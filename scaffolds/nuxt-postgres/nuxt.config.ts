@@ -2,12 +2,52 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-03-01",
   ssr: true,
   devtools: false,
+  modules: ["@vite-pwa/nuxt"],
   devServer: {
     host: "0.0.0.0",
   },
   vite: {
     server: {
       allowedHosts: true,
+    },
+  },
+  pwa: {
+    registerType: "autoUpdate",
+    manifest: {
+      name: "My App",
+      short_name: "MyApp",
+      theme_color: "#e8734a",
+      background_color: "#1c1917",
+      display: "standalone",
+      icons: [
+        {
+          src: "/icons/icon-192x192.png",
+          sizes: "192x192",
+          type: "image/png",
+        },
+        {
+          src: "/icons/icon-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+        },
+      ],
+    },
+    workbox: {
+      navigateFallback: "/",
+      globPatterns: ["**/*.{js,css,html,png,svg,ico,woff2}"],
+      runtimeCaching: [
+        {
+          urlPattern: /^.*\/api\/.*/,
+          handler: "NetworkFirst",
+          options: {
+            cacheName: "api-cache",
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60,
+            },
+          },
+        },
+      ],
     },
   },
 });

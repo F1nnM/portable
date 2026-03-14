@@ -5,12 +5,18 @@ import { DevServerSupervisor } from "./dev-server.js";
 import { setPhase } from "./setup-state.js";
 import { setupWorkspace } from "./setup.js";
 
-const { app, registerWsRoute } = createApp();
-const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
-registerWsRoute(upgradeWebSocket);
-
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 const workspaceDir = process.env.WORKSPACE_DIR || "/workspace";
+
+const supervisor = new DevServerSupervisor({
+  command: process.env.DEV_SERVER_COMMAND || "bun run preview",
+  cwd: workspaceDir,
+  port: 3001,
+});
+
+const { app, registerWsRoute } = createApp({ supervisor, workspaceDir });
+const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+registerWsRoute(upgradeWebSocket);
 
 // Start Hono server immediately so the health endpoint is available during setup
 const server = serve(
@@ -35,11 +41,6 @@ async function startup() {
 
   setPhase("starting_server");
 
-  const supervisor = new DevServerSupervisor({
-    command: process.env.DEV_SERVER_COMMAND || "bun run dev",
-    cwd: workspaceDir,
-    port: 3001,
-  });
   supervisor.start();
 
   setPhase("ready");

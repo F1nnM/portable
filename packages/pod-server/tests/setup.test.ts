@@ -179,8 +179,17 @@ describe("setupWorkspace", () => {
       readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
     });
 
-    // No install call
-    expect(mockExecFn).not.toHaveBeenCalled();
+    // No install call, but build still runs
+    const installCalls = mockExecFn.mock.calls.filter(
+      (c: unknown[]) => c[0] === "bun" && (c[1] as string[])[0] === "install",
+    );
+    expect(installCalls).toHaveLength(0);
+    // Build should still run
+    expect(mockExecFn).toHaveBeenCalledWith(
+      "bun",
+      ["run", "build"],
+      expect.objectContaining({ cwd: "/workspace" }),
+    );
   });
 
   describe("ensureGitignoreEntry (via setupWorkspace)", () => {
@@ -255,6 +264,64 @@ describe("setupWorkspace", () => {
       expect(lines.some((line) => line.trim() === ".claude/")).toBe(true);
       expect(lines.some((line) => line.trim() === ".env")).toBe(true);
     });
+  });
+
+  it("runs build after install", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
+      files: ["package.json"],
+      nodeModulesExists: false,
+    });
+
+    mockExistsSync.mockImplementation((path: string) => {
+      if (path === "/workspace") return true;
+      if (typeof path === "string" && path.endsWith("/node_modules")) return false;
+      return false;
+    });
+
+    await setupWorkspace({
+      workspaceDir: "/workspace",
+      execFn: mockExecFn as unknown as ExecFn,
+      existsSyncFn: mockExistsSync as unknown as typeof existsSync,
+      readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
+    });
+
+    // Should have called bun install then bun run build
+    const calls = mockExecFn.mock.calls;
+    const installIdx = calls.findIndex(
+      (c: unknown[]) => c[0] === "bun" && (c[1] as string[])[0] === "install",
+    );
+    const buildIdx = calls.findIndex(
+      (c: unknown[]) => c[0] === "bun" && (c[1] as string[]).join(" ") === "run build",
+    );
+    expect(installIdx).toBeGreaterThanOrEqual(0);
+    expect(buildIdx).toBeGreaterThan(installIdx);
+  });
+
+  it("uses custom build command when provided", async () => {
+    const { mockExecFn, mockExistsSync, mockReaddirSync } = createMocks({
+      files: ["package.json"],
+      nodeModulesExists: true,
+    });
+
+    mockExistsSync.mockImplementation((path: string) => {
+      if (path === "/workspace") return true;
+      if (typeof path === "string" && path.endsWith("/node_modules")) return true;
+      return false;
+    });
+
+    await setupWorkspace({
+      workspaceDir: "/workspace",
+      buildCommand: "npm run build",
+      execFn: mockExecFn as unknown as ExecFn,
+      existsSyncFn: mockExistsSync as unknown as typeof existsSync,
+      readdirSyncFn: mockReaddirSync as unknown as typeof readdirSync,
+    });
+
+    expect(mockExecFn).toHaveBeenCalledWith(
+      "npm",
+      ["run", "build"],
+      expect.objectContaining({ cwd: "/workspace" }),
+    );
   });
 
   it("ignores lost+found when checking if workspace has files", async () => {

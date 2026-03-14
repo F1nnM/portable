@@ -4,6 +4,8 @@ const slug = computed(() => route.params.slug as string);
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
 const isLoading = ref(true);
+const isRebuilding = ref(false);
+const rebuildError = ref("");
 
 // Construct preview URL from the current hostname pattern.
 // The convention is: slug--preview--appLabel.domain
@@ -44,6 +46,21 @@ function refreshPreview() {
 function openInNewTab() {
   window.open(previewUrl.value, "_blank");
 }
+
+async function rebuildPreview() {
+  if (isRebuilding.value) return;
+  isRebuilding.value = true;
+  rebuildError.value = "";
+  try {
+    await $fetch(`/api/projects/${slug.value}/pod/api/rebuild`, { method: "POST" });
+    refreshPreview();
+  } catch (err: unknown) {
+    const data = (err as { data?: { message?: string } })?.data;
+    rebuildError.value = data?.message || (err instanceof Error ? err.message : "Build failed");
+  } finally {
+    isRebuilding.value = false;
+  }
+}
 </script>
 
 <template>
@@ -54,6 +71,32 @@ function openInNewTab() {
       <span class="preview-url">{{ previewUrl }}</span>
 
       <div class="preview-actions">
+        <button
+          class="btn-rebuild"
+          :class="{ 'is-rebuilding': isRebuilding }"
+          :disabled="isRebuilding"
+          aria-label="Rebuild application"
+          @click="rebuildPreview"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+            />
+            <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
+            <polyline points="7.5 19.79 7.5 14.6 3 12" />
+            <polyline points="21 12 16.5 14.6 16.5 19.79" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        </button>
+
         <button class="btn-refresh" aria-label="Refresh preview" @click="refreshPreview">
           <svg
             viewBox="0 0 24 24"
@@ -85,12 +128,17 @@ function openInNewTab() {
       </div>
     </div>
 
+    <!-- Rebuild error -->
+    <div v-if="rebuildError" class="rebuild-error" @click="rebuildError = ''">
+      Build failed. Tap to dismiss.
+    </div>
+
     <!-- Iframe container -->
     <div class="iframe-container">
       <!-- Loading overlay -->
       <div v-if="isLoading" class="loading-overlay">
         <div class="loading-spinner" />
-        <span class="loading-text">Loading preview...</span>
+        <span class="loading-text">Preparing preview...</span>
       </div>
 
       <iframe
@@ -152,6 +200,7 @@ function openInNewTab() {
   flex-shrink: 0;
 }
 
+.btn-rebuild,
 .btn-refresh,
 .btn-new-tab {
   display: flex;
@@ -165,12 +214,34 @@ function openInNewTab() {
   transition: all var(--transition-fast);
 }
 
+.btn-rebuild:hover,
 .btn-refresh:hover,
 .btn-new-tab:hover {
   color: var(--color-text);
   background: var(--color-bg-inset);
 }
 
+.btn-rebuild.is-rebuilding {
+  color: var(--color-accent);
+  animation: spin 1s linear infinite;
+}
+
+.btn-rebuild:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.rebuild-error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-rebuild svg,
 .btn-refresh svg,
 .btn-new-tab svg {
   width: 18px;

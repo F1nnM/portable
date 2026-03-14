@@ -275,6 +275,36 @@ describe("devServerSupervisor", () => {
     supervisor.stop();
   });
 
+  it("restart() stops and re-starts the process with reset backoff", () => {
+    const supervisor = createSupervisor();
+    supervisor.start();
+
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const firstChild = mockChildren[0];
+
+    supervisor.restart();
+
+    // Should have killed the first child
+    expect(firstChild.kill).toHaveBeenCalledWith("SIGTERM");
+    // Should have spawned a new process
+    expect(mockSpawn).toHaveBeenCalledTimes(2);
+    expect(supervisor.isRunning).toBe(true);
+
+    supervisor.stop();
+  });
+
+  it("restart() works when not currently running", () => {
+    const supervisor = createSupervisor();
+
+    // restart on a never-started supervisor should just start it
+    supervisor.restart();
+
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(supervisor.isRunning).toBe(true);
+
+    supervisor.stop();
+  });
+
   it("splits multi-word command into command and args", () => {
     const supervisor = createSupervisor({ command: "npm run dev -- --host" });
     supervisor.start();
