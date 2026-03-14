@@ -153,6 +153,7 @@ const allPhases = [
   { key: "initializing", label: "Initializing workspace..." },
   { key: "cloning", label: "Cloning repository..." },
   { key: "installing", label: "Installing dependencies..." },
+  { key: "building", label: "Building application..." },
   { key: "starting_server", label: "Starting server..." },
   { key: "ready", label: "Ready" },
 ] as const;
