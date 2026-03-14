@@ -50,7 +50,7 @@ docker_build(
     ],
 )
 
-# Pod server (Hono API server) — Dockerfile.dev.
+# Pod server (Hono API server) — production Dockerfile (multi-stage build).
 #
 # Project pods are created dynamically at runtime, not in static K8s manifests.
 # A dummy Job (tilt-pod-server-anchor) anchors the image so Tilt builds it.
@@ -61,7 +61,7 @@ docker_build(
 docker_build(
     POD_SERVER_IMAGE,
     context=".",
-    dockerfile="packages/pod-server/Dockerfile.dev",
+    dockerfile="packages/pod-server/Dockerfile",
     only=[
         "package.json",
         "bun.lock",
