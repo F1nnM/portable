@@ -1,6 +1,4 @@
-import type { SpawnOptions } from "node:child_process";
 import type { DevServerSupervisor } from "../dev-server.js";
-import { spawn } from "node:child_process";
 import { Hono } from "hono";
 import {
   getBuildState,
@@ -8,28 +6,7 @@ import {
   setLastBuildError,
   setLastBuiltCommit,
 } from "../build-state.js";
-
-function defaultSpawnAsync(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    let stdout = "";
-    let stderr = "";
-    const child = spawn(command, args, { cwd } satisfies SpawnOptions);
-    child.stdout?.on("data", (d) => (stdout += String(d)));
-    child.stderr?.on("data", (d) => (stderr += String(d)));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve({ stdout, stderr });
-      } else {
-        reject(new Error(`Build failed: exit code ${code}\n${stderr}`));
-      }
-    });
-  });
-}
+import { spawnAsync as defaultSpawnAsync } from "../spawn-async.js";
 
 export interface RebuildOptions {
   supervisor: DevServerSupervisor;

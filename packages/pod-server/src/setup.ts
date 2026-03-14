@@ -157,7 +157,7 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
   ensureGitignoreEntry(workspaceDir, ".claude/", existsSyncFn);
 
   // Install git post-commit hook for auto-rebuild and push
-  installPostCommitHook(workspaceDir);
+  installPostCommitHook(workspaceDir, { existsSyncFn });
 
   // Step 2: Install dependencies if node_modules is missing
   const nodeModulesPath = join(workspaceDir, "node_modules");

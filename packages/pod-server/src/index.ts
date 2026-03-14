@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { createApp } from "./app.js";
 import { DevServerSupervisor } from "./dev-server.js";
+import { recordInitialBuiltCommit } from "./record-initial-commit.js";
 import { setPhase } from "./setup-state.js";
 import { setupWorkspace } from "./setup.js";
 
@@ -38,6 +39,8 @@ async function startup() {
     githubRepoUrl: process.env.GITHUB_REPO_URL,
     githubToken: process.env.GITHUB_TOKEN,
   });
+
+  await recordInitialBuiltCommit({ workspaceDir });
 
   setPhase("starting_server");
 
