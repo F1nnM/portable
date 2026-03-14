@@ -4,6 +4,11 @@ import type { ChatMessage, ChatSession } from "~/types/chat";
 const route = useRoute();
 const slug = computed(() => route.params.slug as string);
 
+const migratePrompt = computed(() => {
+  const param = route.query.migrate;
+  return typeof param === "string" ? decodeURIComponent(param) : "";
+});
+
 // State: session list vs active chat
 const activeSessionId = ref<string | null>(null);
 const sessions = ref<ChatSession[]>([]);
@@ -177,6 +182,9 @@ function startNewSession() {
 function sendMessage(content: string) {
   wsSend(content);
   scrollToBottom();
+  if (route.query.migrate) {
+    navigateTo(`/projects/${slug.value}/chat`, { replace: true });
+  }
 }
 
 // Go back to session list
@@ -192,6 +200,10 @@ function goBack() {
 onMounted(() => {
   fetchSessions();
   fetchActiveSessions();
+  // If migrate param is present, start a new session with pre-filled prompt
+  if (migratePrompt.value) {
+    startNewSession();
+  }
   if (window.visualViewport) {
     window.visualViewport.addEventListener("resize", onViewportResize);
     window.visualViewport.addEventListener("scroll", onViewportResize);
@@ -266,7 +278,12 @@ onUnmounted(() => {
         </div>
 
         <!-- Input area -->
-        <ChatInput :is-streaming="isStreaming" @send="sendMessage" @interrupt="wsInterrupt" />
+        <ChatInput
+          :is-streaming="isStreaming"
+          :initial-value="migratePrompt"
+          @send="sendMessage"
+          @interrupt="wsInterrupt"
+        />
       </div>
     </template>
   </div>

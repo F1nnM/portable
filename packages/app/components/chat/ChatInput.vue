@@ -1,6 +1,7 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   isStreaming: boolean;
+  initialValue?: string;
 }>();
 
 const emit = defineEmits<{
@@ -8,7 +9,7 @@ const emit = defineEmits<{
   interrupt: [];
 }>();
 
-const inputText = ref("");
+const inputText = ref(props.initialValue || "");
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 function adjustHeight() {
@@ -37,6 +38,16 @@ function handleInterrupt() {
 watch(inputText, () => {
   nextTick(adjustHeight);
 });
+
+watch(
+  () => props.initialValue,
+  (val) => {
+    if (val) {
+      inputText.value = val;
+      nextTick(adjustHeight);
+    }
+  },
+);
 
 const isEmpty = computed(() => inputText.value.trim().length === 0);
 </script>

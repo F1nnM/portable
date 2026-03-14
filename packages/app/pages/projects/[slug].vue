@@ -15,6 +15,115 @@ const currentPhase = ref<string | null>(null);
 const startActionLoading = ref(false);
 const startActionError = ref("");
 
+// Migration state
+const migrationCheck = ref<{
+  needsMigration: boolean;
+  reason?: string;
+  scaffoldId?: string | null;
+  projectVersion?: string;
+  projectScaffoldPath?: string;
+  projectScaffoldRepo?: string;
+  currentVersion?: string;
+  scaffoldRepoUrl?: string;
+} | null>(null);
+const migrationChecked = ref(false);
+const scaffolds = ref<{ id: string; name: string; description: string }[]>([]);
+const selectedScaffoldId = ref<string | null>(null);
+
+async function checkMigration() {
+  if (!project.value || project.value.status !== "running") return;
+  try {
+    const data = await $fetch(`/api/projects/${slug.value}/scaffold-version`);
+    migrationCheck.value = data;
+    if (data.needsMigration && data.reason === "missing_file_imported") {
+      const scaffoldData = await $fetch<{ scaffolds: typeof scaffolds.value }>("/api/scaffolds");
+      scaffolds.value = scaffoldData.scaffolds;
+      if (scaffoldData.scaffolds.length > 0) {
+        selectedScaffoldId.value = scaffoldData.scaffolds[0].id;
+      }
+    }
+  } catch {
+    migrationCheck.value = { needsMigration: false };
+  }
+  migrationChecked.value = true;
+}
+
+function buildMigrationPrompt(): string {
+  const m = migrationCheck.value;
+  if (!m) return "";
+
+  const repoUrl = m.scaffoldRepoUrl || m.projectScaffoldRepo || "";
+
+  if (m.reason === "version_mismatch") {
+    const scaffoldPath = m.projectScaffoldPath || `scaffolds/${m.scaffoldId}`;
+    return `The scaffold this project was created from has been updated. Please migrate this project to the latest scaffold version.
+
+1. Clone the scaffold repository to a temporary directory:
+   \`git clone ${repoUrl} /tmp/scaffold-migration\`
+2. The scaffold is in the \`${scaffoldPath}/\` folder. Compare the version this project was created from (commit \`${m.projectVersion}\`) with the current deployed version (commit \`${m.currentVersion}\`):
+   \`cd /tmp/scaffold-migration && git diff ${m.projectVersion} ${m.currentVersion} -- ${scaffoldPath}/\`
+3. Review the diff and apply the relevant changes to this project, adapting them to any customizations that have been made. Skip changes that conflict with intentional project modifications.
+4. Update \`.portable.yaml\` in the project root to reflect the new version:
+   \`\`\`yaml
+   scaffold:
+     repo: ${repoUrl}
+     path: ${scaffoldPath}
+     version: ${m.currentVersion}
+   \`\`\`
+5. After migration is complete, please tell me to stop and restart the project so the changes take effect.`;
+  }
+
+  if (m.reason === "missing_file_scaffold") {
+    const scaffoldPath = `scaffolds/${m.scaffoldId}`;
+    return `This project was created from a Portable scaffold but is missing its \`.portable.yaml\` version file. Please set it up for the latest scaffold version.
+
+1. Clone the scaffold repository to a temporary directory:
+   \`git clone ${repoUrl} /tmp/scaffold-migration\`
+2. Read the Portable requirements from the scaffold:
+   \`cat /tmp/scaffold-migration/${scaffoldPath}/CLAUDE.md\`
+3. Check the current scaffold at commit \`${m.currentVersion}\` and ensure this project has all necessary configuration. Apply any missing changes.
+4. Create \`.portable.yaml\` in the project root:
+   \`\`\`yaml
+   scaffold:
+     repo: ${repoUrl}
+     path: ${scaffoldPath}
+     version: ${m.currentVersion}
+   \`\`\`
+5. After setup is complete, please tell me to stop and restart the project so the changes take effect.`;
+  }
+
+  if (m.reason === "missing_file_imported") {
+    const scaffoldId = selectedScaffoldId.value || "nuxt-postgres";
+    const scaffoldPath = `scaffolds/${scaffoldId}`;
+    return `This project was not created from a Portable scaffold. Please configure it to work correctly in the Portable environment.
+
+1. Clone the scaffold repository to a temporary directory:
+   \`git clone ${repoUrl} /tmp/scaffold-reference\`
+2. Read the Portable requirements from the scaffold's CLAUDE.md:
+   \`cat /tmp/scaffold-reference/${scaffoldPath}/CLAUDE.md\`
+3. Adapt this project to meet the Portable requirements described in that file. Do not overwrite the project's existing structure -- only add or modify what's needed for Portable compatibility.
+4. Create \`.portable.yaml\` in the project root:
+   \`\`\`yaml
+   scaffold:
+     repo: ${repoUrl}
+     path: ${scaffoldPath}
+     version: ${m.currentVersion}
+   \`\`\`
+5. After setup is complete, please tell me to stop and restart the project so the changes take effect.`;
+  }
+
+  return "";
+}
+
+function handleMigrate() {
+  const prompt = buildMigrationPrompt();
+  navigateTo(`/projects/${slug.value}/chat?migrate=${encodeURIComponent(prompt)}`);
+}
+
+function handleSkipMigration() {
+  navigateTo(`/projects/${slug.value}/chat`);
+}
+
 // Ordered list of all possible phases for the progress checklist
 const allPhases = [
   { key: "creating_database", label: "Setting up database..." },
@@ -111,10 +220,13 @@ async function pollStatus() {
       project.value = { ...project.value, status: data.status as Project["status"] };
     }
 
-    // If the project is now running, navigate to chat
+    // If the project is now running, check migration before navigating
     if (data.status === "running") {
       stopPolling();
-      await navigateTo(`/projects/${slug.value}/chat`);
+      await checkMigration();
+      if (!migrationCheck.value?.needsMigration) {
+        await navigateTo(`/projects/${slug.value}/chat`);
+      }
     }
 
     // If the project errored, stop polling
@@ -189,9 +301,12 @@ onMounted(async () => {
   if (isTransitioning.value) {
     startPolling();
   }
-  // If the project is running, navigate to chat immediately
+  // If the project is running, check migration before navigating
   if (project.value?.status === "running") {
-    await navigateTo(`/projects/${slug.value}/chat`);
+    await checkMigration();
+    if (!migrationCheck.value?.needsMigration) {
+      await navigateTo(`/projects/${slug.value}/chat`);
+    }
   }
 });
 
@@ -201,10 +316,89 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Running: show project layout with child routes -->
-  <NuxtLayout v-if="project?.status === 'running'" name="project">
+  <!-- Running with no migration needed: show project layout -->
+  <NuxtLayout
+    v-if="project?.status === 'running' && migrationChecked && !migrationCheck?.needsMigration"
+    name="project"
+  >
     <NuxtPage />
   </NuxtLayout>
+
+  <!-- Running but migration needed: show migration screen -->
+  <div
+    v-else-if="project?.status === 'running' && migrationCheck?.needsMigration"
+    class="status-screen"
+  >
+    <header class="status-header">
+      <NuxtLink to="/" class="status-back" aria-label="Back to dashboard">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="12 4 6 10 12 16" />
+        </svg>
+      </NuxtLink>
+      <NuxtLink to="/" class="status-brand">portable<span class="status-cursor">_</span></NuxtLink>
+    </header>
+
+    <div class="status-center">
+      <div class="status-icon status-icon-warning">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+          />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+
+      <h2 class="status-title">{{ project?.name }}</h2>
+
+      <template
+        v-if="migrationCheck?.reason === 'version_mismatch' || migrationCheck?.reason === 'missing_file_scaffold'"
+      >
+        <p class="status-message">
+          The project scaffold has been updated. Migrate to get the latest configuration and fixes.
+        </p>
+        <button class="btn-primary" @click="handleMigrate">Migrate</button>
+      </template>
+
+      <template v-else-if="migrationCheck?.reason === 'missing_file_imported'">
+        <p class="status-message">
+          This project may not be configured for Portable. Set it up using a scaffold as reference.
+        </p>
+        <div v-if="scaffolds.length > 1" class="scaffold-picker">
+          <label class="picker-label" for="scaffold-select">Reference scaffold:</label>
+          <select id="scaffold-select" v-model="selectedScaffoldId" class="picker-select">
+            <option v-for="s in scaffolds" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <button class="btn-primary" @click="handleMigrate">Set up for Portable</button>
+      </template>
+
+      <template v-else-if="migrationCheck?.reason === 'malformed_file'">
+        <p class="status-message">
+          The <code>.portable.yaml</code> file is malformed. Migrate to fix it.
+        </p>
+        <button class="btn-primary" @click="handleMigrate">Migrate</button>
+      </template>
+
+      <button class="btn-text" @click="handleSkipMigration">Continue without migrating</button>
+    </div>
+  </div>
 
   <!-- Non-running states: show status screen -->
   <div v-else class="status-screen">
@@ -472,6 +666,11 @@ onUnmounted(() => {
   color: var(--color-danger);
 }
 
+.status-icon-warning {
+  background: var(--color-warning-tint, rgba(234, 179, 8, 0.1));
+  color: var(--color-warning, #d97706);
+}
+
 /* Status text */
 .status-title {
   font-family: var(--font-sans);
@@ -640,5 +839,44 @@ onUnmounted(() => {
 .phase-pending .phase-label {
   color: var(--color-text-muted);
   opacity: 0.6;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  transition: color var(--transition-fast);
+}
+
+.btn-text:hover {
+  color: var(--color-text);
+}
+
+.scaffold-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.picker-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.picker-select {
+  width: 100%;
+  padding: var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
 }
 </style>
