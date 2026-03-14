@@ -189,6 +189,25 @@ describe("pOST /api/rebuild", () => {
     expect(setTimeoutFn).toHaveBeenCalledWith(expect.any(Function), 500);
   });
 
+  it("returns 400 for invalid debounce value", async () => {
+    const { app } = createTestApp();
+
+    const res = await app.request("/api/rebuild?debounce=abc", { method: "POST" });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.status).toBe("error");
+    expect(body.message).toContain("Invalid debounce");
+  });
+
+  it("returns 400 for negative debounce value", async () => {
+    const { app } = createTestApp();
+
+    const res = await app.request("/api/rebuild?debounce=-100", { method: "POST" });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.status).toBe("error");
+  });
+
   it("coalesces multiple debounced calls into a single build", async () => {
     const timers: { cb: () => void; ms: number; id: number }[] = [];
     let nextId = 1;

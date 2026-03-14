@@ -94,6 +94,10 @@ export function rebuild(options: RebuildOptions): Hono {
     if (debounceParam) {
       const ms = Number.parseInt(debounceParam, 10);
 
+      if (Number.isNaN(ms) || ms < 0) {
+        return c.json({ status: "error", message: "Invalid debounce value" }, 400);
+      }
+
       if (debounceTimer !== null) {
         clearTimeoutFn(debounceTimer);
       }
