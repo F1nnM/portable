@@ -26,7 +26,7 @@ const tabs = computed(() => [
   { path: `/projects/${slug.value}/chat`, label: "Chat", icon: "chat" },
   { path: `/projects/${slug.value}/files`, label: "Files", icon: "files" },
   { path: `/projects/${slug.value}/git`, label: "Git", icon: "git" },
-  { path: `/projects/${slug.value}/preview`, label: "Preview", icon: "preview" },
+  { path: `/projects/${slug.value}/app`, label: "App", icon: "app" },
 ]);
 
 function isTabActive(tabPath: string): boolean {
@@ -121,9 +121,9 @@ function isTabActive(tabPath: string): boolean {
           <path d="M18 9a9 9 0 0 1-9 9" />
         </svg>
 
-        <!-- Preview icon: eye -->
+        <!-- App icon: globe -->
         <svg
-          v-else-if="tab.icon === 'preview'"
+          v-else-if="tab.icon === 'app'"
           class="tab-icon"
           viewBox="0 0 24 24"
           fill="none"
@@ -132,8 +132,11 @@ function isTabActive(tabPath: string): boolean {
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path
+            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+          />
         </svg>
 
         <span class="tab-label">{{ tab.label }}</span>
