@@ -1,6 +1,6 @@
 # Project
 
-Nuxt 3 full-stack web application with Postgres database using Drizzle ORM.
+Mobile-only Nuxt 3 full-stack web application with Postgres database using Drizzle ORM.
 
 ## Dev Server
 
@@ -42,6 +42,9 @@ Copy `.env.example` to `.env` and fill in your values.
 ## Project Structure
 
 ```
+assets/
+  css/
+    main.css        Global CSS (Tailwind import)
 pages/              Vue pages (file-based routing)
 server/
   api/              API route handlers
@@ -61,6 +64,12 @@ drizzle.config.ts   Drizzle Kit configuration
 - ESM modules (`"type": "module"`)
 - Nuxt auto-imports for Vue composables and server utilities
 - Server API routes use Nitro event handlers (`defineEventHandler`)
+
+## Design
+
+- **Mobile-only** -- This app targets phone screens exclusively. Do not add desktop/tablet layouts, responsive breakpoints, or `md:`/`lg:`/`xl:` Tailwind variants. Design everything for a single narrow viewport.
+- **Tailwind CSS v4** -- Styling uses Tailwind utility classes. Global CSS is in `assets/css/main.css`. No `tailwind.config` file; Tailwind v4 uses CSS-based configuration.
+- **Neutral palette** -- The scaffold uses a plain neutral color scheme as a starting point. Choose your own colors for the real design.
 
 ## Build
 

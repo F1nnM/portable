@@ -33,49 +33,52 @@ async function deleteTodo(id: number) {
 </script>
 
 <template>
-  <div style="max-width: 500px; margin: 2rem auto; padding: 0 1rem; font-family: sans-serif">
-    <h1>Todos</h1>
+  <div class="w-full px-4 py-6">
+    <h1 class="mb-6 text-2xl font-bold">Todos</h1>
 
-    <form @submit.prevent="addTodo" style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
+    <form @submit.prevent="addTodo" class="mb-6 flex gap-2">
       <input
         v-model="newTitle"
         type="text"
         placeholder="What needs to be done?"
-        style="flex: 1; padding: 0.5rem; font-size: 1rem"
+        class="min-w-0 flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-base placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900"
       />
-      <button type="submit" style="padding: 0.5rem 1rem; font-size: 1rem">Add</button>
+      <button
+        type="submit"
+        class="rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white transition-colors hover:bg-neutral-700 active:bg-neutral-800"
+      >
+        Add
+      </button>
     </form>
 
-    <ul style="list-style: none; padding: 0">
+    <ul class="divide-y divide-neutral-200">
       <li
         v-for="todo in todos"
         :key="todo.id"
-        style="
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 0;
-          border-bottom: 1px solid #eee;
-        "
+        class="flex items-center gap-3 py-3"
       >
         <input
           type="checkbox"
           :checked="todo.completed"
           @change="toggleTodo(todo.id)"
-          style="width: 1.2rem; height: 1.2rem"
+          class="size-5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
         />
         <span
-          :style="{ flex: 1, textDecoration: todo.completed ? 'line-through' : 'none' }"
+          class="flex-1"
+          :class="{ 'text-neutral-400 line-through': todo.completed }"
         >
           {{ todo.title }}
         </span>
-        <button @click="deleteTodo(todo.id)" style="color: red; border: none; background: none; cursor: pointer">
+        <button
+          @click="deleteTodo(todo.id)"
+          class="text-sm text-neutral-400 transition-colors hover:text-red-500"
+        >
           Delete
         </button>
       </li>
     </ul>
 
-    <p v-if="todos && todos.length === 0" style="color: #888; text-align: center">
+    <p v-if="todos && todos.length === 0" class="py-8 text-center text-neutral-400">
       No todos yet. Add one above!
     </p>
   </div>
