@@ -1,6 +1,15 @@
 import type { SpawnOptions } from "node:child_process";
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  appendFileSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { setPhase } from "./setup-state.js";
 
@@ -37,6 +46,49 @@ function ensureGitignoreEntry(
 
   const separator = content.endsWith("\n") ? "" : "\n";
   appendFileSync(gitignorePath, `${separator}${entry}\n`);
+}
+
+const POST_COMMIT_HOOK_CONTENT = `#!/bin/sh
+# Auto-rebuild (debounced) and push on commit
+curl -s -X POST "http://localhost:3000/api/rebuild?debounce=3000" &
+git push &
+`;
+
+/**
+ * Install a git post-commit hook that triggers a rebuild and pushes.
+ * Idempotent: skips if the hook already contains /api/rebuild.
+ */
+export function installPostCommitHook(
+  workspaceDir: string,
+  options?: {
+    existsSyncFn?: typeof existsSync;
+    readFileSyncFn?: typeof readFileSync;
+    writeFileSyncFn?: typeof writeFileSync;
+    mkdirSyncFn?: typeof mkdirSync;
+    chmodSyncFn?: typeof chmodSync;
+  },
+): void {
+  const exists = options?.existsSyncFn ?? existsSync;
+  const readFile = options?.readFileSyncFn ?? readFileSync;
+  const writeFile = options?.writeFileSyncFn ?? writeFileSync;
+  const mkdir = options?.mkdirSyncFn ?? mkdirSync;
+  const chmod = options?.chmodSyncFn ?? chmodSync;
+
+  const gitDir = join(workspaceDir, ".git");
+  if (!exists(gitDir)) return;
+
+  const hooksDir = join(gitDir, "hooks");
+  const hookPath = join(hooksDir, "post-commit");
+
+  // Idempotency: skip if hook already contains /api/rebuild
+  if (exists(hookPath)) {
+    const existing = readFile(hookPath, "utf-8");
+    if (existing.includes("/api/rebuild")) return;
+  }
+
+  mkdir(hooksDir, { recursive: true });
+  writeFile(hookPath, POST_COMMIT_HOOK_CONTENT);
+  chmod(hookPath, 0o755);
 }
 
 function spawnAsync(file: string, args: readonly string[], options?: SpawnOptions): Promise<void> {
@@ -103,6 +155,9 @@ export async function setupWorkspace(options: SetupOptions): Promise<void> {
 
   // Ensure .claude/ is gitignored so session data stays out of the repo
   ensureGitignoreEntry(workspaceDir, ".claude/", existsSyncFn);
+
+  // Install git post-commit hook for auto-rebuild and push
+  installPostCommitHook(workspaceDir);
 
   // Step 2: Install dependencies if node_modules is missing
   const nodeModulesPath = join(workspaceDir, "node_modules");

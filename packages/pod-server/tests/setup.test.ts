@@ -1,11 +1,11 @@
 import type { existsSync, readdirSync } from "node:fs";
 import type { ExecFn } from "../src/setup.js";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { setupWorkspace } from "../src/setup.js";
+import { installPostCommitHook, setupWorkspace } from "../src/setup.js";
 
 function createMocks(options: { files?: string[]; nodeModulesExists?: boolean }) {
   const { files = [], nodeModulesExists = false } = options;
@@ -192,6 +192,45 @@ describe("setupWorkspace", () => {
     );
   });
 
+  describe("installPostCommitHook (via setupWorkspace)", () => {
+    let tempDir: string;
+
+    afterEach(() => {
+      if (tempDir) {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("installs post-commit hook when .git directory exists", async () => {
+      tempDir = await mkdtemp(path.join(tmpdir(), "setup-hook-integration-"));
+      // Create a .git directory so the hook can be installed
+      mkdirSync(path.join(tempDir, ".git"), { recursive: true });
+      // Create a .gitignore so ensureGitignoreEntry doesn't error
+      writeFileSync(path.join(tempDir, ".gitignore"), "node_modules\n");
+      // Create a dummy file so hasFiles() returns true (skip clone)
+      writeFileSync(path.join(tempDir, "package.json"), "{}");
+      // Create node_modules so install is skipped
+      mkdirSync(path.join(tempDir, "node_modules"), { recursive: true });
+
+      const mockExecFn = vi.fn().mockResolvedValue(undefined);
+
+      await setupWorkspace({
+        workspaceDir: tempDir,
+        execFn: mockExecFn as unknown as ExecFn,
+      });
+
+      const hookPath = path.join(tempDir, ".git", "hooks", "post-commit");
+      const content = readFileSync(hookPath, "utf-8");
+      expect(content).toContain("/api/rebuild");
+      expect(content).toContain("git push");
+
+      // Verify it's executable
+      const stat = statSync(hookPath);
+      const mode = stat.mode & 0o777;
+      expect(mode & 0o111).not.toBe(0);
+    });
+  });
+
   describe("ensureGitignoreEntry (via setupWorkspace)", () => {
     let tempDir: string;
 
@@ -347,5 +386,60 @@ describe("setupWorkspace", () => {
     // Should clone because lost+found doesn't count as real files
     const gitCalls = mockExecFn.mock.calls.filter((call: unknown[]) => call[0] === "git");
     expect(gitCalls).toHaveLength(1);
+  });
+});
+
+describe("installPostCommitHook", () => {
+  let tempDir: string;
+
+  afterEach(() => {
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("creates executable post-commit hook with rebuild curl and git push", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "setup-hook-"));
+    mkdirSync(path.join(tempDir, ".git"), { recursive: true });
+
+    installPostCommitHook(tempDir);
+
+    const hookPath = path.join(tempDir, ".git", "hooks", "post-commit");
+    const content = readFileSync(hookPath, "utf-8");
+    expect(content).toContain("#!/bin/sh");
+    expect(content).toContain(
+      'curl -s -X POST "http://localhost:3000/api/rebuild?debounce=3000" &',
+    );
+    expect(content).toContain("git push &");
+
+    // Verify it's executable
+    const stat = statSync(hookPath);
+    const mode = stat.mode & 0o777;
+    expect(mode & 0o111).not.toBe(0); // At least some execute bits set
+  });
+
+  it("skips when no .git directory exists", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "setup-hook-"));
+    // No .git directory created
+
+    installPostCommitHook(tempDir);
+
+    const hookPath = path.join(tempDir, ".git", "hooks", "post-commit");
+    expect(() => readFileSync(hookPath, "utf-8")).toThrow();
+  });
+
+  it("is idempotent -- does not duplicate content on second call", async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), "setup-hook-"));
+    mkdirSync(path.join(tempDir, ".git"), { recursive: true });
+
+    installPostCommitHook(tempDir);
+    installPostCommitHook(tempDir);
+
+    const hookPath = path.join(tempDir, ".git", "hooks", "post-commit");
+    const content = readFileSync(hookPath, "utf-8");
+
+    // Should only contain one instance of the rebuild curl
+    const matches = content.match(/\/api\/rebuild/g);
+    expect(matches).toHaveLength(1);
   });
 });
