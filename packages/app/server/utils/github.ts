@@ -7,6 +7,7 @@ import { Octokit } from "octokit";
 import { users } from "../db/schema";
 import { decrypt } from "./crypto";
 import { useDb } from "./db";
+import { generatePortableYaml } from "./scaffold-version";
 
 export interface Scaffold {
   id: string;
@@ -243,6 +244,19 @@ export async function pushScaffoldToRepo(
 ): Promise<void> {
   const octokit = new Octokit({ auth: token });
   const files = readScaffoldFiles(scaffoldId);
+
+  // Add .portable.yaml with scaffold version metadata
+  const config = useRuntimeConfig();
+  if (config.scaffoldVersion && config.scaffoldRepoUrl) {
+    files.push({
+      path: ".portable.yaml",
+      content: generatePortableYaml({
+        repoUrl: config.scaffoldRepoUrl,
+        scaffoldPath: `scaffolds/${scaffoldId}`,
+        version: config.scaffoldVersion,
+      }),
+    });
+  }
 
   // Get the current HEAD commit (repo was created with auto_init: true)
   const { data: ref } = await octokit.rest.git.getRef({ owner, repo, ref: "heads/main" });
