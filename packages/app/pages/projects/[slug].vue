@@ -16,7 +16,7 @@ const startActionLoading = ref(false);
 const startActionError = ref("");
 
 // Migration state
-const migrationCheck = ref<{
+interface ScaffoldVersionCheck {
   needsMigration: boolean;
   reason?: string;
   scaffoldId?: string | null;
@@ -25,7 +25,8 @@ const migrationCheck = ref<{
   projectScaffoldRepo?: string;
   currentVersion?: string;
   scaffoldRepoUrl?: string;
-} | null>(null);
+}
+const migrationCheck = ref<ScaffoldVersionCheck | null>(null);
 const migrationChecked = ref(false);
 const scaffolds = ref<{ id: string; name: string; description: string }[]>([]);
 const selectedScaffoldId = ref<string | null>(null);
@@ -33,7 +34,7 @@ const selectedScaffoldId = ref<string | null>(null);
 async function checkMigration() {
   if (!project.value || project.value.status !== "running") return;
   try {
-    const data = await $fetch(`/api/projects/${slug.value}/scaffold-version`);
+    const data = await $fetch<ScaffoldVersionCheck>(`/api/projects/${slug.value}/scaffold-version`);
     migrationCheck.value = data;
     if (data.needsMigration && data.reason === "missing_file_imported") {
       const scaffoldData = await $fetch<{ scaffolds: typeof scaffolds.value }>("/api/scaffolds");
@@ -368,7 +369,10 @@ onUnmounted(() => {
       <h2 class="status-title">{{ project?.name }}</h2>
 
       <template
-        v-if="migrationCheck?.reason === 'version_mismatch' || migrationCheck?.reason === 'missing_file_scaffold'"
+        v-if="
+          migrationCheck?.reason === 'version_mismatch' ||
+          migrationCheck?.reason === 'missing_file_scaffold'
+        "
       >
         <p class="status-message">
           The project scaffold has been updated. Migrate to get the latest configuration and fixes.

@@ -166,6 +166,8 @@ The Nuxt app uses `runtimeConfig` for server-only configuration. Set these via `
 | `NUXT_POD_RESOURCE_MEMORY_LIMIT`   | `podResourceMemoryLimit`   | Pod memory limit (default: `4Gi`)                                   |
 | `NUXT_POD_STORAGE_SIZE`            | `podStorageSize`           | PVC size for project workspaces (default: `5Gi`)                    |
 | `NUXT_ALLOWED_USERS`               | `allowedUsers`             | Comma-separated GitHub usernames allowed to sign up (empty = all)   |
+| `NUXT_SCAFFOLD_VERSION`            | `scaffoldVersion`          | Git commit hash of scaffold version in the deployed image           |
+| `NUXT_SCAFFOLD_REPO_URL`           | `scaffoldRepoUrl`          | Public URL of the portable repo containing scaffolds                |
 
 ## Credential Encryption
 
@@ -396,3 +398,4 @@ A NetworkPolicy (`deploy/helm/portable/templates/networkpolicy.yaml`) isolates p
 - Pods have no auth logic; all requests are validated by the main app proxy
 - Per-project Postgres databases are created in the shared instance
 - Credentials (Anthropic API keys) are stored AES-256-GCM encrypted
+- Scaffold versions tracked via `.portable.yaml` in project repos; migration prompts pre-filled in chat when versions diverge

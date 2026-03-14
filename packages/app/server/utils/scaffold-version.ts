@@ -25,7 +25,7 @@ export function parsePortableYaml(content: string): PortableYamlData | null {
     const lines = content.split("\n");
     const data: Record<string, string> = {};
     for (const line of lines) {
-      const match = line.match(/^\s+(repo|path|version):\s*(.+)$/);
+      const match = line.match(/^ +(repo|path|version): (\S.*)$/);
       if (match) {
         data[match[1]] = match[2].trim();
       }
