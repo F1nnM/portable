@@ -48,7 +48,7 @@ FROM node:22-alpine AS runtime
 #   git       - clone repos into the PVC
 #   python3   - required by some npm native modules (node-gyp)
 #   make, g++ - compile native npm addons
-RUN apk add --no-cache git python3 make g++ bash
+RUN apk add --no-cache git python3 make g++ bash curl
 
 # Install bun for fast dependency installation in user projects
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
