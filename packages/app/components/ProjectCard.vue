@@ -15,6 +15,7 @@ const currentAction = ref<"starting" | "stopping" | "renaming" | "deleting" | nu
 const isActioning = computed(() => currentAction.value !== null);
 const showRenameSheet = ref(false);
 const showDeleteSheet = ref(false);
+const showDeleteConfirmSheet = ref(false);
 const showMenu = ref(false);
 const menuButtonRef = ref<HTMLElement | null>(null);
 const menuPosition = ref({ top: 0, right: 0 });
@@ -143,7 +144,13 @@ function openDelete() {
   actionError.value = "";
   deleteGithubRepo.value = false;
   showDeleteSheet.value = true;
+  showDeleteConfirmSheet.value = false;
   closeMenu();
+}
+
+function proceedToDeleteConfirm() {
+  showDeleteSheet.value = false;
+  showDeleteConfirmSheet.value = true;
 }
 
 async function handleStart() {
@@ -211,7 +218,7 @@ async function handleDelete() {
       method: "DELETE",
       body: { deleteGithubRepo: deleteGithubRepo.value },
     });
-    showDeleteSheet.value = false;
+    showDeleteConfirmSheet.value = false;
     emit("deleted");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to delete project";
@@ -392,7 +399,7 @@ function openGithubRepo() {
       </Transition>
     </Teleport>
 
-    <!-- Delete confirmation bottom sheet -->
+    <!-- Delete stage 1: options -->
     <Teleport to="body">
       <Transition name="sheet">
         <div v-if="showDeleteSheet" class="sheet-overlay" @click.self="showDeleteSheet = false">
@@ -415,19 +422,65 @@ function openGithubRepo() {
             </div>
             <div class="sheet-body">
               <p class="delete-warning">
-                Delete <strong>{{ project.name }}</strong
-                >? This cannot be undone.
+                This will permanently delete the project
+                <strong>{{ project.name }}</strong> from Portable, including all workspace data and
+                configuration. This cannot be undone.
               </p>
-              <label v-if="project.repoUrl" class="checkbox-label">
+              <label v-if="project.repoUrl" class="checkbox-label checkbox-label-danger">
                 <input v-model="deleteGithubRepo" type="checkbox" class="checkbox-input" />
-                Also delete GitHub repository
+                Also delete the GitHub repository
               </label>
+            </div>
+            <div class="sheet-actions">
+              <button class="btn-sheet btn-sheet-cancel" @click="showDeleteSheet = false">
+                Cancel
+              </button>
+              <button class="btn-sheet btn-sheet-next" @click="proceedToDeleteConfirm">Next</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Delete stage 2: confirm -->
+    <Teleport to="body">
+      <Transition name="sheet">
+        <div
+          v-if="showDeleteConfirmSheet"
+          class="sheet-overlay"
+          @click.self="showDeleteConfirmSheet = false"
+        >
+          <div class="sheet-content">
+            <div class="sheet-header">
+              <h3 class="sheet-title sheet-title-danger">Confirm Deletion</h3>
+              <button class="btn-sheet-close" @click="showDeleteConfirmSheet = false">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  width="20"
+                  height="20"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div class="sheet-body">
+              <p v-if="deleteGithubRepo" class="delete-repo-warning">
+                The GitHub repository will be permanently deleted. All code, issues, and pull
+                requests will be lost.
+              </p>
+              <p v-else-if="project.repoUrl" class="delete-repo-safe">
+                The GitHub repository will not be affected and will continue to exist.
+              </p>
               <div v-if="actionError" class="sheet-error">
                 {{ actionError }}
               </div>
             </div>
             <div class="sheet-actions">
-              <button class="btn-sheet btn-sheet-cancel" @click="showDeleteSheet = false">
+              <button class="btn-sheet btn-sheet-cancel" @click="showDeleteConfirmSheet = false">
                 Cancel
               </button>
               <button
@@ -760,6 +813,28 @@ function openGithubRepo() {
   padding: var(--space-1) 0;
 }
 
+.checkbox-label-danger {
+  margin-top: var(--space-2);
+}
+
+.delete-repo-warning,
+.delete-repo-safe {
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-base);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.delete-repo-warning {
+  color: var(--color-danger);
+  background: var(--color-danger-tint);
+}
+
+.delete-repo-safe {
+  color: var(--color-text-muted);
+  background: var(--color-bg-elevated);
+}
+
 .checkbox-input {
   width: 18px;
   height: 18px;
@@ -813,6 +888,17 @@ function openGithubRepo() {
 
 .btn-sheet-save:hover:not(:disabled) {
   background: var(--color-accent-hover);
+}
+
+.btn-sheet-next {
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-sheet-next:hover {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-strong);
 }
 
 .btn-sheet-delete {
