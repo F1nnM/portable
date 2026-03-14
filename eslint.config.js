@@ -35,6 +35,7 @@ export default antfu(
       "vue/html-self-closing": "off",
       "vue/html-closing-bracket-newline": "off",
       "unicorn/number-literal-case": "off",
+      "vue/html-indent": "off",
     },
   },
   {
