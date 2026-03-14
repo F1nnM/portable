@@ -10,11 +10,20 @@
 
 ---
 
-### Task 1: Add scaffold config to Nuxt runtimeConfig
+### Task 1: Config & Infrastructure
+
+All config plumbing: runtimeConfig, Helm chart, Tiltfile, CI workflow, Dockerfile, and scaffold CLAUDE.md.
 
 **Files:**
 
 - Modify: `packages/app/nuxt.config.ts:337-350`
+- Modify: `deploy/helm/portable/values.yaml:224-225`
+- Modify: `deploy/helm/portable/templates/configmap.yaml`
+- Modify: `deploy/dev-values.yaml`
+- Modify: `Tiltfile:83-96`
+- Modify: `.github/workflows/release.yml:87-95`
+- Modify: `packages/app/Dockerfile`
+- Modify: `scaffolds/nuxt-postgres/CLAUDE.md`
 
 **Step 1: Add runtimeConfig entries**
 
@@ -39,26 +48,9 @@ runtimeConfig: {
 },
 ```
 
-**Step 2: Commit**
+**Step 2: Add Helm chart values**
 
-```bash
-git add packages/app/nuxt.config.ts
-git commit -m "Add scaffoldVersion and scaffoldRepoUrl runtime config"
-```
-
----
-
-### Task 2: Add scaffold config to Helm chart
-
-**Files:**
-
-- Modify: `deploy/helm/portable/values.yaml:224-225` (after pod.storage)
-- Modify: `deploy/helm/portable/templates/configmap.yaml`
-- Modify: `deploy/dev-values.yaml`
-
-**Step 1: Add values to values.yaml**
-
-After `pod.storage` (line 224) and before the `podServer` section, add:
+In `deploy/helm/portable/values.yaml`, after `pod.storage` (line 224) and before the `podServer` comment block, add:
 
 ```yaml
 # -- Scaffold version tracking.
@@ -72,7 +64,7 @@ scaffold:
   repoUrl: ""
 ```
 
-**Step 2: Add to configmap.yaml**
+**Step 3: Add to configmap.yaml**
 
 In `deploy/helm/portable/templates/configmap.yaml`, add after the `NUXT_ALLOWED_USERS` block:
 
@@ -85,7 +77,7 @@ In `deploy/helm/portable/templates/configmap.yaml`, add after the `NUXT_ALLOWED_
   {{- end }}
 ```
 
-**Step 3: Add dev values**
+**Step 4: Add dev values**
 
 In `deploy/dev-values.yaml`, add at the end:
 
@@ -95,32 +87,17 @@ scaffold:
   repoUrl: "https://github.com/anthropics/portable"
 ```
 
-Note: `scaffold.version` is left empty here because the Tiltfile will inject the current git hash.
+`scaffold.version` is left empty because the Tiltfile injects the current git hash.
 
-**Step 4: Commit**
+**Step 5: Inject scaffold version in Tiltfile**
 
-```bash
-git add deploy/helm/portable/values.yaml deploy/helm/portable/templates/configmap.yaml deploy/dev-values.yaml
-git commit -m "Add scaffold version and repo URL to Helm chart config"
-```
-
----
-
-### Task 3: Inject scaffold version in Tiltfile
-
-**Files:**
-
-- Modify: `Tiltfile:83-96` (helm section)
-
-**Step 1: Compute git hash and pass to Helm**
-
-In the `Tiltfile`, add a `local()` call to compute the git hash, then pass it as a Helm set value. Before the `k8s_yaml(helm(...))` block (line 83), add:
+Before the `k8s_yaml(helm(...))` block (line 83), add:
 
 ```python
 SCAFFOLD_VERSION = str(local("git rev-parse HEAD", quiet=True)).strip()
 ```
 
-Then in the `set` list inside the `helm()` call, add:
+Then add to the `set` list inside `helm()`:
 
 ```python
 set=[
@@ -132,24 +109,9 @@ set=[
 ],
 ```
 
-**Step 2: Commit**
+**Step 6: Pass git SHA as Docker build arg in CI**
 
-```bash
-git add Tiltfile
-git commit -m "Inject scaffold version from git hash in Tiltfile"
-```
-
----
-
-### Task 4: Inject scaffold version in CI release workflow
-
-**Files:**
-
-- Modify: `.github/workflows/release.yml:87-95` (build-app job)
-
-**Step 1: Pass git SHA as build arg**
-
-In the `build-app` job's "Build and push app image" step, add the `build-args` parameter:
+In `.github/workflows/release.yml`, in the `build-app` job's "Build and push app image" step, add `build-args`:
 
 ```yaml
 - name: Build and push app image
@@ -165,7 +127,7 @@ In the `build-app` job's "Build and push app image" step, add the `build-args` p
     cache-to: type=gha,mode=max,scope=app
 ```
 
-**Step 2: Add ARG and ENV to Dockerfile**
+**Step 7: Add ARG and ENV to Dockerfile**
 
 In `packages/app/Dockerfile`, in the runtime stage (after line 52 `COPY scaffolds/ scaffolds/`), add:
 
@@ -175,44 +137,69 @@ ARG SCAFFOLD_VERSION=""
 ENV NUXT_SCAFFOLD_VERSION=${SCAFFOLD_VERSION}
 ```
 
-**Step 3: Also update the Helm "Bake image refs" step**
+**Step 8: Bake scaffold version into Helm chart in CI**
 
-In the `helm` job's "Bake image refs into values.yaml" step (line 168), add a sed command to set the scaffold version:
-
-```yaml
-- name: Bake image refs into values.yaml
-  run: |
-    TAG="${{ steps.sha.outputs.short }}"
-    OWNER="${{ steps.sha.outputs.owner }}"
-    SHA="${{ github.sha }}"
-    sed -i "s|repository: portable/app|repository: ghcr.io/${OWNER}/portable-app|" deploy/helm/portable/values.yaml
-    sed -i "s|repository: portable/pod-server|repository: ghcr.io/${OWNER}/portable-pod-server|" deploy/helm/portable/values.yaml
-    sed -i "/ghcr.io\/${OWNER}\/portable-app/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
-    sed -i "/ghcr.io\/${OWNER}\/portable-pod-server/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
-    sed -i "s|version: \"\"|version: \"${SHA}\"|" deploy/helm/portable/values.yaml
-```
-
-Note: The last sed line targets the `scaffold.version` empty string. It may need to be more specific if there are other empty `version:` fields. Check the values.yaml structure — there's only one `version: ""` under `scaffold:`, so this works.
-
-**Step 4: Commit**
+In the `helm` job's "Bake image refs into values.yaml" step, add a sed command to set the scaffold version. Add after the existing sed commands:
 
 ```bash
-git add .github/workflows/release.yml packages/app/Dockerfile
-git commit -m "Inject scaffold version as build arg in CI and Dockerfile"
+          sed -i "/^  version: \"\"/s|version: \"\"|version: \"${SHA}\"|" deploy/helm/portable/values.yaml
+```
+
+Where `SHA` is set alongside the existing variables:
+
+```bash
+          SHA="${{ github.sha }}"
+```
+
+Note: The sed pattern `^  version: ""` targets the indented `version: ""` under `scaffold:`. The two-space indent distinguishes it from any top-level version fields.
+
+**Step 9: Add Portable Requirements to scaffold CLAUDE.md**
+
+Append to `scaffolds/nuxt-postgres/CLAUDE.md`:
+
+```markdown
+## Portable Requirements
+
+This project runs inside a Portable pod (cloud dev environment).
+
+**Preview pane:** Serves a production build, NOT a dev server. Changes are not reflected until the project is rebuilt.
+
+- `bun run build` -- produces the production build
+- `bun run preview` -- starts the preview server on `0.0.0.0:$PORT`
+- After making changes, rebuild by calling the pod's rebuild API:
+  `curl -X POST http://localhost:3000/api/rebuild`
+  This runs `bun run build` and restarts the preview server.
+- `DATABASE_URL` env var provides Postgres access
+
+**Framework config (Nuxt-specific):**
+
+- `devServer.host` must be `"0.0.0.0"`
+- `vite.server.allowedHosts` must be `true`
+```
+
+**Step 10: Commit**
+
+```bash
+git add packages/app/nuxt.config.ts deploy/helm/portable/values.yaml deploy/helm/portable/templates/configmap.yaml deploy/dev-values.yaml Tiltfile .github/workflows/release.yml packages/app/Dockerfile scaffolds/nuxt-postgres/CLAUDE.md
+git commit -m "Add scaffold version tracking infrastructure"
 ```
 
 ---
 
-### Task 5: Include `.portable.yaml` in scaffold push
+### Task 2: Scaffold version utility, API endpoint, and scaffold push
+
+The core backend logic: YAML generation/parsing utility with tests, the scaffold-version API endpoint, and modifying `pushScaffoldToRepo` to include `.portable.yaml`.
 
 **Files:**
 
-- Modify: `packages/app/server/utils/github.ts:199-253` (pushScaffoldToRepo)
-- Test: `packages/app/tests/github.test.ts` (or create if not exists)
+- Create: `packages/app/server/utils/scaffold-version.ts`
+- Modify: `packages/app/server/utils/github.ts:199-253`
+- Create: `packages/app/server/api/projects/[slug]/scaffold-version.get.ts`
+- Create: `packages/app/tests/scaffold-version.test.ts`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing test for generatePortableYaml**
 
-Create or modify a test file. The test should verify that `pushScaffoldToRepo` (or the file list it uses) includes a `.portable.yaml` file. Since `pushScaffoldToRepo` uses `readScaffoldFiles()` + adds the `.portable.yaml` dynamically, test the generation:
+Create `packages/app/tests/scaffold-version.test.ts`:
 
 ```typescript
 import { describe, expect, it } from "vitest";
@@ -236,9 +223,9 @@ describe("generatePortableYaml", () => {
 **Step 2: Run test to verify it fails**
 
 Run: `bun run --filter @portable/app test -- --run scaffold-version`
-Expected: FAIL — module not found
+Expected: FAIL -- module not found
 
-**Step 3: Create the scaffold-version utility**
+**Step 3: Create the scaffold-version utility with generatePortableYaml**
 
 Create `packages/app/server/utils/scaffold-version.ts`:
 
@@ -265,67 +252,12 @@ export function generatePortableYaml(config: PortableYamlConfig): string {
 Run: `bun run --filter @portable/app test -- --run scaffold-version`
 Expected: PASS
 
-**Step 5: Modify pushScaffoldToRepo to include `.portable.yaml`**
+**Step 5: Write the failing test for parsePortableYaml**
 
-In `packages/app/server/utils/github.ts`, import the utility and modify `pushScaffoldToRepo`:
-
-```typescript
-import { generatePortableYaml } from "./scaffold-version";
-```
-
-At the top of `pushScaffoldToRepo` (line 206), after `const files = readScaffoldFiles(scaffoldId);`, add the `.portable.yaml` file:
+Add to the same test file:
 
 ```typescript
-export async function pushScaffoldToRepo(
-  token: string,
-  owner: string,
-  repo: string,
-  scaffoldId: string,
-): Promise<void> {
-  const octokit = new Octokit({ auth: token });
-  const files = readScaffoldFiles(scaffoldId);
-
-  // Add .portable.yaml with scaffold version metadata
-  const config = useRuntimeConfig();
-  if (config.scaffoldVersion && config.scaffoldRepoUrl) {
-    files.push({
-      path: ".portable.yaml",
-      content: generatePortableYaml({
-        repoUrl: config.scaffoldRepoUrl,
-        scaffoldPath: `scaffolds/${scaffoldId}`,
-        version: config.scaffoldVersion,
-      }),
-    });
-  }
-
-  // ... rest of the function unchanged
-```
-
-**Step 6: Commit**
-
-```bash
-git add packages/app/server/utils/scaffold-version.ts packages/app/server/utils/github.ts packages/app/tests/github.test.ts
-git commit -m "Generate .portable.yaml with scaffold version metadata on project creation"
-```
-
----
-
-### Task 6: Add scaffold version API endpoint
-
-**Files:**
-
-- Create: `packages/app/server/api/projects/[slug]/scaffold-version.get.ts`
-- Test: Create test file for this endpoint
-
-**Step 1: Write the failing test**
-
-Create a test that verifies the endpoint reads `.portable.yaml` from the pod and returns parsed data:
-
-```typescript
-import { describe, expect, it, vi } from "vitest";
-
-// Test the parsing logic extracted into a utility
-import { parsePortableYaml } from "~/server/utils/scaffold-version";
+import { generatePortableYaml, parsePortableYaml } from "~/server/utils/scaffold-version";
 
 describe("parsePortableYaml", () => {
   it("parses valid .portable.yaml content", () => {
@@ -345,15 +277,30 @@ describe("parsePortableYaml", () => {
   it("returns null for YAML missing scaffold key", () => {
     expect(parsePortableYaml("other: data\n")).toBeNull();
   });
+
+  it("roundtrips with generatePortableYaml", () => {
+    const config = {
+      repoUrl: "https://github.com/user/portable",
+      scaffoldPath: "scaffolds/nuxt-postgres",
+      version: "abc123def456",
+    };
+    const yaml = generatePortableYaml(config);
+    const parsed = parsePortableYaml(yaml);
+    expect(parsed).toEqual({
+      repo: config.repoUrl,
+      path: config.scaffoldPath,
+      version: config.version,
+    });
+  });
 });
 ```
 
-**Step 2: Run test to verify it fails**
+**Step 6: Run test to verify it fails**
 
 Run: `bun run --filter @portable/app test -- --run scaffold-version`
-Expected: FAIL — parsePortableYaml not exported
+Expected: FAIL -- parsePortableYaml not exported
 
-**Step 3: Add parsePortableYaml to scaffold-version utility**
+**Step 7: Add parsePortableYaml to scaffold-version utility**
 
 Add to `packages/app/server/utils/scaffold-version.ts`:
 
@@ -366,7 +313,6 @@ export interface PortableYamlData {
 
 export function parsePortableYaml(content: string): PortableYamlData | null {
   try {
-    // Simple YAML parsing for our known structure (no library needed)
     const lines = content.split("\n");
     const data: Record<string, string> = {};
     for (const line of lines) {
@@ -385,12 +331,37 @@ export function parsePortableYaml(content: string): PortableYamlData | null {
 }
 ```
 
-**Step 4: Run test to verify it passes**
+**Step 8: Run test to verify it passes**
 
 Run: `bun run --filter @portable/app test -- --run scaffold-version`
 Expected: PASS
 
-**Step 5: Create the API endpoint**
+**Step 9: Modify pushScaffoldToRepo to include .portable.yaml**
+
+In `packages/app/server/utils/github.ts`, add import and modify `pushScaffoldToRepo` (line 199+):
+
+```typescript
+import { generatePortableYaml } from "./scaffold-version";
+```
+
+At the top of `pushScaffoldToRepo`, after `const files = readScaffoldFiles(scaffoldId);` (line 206), add:
+
+```typescript
+// Add .portable.yaml with scaffold version metadata
+const config = useRuntimeConfig();
+if (config.scaffoldVersion && config.scaffoldRepoUrl) {
+  files.push({
+    path: ".portable.yaml",
+    content: generatePortableYaml({
+      repoUrl: config.scaffoldRepoUrl,
+      scaffoldPath: `scaffolds/${scaffoldId}`,
+      version: config.scaffoldVersion,
+    }),
+  });
+}
+```
+
+**Step 10: Create the scaffold-version API endpoint**
 
 Create `packages/app/server/api/projects/[slug]/scaffold-version.get.ts`:
 
@@ -434,7 +405,6 @@ export default defineEventHandler(async (event) => {
     const parsed = parsePortableYaml(fileContent);
 
     if (!parsed) {
-      // File exists but is malformed
       return {
         needsMigration: true,
         reason: "malformed_file",
@@ -459,9 +429,7 @@ export default defineEventHandler(async (event) => {
 
     return { needsMigration: false };
   } catch {
-    // File doesn't exist (404 from pod)
     if (project.scaffoldId) {
-      // Scaffold project without .portable.yaml — old project
       return {
         needsMigration: true,
         reason: "missing_file_scaffold",
@@ -471,7 +439,6 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    // Imported project without .portable.yaml
     return {
       needsMigration: true,
       reason: "missing_file_imported",
@@ -482,30 +449,28 @@ export default defineEventHandler(async (event) => {
 });
 ```
 
-**Step 6: Commit**
+**Step 11: Commit**
 
 ```bash
-git add packages/app/server/utils/scaffold-version.ts packages/app/server/api/projects/[slug]/scaffold-version.get.ts packages/app/tests/
-git commit -m "Add scaffold version API endpoint and YAML parsing"
+git add packages/app/server/utils/scaffold-version.ts packages/app/server/utils/github.ts packages/app/server/api/projects/\[slug\]/scaffold-version.get.ts packages/app/tests/scaffold-version.test.ts
+git commit -m "Add scaffold version utility, API endpoint, and .portable.yaml generation"
 ```
 
 ---
 
-### Task 7: Add scaffolds list API for imported project setup
+### Task 3: Frontend -- migration screen and chat pre-fill
 
-The scaffolds list endpoint already exists at `GET /api/scaffolds`. No work needed for this task — the imported project setup flow can use it to show a scaffold picker. Skip this task.
-
----
-
-### Task 8: Update intermediary screen with migration check
+The intermediary screen migration check, warning UI, prompt builder, and chat input pre-fill.
 
 **Files:**
 
 - Modify: `packages/app/pages/projects/[slug].vue`
+- Modify: `packages/app/pages/projects/[slug]/chat.vue`
+- Modify: `packages/app/components/chat/ChatInput.vue`
 
-**Step 1: Add migration state and check logic**
+**Step 1: Add migration state and check logic to [slug].vue**
 
-In the `<script setup>` section, add new refs and a function to check migration status. After `startActionError` (line 16), add:
+In `packages/app/pages/projects/[slug].vue`, in the `<script setup>` section, after `startActionError` (line 16), add:
 
 ```typescript
 // Migration state
@@ -528,7 +493,6 @@ async function checkMigration() {
   try {
     const data = await $fetch(`/api/projects/${slug.value}/scaffold-version`);
     migrationCheck.value = data;
-    // If imported project needs setup, fetch scaffolds for the picker
     if (data.needsMigration && data.reason === "missing_file_imported") {
       const scaffoldData = await $fetch<{ scaffolds: typeof scaffolds.value }>("/api/scaffolds");
       scaffolds.value = scaffoldData.scaffolds;
@@ -537,43 +501,15 @@ async function checkMigration() {
       }
     }
   } catch {
-    // If the check fails, don't block — allow through
     migrationCheck.value = { needsMigration: false };
   }
   migrationChecked.value = true;
 }
 ```
 
-**Step 2: Modify the auto-redirect logic**
+**Step 2: Add migration prompt builder and navigation**
 
-Replace the poll status auto-redirect (line 114-118) to check migration first:
-
-```typescript
-// If the project is now running, check migration before navigating
-if (data.status === "running") {
-  stopPolling();
-  await checkMigration();
-  if (!migrationCheck.value?.needsMigration) {
-    await navigateTo(`/projects/${slug.value}/chat`);
-  }
-}
-```
-
-Also modify the `onMounted` auto-redirect (lines 192-195):
-
-```typescript
-// If the project is running, check migration before navigating
-if (project.value?.status === "running") {
-  await checkMigration();
-  if (!migrationCheck.value?.needsMigration) {
-    await navigateTo(`/projects/${slug.value}/chat`);
-  }
-}
-```
-
-**Step 3: Add migration prompt builder**
-
-Add a function that builds the pre-filled prompt and navigates to chat:
+Add after the `checkMigration` function:
 
 ```typescript
 function buildMigrationPrompt(): string {
@@ -653,11 +589,35 @@ function handleSkipMigration() {
 }
 ```
 
-**Step 4: Add migration UI to the template**
+**Step 3: Modify the auto-redirect logic**
 
-In the template, add a new block for the migration state. After the `<NuxtLayout>` block (line 205-207) and before the `<div v-else class="status-screen">` (line 210), the running state currently shows the layout. Replace the running block with migration-aware logic:
+Replace the poll status auto-redirect (line 114-118):
 
-Replace line 203-207:
+```typescript
+// If the project is now running, check migration before navigating
+if (data.status === "running") {
+  stopPolling();
+  await checkMigration();
+  if (!migrationCheck.value?.needsMigration) {
+    await navigateTo(`/projects/${slug.value}/chat`);
+  }
+}
+```
+
+Modify the `onMounted` auto-redirect (lines 192-195):
+
+```typescript
+if (project.value?.status === "running") {
+  await checkMigration();
+  if (!migrationCheck.value?.needsMigration) {
+    await navigateTo(`/projects/${slug.value}/chat`);
+  }
+}
+```
+
+**Step 4: Replace the running template block**
+
+Replace lines 203-207:
 
 ```html
 <!-- Running: show project layout with child routes -->
@@ -720,7 +680,6 @@ With:
 
     <h2 class="status-title">{{ project?.name }}</h2>
 
-    <!-- Version mismatch or missing file on scaffold project -->
     <template
       v-if="migrationCheck?.reason === 'version_mismatch' || migrationCheck?.reason === 'missing_file_scaffold'"
     >
@@ -730,7 +689,6 @@ With:
       <button class="btn-primary" @click="handleMigrate">Migrate</button>
     </template>
 
-    <!-- Imported project without .portable.yaml -->
     <template v-else-if="migrationCheck?.reason === 'missing_file_imported'">
       <p class="status-message">
         This project may not be configured for Portable. Set it up using a scaffold as reference.
@@ -744,7 +702,6 @@ With:
       <button class="btn-primary" @click="handleMigrate">Set up for Portable</button>
     </template>
 
-    <!-- Malformed file -->
     <template v-else-if="migrationCheck?.reason === 'malformed_file'">
       <p class="status-message">
         The <code>.portable.yaml</code> file is malformed. Migrate to fix it.
@@ -757,7 +714,7 @@ With:
 </div>
 ```
 
-**Step 5: Add CSS for the new elements**
+**Step 5: Add CSS for new elements**
 
 In the `<style scoped>` section, add:
 
@@ -807,27 +764,9 @@ In the `<style scoped>` section, add:
 }
 ```
 
-**Step 6: Commit**
+**Step 6: Add pre-fill support to ChatInput**
 
-```bash
-git add packages/app/pages/projects/[slug].vue
-git commit -m "Add scaffold migration check and warning UI to intermediary screen"
-```
-
----
-
-### Task 9: Pre-fill chat input from migration query param
-
-**Files:**
-
-- Modify: `packages/app/pages/projects/[slug]/chat.vue`
-- Modify: `packages/app/components/chat/ChatInput.vue`
-
-**Step 1: Add pre-fill support to ChatInput**
-
-In `packages/app/components/chat/ChatInput.vue`, add a `modelValue` prop and emit for two-way binding, plus an `initialValue` prop:
-
-Replace the props and model (lines 1-11):
+In `packages/app/components/chat/ChatInput.vue`, replace lines 1-11:
 
 ```typescript
 const props = defineProps<{
@@ -844,7 +783,7 @@ const inputText = ref(props.initialValue || "");
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 ```
 
-Add a watch for `initialValue` changes:
+Add a watch for `initialValue` changes (after the existing `watch(inputText, ...)` block):
 
 ```typescript
 watch(
@@ -858,7 +797,7 @@ watch(
 );
 ```
 
-**Step 2: Read the migration param in chat.vue**
+**Step 7: Read migration param and pre-fill in chat.vue**
 
 In `packages/app/pages/projects/[slug]/chat.vue`, after the `slug` computed (line 5), add:
 
@@ -869,30 +808,16 @@ const migratePrompt = computed(() => {
 });
 ```
 
-**Step 3: Auto-start new session with pre-filled prompt**
-
-In the `onMounted` hook (lines 192-199), add logic to handle the migrate param:
+In the `onMounted` hook (lines 192-199), add after `fetchActiveSessions()`:
 
 ```typescript
-onMounted(() => {
-  fetchSessions();
-  fetchActiveSessions();
-
-  // If migrate param is present, start a new session with pre-filled prompt
-  if (migratePrompt.value) {
-    startNewSession();
-  }
-
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", onViewportResize);
-    window.visualViewport.addEventListener("scroll", onViewportResize);
-  }
-});
+// If migrate param is present, start a new session with pre-filled prompt
+if (migratePrompt.value) {
+  startNewSession();
+}
 ```
 
-**Step 4: Pass pre-fill to ChatInput**
-
-In the template, update the ChatInput component (line 269) to pass the initial value:
+Update the ChatInput in the template (line 269) to pass the initial value:
 
 ```html
 <ChatInput
@@ -903,76 +828,44 @@ In the template, update the ChatInput component (line 269) to pass the initial v
 />
 ```
 
-**Step 5: Clear the query param after the message is sent**
-
 In the `sendMessage` function (line 177), clear the query param after sending:
 
 ```typescript
 function sendMessage(content: string) {
   wsSend(content);
   scrollToBottom();
-  // Clear migrate param after sending so it doesn't persist on refresh
   if (route.query.migrate) {
     navigateTo(`/projects/${slug.value}/chat`, { replace: true });
   }
 }
 ```
 
-**Step 6: Commit**
+**Step 8: Commit**
 
 ```bash
-git add packages/app/pages/projects/[slug]/chat.vue packages/app/components/chat/ChatInput.vue
-git commit -m "Pre-fill chat input with migration prompt from query parameter"
+git add packages/app/pages/projects/\[slug\].vue packages/app/pages/projects/\[slug\]/chat.vue packages/app/components/chat/ChatInput.vue
+git commit -m "Add scaffold migration UI and chat pre-fill"
 ```
 
 ---
 
-### Task 10: Update scaffold CLAUDE.md with Portable Requirements
-
-**Files:**
-
-- Modify: `scaffolds/nuxt-postgres/CLAUDE.md`
-
-**Step 1: Add Portable Requirements section**
-
-Append the following section to the end of `scaffolds/nuxt-postgres/CLAUDE.md`:
-
-```markdown
-## Portable Requirements
-
-This project runs inside a Portable pod (cloud dev environment).
-
-**Preview pane:** Serves a production build, NOT a dev server. Changes are not reflected until the project is rebuilt.
-
-- `bun run build` -- produces the production build
-- `bun run preview` -- starts the preview server on `0.0.0.0:$PORT`
-- After making changes, rebuild by calling the pod's rebuild API:
-  `curl -X POST http://localhost:3000/api/rebuild`
-  This runs `bun run build` and restarts the preview server.
-- `DATABASE_URL` env var provides Postgres access
-
-**Framework config (Nuxt-specific):**
-
-- `devServer.host` must be `"0.0.0.0"`
-- `vite.server.allowedHosts` must be `true`
-```
-
-**Step 2: Commit**
-
-```bash
-git add scaffolds/nuxt-postgres/CLAUDE.md
-git commit -m "Add Portable Requirements section to scaffold CLAUDE.md"
-```
-
----
-
-### Task 11: Update project CLAUDE.md documentation
+### Task 4: Code review and CLAUDE.md update
 
 **Files:**
 
 - Modify: `CLAUDE.md`
 
-**Step 1: Document the new config and feature**
+**Step 1: Run all tests**
+
+Run: `bun run test`
+Expected: All tests pass
+
+**Step 2: Run lint and typecheck**
+
+Run: `bun run lint && bun run typecheck`
+Expected: No errors
+
+**Step 3: Update project CLAUDE.md**
 
 In the "Runtime Config" table in `CLAUDE.md`, add the two new env vars:
 
@@ -981,12 +874,12 @@ In the "Runtime Config" table in `CLAUDE.md`, add the two new env vars:
 | `NUXT_SCAFFOLD_REPO_URL` | `scaffoldRepoUrl` | Public URL of the portable repo containing scaffolds |
 ```
 
-Add a section under "Key Design Decisions" or "Architecture Summary":
+Add a section under "Key Design Decisions":
 
 ```markdown
 ### Scaffold Migration
 
-Projects track their scaffold version via a `.portable.yaml` file in the repo root. When a project is opened and the deployed scaffold version differs from the project's recorded version, the intermediary screen shows a migration warning with a button that opens a new chat session with a pre-filled prompt. The prompt instructs Claude to clone the portable repo, diff the scaffold versions, and apply changes. Imported projects without `.portable.yaml` get a setup prompt instead. The `.portable.yaml` file format:
+Projects track their scaffold version via a `.portable.yaml` file in the repo root. When a running project is opened and the deployed scaffold version differs from the project's recorded version, the intermediary screen shows a migration warning with a button that opens a new chat session with a pre-filled prompt. The prompt instructs Claude to clone the portable repo, diff the scaffold versions, and apply changes. Imported projects without `.portable.yaml` get a setup prompt instead. The `.portable.yaml` file format:
 
 \`\`\`yaml
 scaffold:
@@ -996,7 +889,11 @@ version: <git-commit-hash>
 \`\`\`
 ```
 
-**Step 2: Commit**
+**Step 4: Dispatch code review**
+
+Use `superpowers:code-reviewer` to review all changes against the design doc at `docs/plans/2026-03-14-scaffold-migration-design.md`.
+
+**Step 5: Commit**
 
 ```bash
 git add CLAUDE.md
