@@ -324,7 +324,7 @@ function installDevWsProxy(server: Server): void {
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-03-01",
-  ssr: true,
+  ssr: false,
   devtools: { enabled: false },
   hooks: {
     // The listen hook fires when the Nuxt dev server binds to a port.
