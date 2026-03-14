@@ -34,7 +34,8 @@ export default defineEventHandler(async (event) => {
   let tokens;
   try {
     tokens = await github.validateAuthorizationCode(code);
-  } catch {
+  } catch (err: unknown) {
+    console.error("GitHub OAuth token exchange failed:", err);
     throw createError({
       statusCode: 400,
       statusMessage: "Failed to validate authorization code",
