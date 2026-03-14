@@ -53,6 +53,10 @@ COPY --from=build /app/packages/app/server/db/migrations server/db/migrations
 # Copy scaffolds (read at runtime by the scaffolds API)
 COPY scaffolds/ scaffolds/
 
+# Scaffold version for migration detection
+ARG SCAFFOLD_VERSION=""
+ENV NUXT_SCAFFOLD_VERSION=${SCAFFOLD_VERSION}
+
 # Ensure the node user (UID 1000) owns the app directory
 RUN chown -R node:node /app
 

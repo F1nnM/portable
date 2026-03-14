@@ -347,6 +347,8 @@ export default defineNuxtConfig({
     podResourceMemoryLimit: "4Gi",
     podStorageSize: "5Gi",
     allowedUsers: "",
+    scaffoldVersion: "",
+    scaffoldRepoUrl: "",
   },
   vite: {
     plugins: [suppressWsHangupErrors(), devSubdomainProxy()],

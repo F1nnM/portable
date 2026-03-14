@@ -223,6 +223,16 @@ pod:
   # and build artifacts. Format: Kubernetes quantity (e.g., 5Gi, 10Gi).
   storage: 5Gi
 
+# -- Scaffold version tracking.
+# Used to detect when project scaffolds need migration to newer versions.
+scaffold:
+  # -- Git commit hash of the portable repo at build time.
+  # Baked in by CI. In dev, computed from the local repo.
+  version: ""
+  # -- Public URL of the portable repo containing scaffolds.
+  # Example: https://github.com/myorg/portable
+  repoUrl: ""
+
 # -- Pod server container image.
 # The Hono server that runs inside each project pod, serving the editor SPA,
 # file APIs, and the Claude Agent SDK WebSocket bridge.

@@ -81,3 +81,7 @@ pod:
       cpu: 1000m
       memory: 2Gi
   storage: 2Gi
+
+# Scaffold version tracking for dev — Tiltfile overrides scaffold.version at runtime
+scaffold:
+  repoUrl: "https://github.com/anthropics/portable"

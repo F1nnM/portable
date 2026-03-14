@@ -13,3 +13,9 @@ data:
   {{- if .Values.allowedUsers }}
   NUXT_ALLOWED_USERS: {{ .Values.allowedUsers | join "," | quote }}
   {{- end }}
+  {{- if .Values.scaffold.version }}
+  NUXT_SCAFFOLD_VERSION: {{ .Values.scaffold.version | quote }}
+  {{- end }}
+  {{- if .Values.scaffold.repoUrl }}
+  NUXT_SCAFFOLD_REPO_URL: {{ .Values.scaffold.repoUrl | quote }}
+  {{- end }}

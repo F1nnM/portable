@@ -91,6 +91,8 @@ jobs:
           file: packages/app/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            SCAFFOLD_VERSION=${{ github.sha }}
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
 
@@ -169,10 +171,12 @@ jobs:
         run: |
           TAG="${{ steps.sha.outputs.short }}"
           OWNER="${{ steps.sha.outputs.owner }}"
+          SHA="${{ github.sha }}"
           sed -i "s|repository: portable/app|repository: ghcr.io/${OWNER}/portable-app|" deploy/helm/portable/values.yaml
           sed -i "s|repository: portable/pod-server|repository: ghcr.io/${OWNER}/portable-pod-server|" deploy/helm/portable/values.yaml
           sed -i "/ghcr.io\/${OWNER}\/portable-app/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
           sed -i "/ghcr.io\/${OWNER}\/portable-pod-server/,/tag:/s|tag: \".*\"|tag: \"${TAG}\"|" deploy/helm/portable/values.yaml
+          sed -i "/^  version: \"\"/s|version: \"\"|version: \"${SHA}\"|" deploy/helm/portable/values.yaml
 
       - name: Package and push SHA chart
         run: |

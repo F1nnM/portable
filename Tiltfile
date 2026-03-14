@@ -80,6 +80,8 @@ docker_build(
 # Anchor Job that references the pod-server image so Tilt builds it.
 k8s_yaml("deploy/tilt-pod-server-anchor.yaml")
 
+SCAFFOLD_VERSION = str(local("git rev-parse HEAD", quiet=True)).strip()
+
 k8s_yaml(
     helm(
         "deploy/helm/portable",
@@ -91,6 +93,7 @@ k8s_yaml(
             "image.tag=dev",
             "podServer.image.repository=" + POD_SERVER_IMAGE,
             "podServer.image.tag=dev",
+            "scaffold.version=" + SCAFFOLD_VERSION,
         ],
     )
 )

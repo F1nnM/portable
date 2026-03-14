@@ -146,3 +146,21 @@ deploy/
     ci.yml                          PR checks
     release.yml                     Build + publish on merge/release
 ```
+
+## Portable Requirements
+
+This project runs inside a Portable pod (cloud dev environment).
+
+**Preview pane:** Serves a production build, NOT a dev server. Changes are not reflected until the project is rebuilt.
+
+- `bun run build` -- produces the production build
+- `bun run preview` -- starts the preview server on `0.0.0.0:$PORT`
+- After making changes, rebuild by calling the pod's rebuild API:
+  `curl -X POST http://localhost:3000/api/rebuild`
+  This runs `bun run build` and restarts the preview server.
+- `DATABASE_URL` env var provides Postgres access
+
+**Framework config (Nuxt-specific):**
+
+- `devServer.host` must be `"0.0.0.0"`
+- `vite.server.allowedHosts` must be `true`
