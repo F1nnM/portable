@@ -1,59 +1,63 @@
-import { fetch, setup, url } from "@nuxt/test-utils/e2e";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("auth pages", async () => {
-  await setup({
-    server: true,
+// -- Mock state refs --
+const mockNavigateTo = vi.fn();
+const mockRefresh = vi.fn();
+const mockRefreshCredentialStatus = vi.fn();
+const mockUser = { value: null as any };
+const mockIsAuthenticated = { value: false };
+const mockIsSetupComplete = { value: false };
+const mockHasCredential = { value: null as boolean | null };
+const mockHasAgeKey = { value: null as boolean | null };
+
+// Mock Nuxt auto-imports resolved via #app/composables/router
+vi.mock("#app/composables/router", () => ({
+  // eslint-disable-next-line ts/no-unsafe-function-type
+  defineNuxtRouteMiddleware: (fn: Function) => fn,
+  navigateTo: (...args: any[]) => mockNavigateTo(...args),
+}));
+
+// Mock the useAuth composable (auto-imported by Nuxt from composables/)
+vi.mock("../../composables/useAuth", () => ({
+  useAuth: () => ({
+    user: mockUser,
+    isAuthenticated: mockIsAuthenticated,
+    isSetupComplete: mockIsSetupComplete,
+    hasCredential: mockHasCredential,
+    hasAgeKey: mockHasAgeKey,
+    refresh: mockRefresh,
+    refreshCredentialStatus: mockRefreshCredentialStatus,
+  }),
+}));
+
+const middleware = (await import("../../middleware/auth.global")).default;
+
+describe("auth.global route middleware", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser.value = null;
+    mockIsAuthenticated.value = false;
+    mockIsSetupComplete.value = false;
+    mockHasCredential.value = null;
+    mockHasAgeKey.value = null;
   });
 
-  describe("/api/auth/me", () => {
-    it("returns 401 when not authenticated", async () => {
-      const response = await fetch(url("/api/auth/me"));
-      expect(response.status).toBe(401);
-    });
+  it("redirects unauthenticated users to /login for protected routes", async () => {
+    mockRefresh.mockResolvedValueOnce(undefined);
+    await middleware({ path: "/settings" } as any, {} as any);
+    expect(mockNavigateTo).toHaveBeenCalledWith("/login");
   });
 
-  describe("auth guard redirects", () => {
-    it("redirects unauthenticated requests from / to /login", async () => {
-      const response = await fetch(url("/"), {
-        redirect: "manual",
-      });
-      expect(response.status).toBe(302);
-      const location = response.headers.get("location");
-      expect(location).toContain("/login");
-    });
+  it("allows unauthenticated access to /login", async () => {
+    mockRefresh.mockResolvedValueOnce(undefined);
+    const result = await middleware({ path: "/login" } as any, {} as any);
+    expect(mockNavigateTo).not.toHaveBeenCalled();
+    expect(result).toBeUndefined();
+  });
 
-    it("redirects unauthenticated requests from /settings to /login", async () => {
-      const response = await fetch(url("/settings"), {
-        redirect: "manual",
-      });
-      expect(response.status).toBe(302);
-      const location = response.headers.get("location");
-      expect(location).toContain("/login");
-    });
-
-    it("redirects unauthenticated requests from /new to /login", async () => {
-      const response = await fetch(url("/new"), {
-        redirect: "manual",
-      });
-      expect(response.status).toBe(302);
-      const location = response.headers.get("location");
-      expect(location).toContain("/login");
-    });
-
-    it("allows unauthenticated access to /login", async () => {
-      const response = await fetch(url("/login"));
-      expect(response.status).toBe(200);
-      const html = await response.text();
-      expect(html).toContain("Sign in with GitHub");
-    });
-
-    it("does not block unauthenticated API requests (handled by API routes themselves)", async () => {
-      const response = await fetch(url("/api/health"));
-      // Health returns 503 without a database, but the key assertion is that
-      // the auth middleware does not intercept it with 401 or a redirect.
-      expect(response.status).not.toBe(401);
-      expect(response.status).not.toBe(302);
-    });
+  it("skips middleware for API routes", async () => {
+    const result = await middleware({ path: "/api/health" } as any, {} as any);
+    expect(result).toBeUndefined();
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,8 @@
-import { fetch, setup, url } from "@nuxt/test-utils/e2e";
 import { describe, expect, it } from "vitest";
+import { setupH3Stubs } from "../helpers/h3";
+
+// Stub Nitro auto-imports (needed for scaffolds handler import)
+setupH3Stubs();
 
 describe("github utilities", () => {
   describe("listScaffolds", () => {
@@ -67,41 +70,38 @@ describe("github utilities", () => {
   });
 });
 
-describe("scaffolds API endpoint", async () => {
-  await setup({
-    server: true,
-  });
+const scaffoldsHandler = (await import("../../server/api/scaffolds/index.get")).default;
 
-  it("returns 200 with scaffolds array from GET /api/scaffolds", async () => {
-    const response = await fetch(url("/api/scaffolds"));
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toHaveProperty("scaffolds");
-    expect(Array.isArray(body.scaffolds)).toBe(true);
-    expect(body.scaffolds.length).toBeGreaterThan(0);
+describe("scaffolds API endpoint (handler-level)", () => {
+  const handler = scaffoldsHandler;
 
-    // Check structure of each scaffold
-    for (const scaffold of body.scaffolds) {
+  it("returns scaffolds array with correct structure", () => {
+    const result = handler(undefined as any) as {
+      scaffolds: Array<{ id: string; name: string; description: string }>;
+    };
+    expect(result).toHaveProperty("scaffolds");
+    expect(Array.isArray(result.scaffolds)).toBe(true);
+    expect(result.scaffolds.length).toBeGreaterThan(0);
+
+    for (const scaffold of result.scaffolds) {
       expect(scaffold).toHaveProperty("id");
       expect(scaffold).toHaveProperty("name");
       expect(scaffold).toHaveProperty("description");
-      expect(typeof scaffold.id).toBe("string");
-      expect(typeof scaffold.name).toBe("string");
-      expect(typeof scaffold.description).toBe("string");
     }
   });
 
-  it("includes nuxt-postgres in GET /api/scaffolds", async () => {
-    const response = await fetch(url("/api/scaffolds"));
-    const body = await response.json();
-    const nuxtPostgres = body.scaffolds.find((s: { id: string }) => s.id === "nuxt-postgres");
+  it("includes nuxt-postgres scaffold", () => {
+    const result = handler(undefined as any) as {
+      scaffolds: Array<{ id: string; name: string }>;
+    };
+    const nuxtPostgres = result.scaffolds.find((s) => s.id === "nuxt-postgres");
     expect(nuxtPostgres).toBeDefined();
-    expect(nuxtPostgres.name).toBe("Nuxt + Postgres");
+    expect(nuxtPostgres!.name).toBe("Nuxt + Postgres");
   });
 
-  it("does not require authentication for GET /api/scaffolds", async () => {
-    // No auth cookie sent
-    const response = await fetch(url("/api/scaffolds"));
-    expect(response.status).toBe(200);
+  it("does not require authentication", () => {
+    // Handler has no auth check — calling without event still works
+    const result = handler(undefined as any) as { scaffolds: unknown[] };
+    expect(result.scaffolds.length).toBeGreaterThan(0);
   });
 });

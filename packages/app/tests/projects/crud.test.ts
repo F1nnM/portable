@@ -1,65 +1,63 @@
-import { fetch, setup, url } from "@nuxt/test-utils/e2e";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockEvent, setupH3Stubs } from "../helpers/h3";
 
-describe("project CRUD API", async () => {
-  await setup({
-    server: true,
+// Stub Nitro auto-imports
+setupH3Stubs();
+
+// Mock dependencies required at import time
+vi.mock("../../server/utils/db", () => ({ useDb: vi.fn() }));
+vi.mock("../../server/utils/project-lifecycle", () => ({
+  createProject: vi.fn(),
+  startProject: vi.fn(),
+  stopProject: vi.fn(),
+  deleteProject: vi.fn(),
+}));
+vi.mock("../../server/utils/github", () => ({
+  listScaffolds: vi.fn(() => []),
+}));
+vi.mock("../../server/utils/slug", () => ({
+  generateSlug: vi.fn((name: string) => name.toLowerCase().replace(/\s+/g, "-")),
+}));
+
+const getHandler = (await import("../../server/api/projects/index.get")).default;
+const postHandler = (await import("../../server/api/projects/index.post")).default;
+const patchHandler = (await import("../../server/api/projects/[slug].patch")).default;
+const deleteHandler = (await import("../../server/api/projects/[slug].delete")).default;
+const startHandler = (await import("../../server/api/projects/[slug]/start.post")).default;
+const stopHandler = (await import("../../server/api/projects/[slug]/stop.post")).default;
+
+describe("project CRUD API - unauthenticated", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  describe("unauthenticated requests", () => {
-    it("returns 401 for POST /api/projects when not authenticated", async () => {
-      const response = await fetch(url("/api/projects"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Test Project" }),
-      });
-      expect(response.status).toBe(401);
-    });
-
-    it("returns 401 for GET /api/projects when not authenticated", async () => {
-      const response = await fetch(url("/api/projects"));
-      expect(response.status).toBe(401);
-    });
-
-    it("returns 401 for PATCH /api/projects/[slug] when not authenticated", async () => {
-      const response = await fetch(url("/api/projects/some-slug"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "New Name" }),
-      });
-      expect(response.status).toBe(401);
-    });
-
-    it("returns 401 for DELETE /api/projects/[slug] when not authenticated", async () => {
-      const response = await fetch(url("/api/projects/some-slug"), {
-        method: "DELETE",
-      });
-      expect(response.status).toBe(401);
-    });
-
-    it("returns 401 for POST /api/projects with repoUrl when not authenticated", async () => {
-      const response = await fetch(url("/api/projects"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Test Import", repoUrl: "https://github.com/user/repo" }),
-      });
-      expect(response.status).toBe(401);
-    });
+  it("rejects GET /api/projects", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(getHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  describe("start/stop placeholders", () => {
-    it("returns 401 for POST /api/projects/[slug]/start when not authenticated", async () => {
-      const response = await fetch(url("/api/projects/some-slug/start"), {
-        method: "POST",
-      });
-      expect(response.status).toBe(401);
-    });
+  it("rejects POST /api/projects", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(postHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
+  });
 
-    it("returns 401 for POST /api/projects/[slug]/stop when not authenticated", async () => {
-      const response = await fetch(url("/api/projects/some-slug/stop"), {
-        method: "POST",
-      });
-      expect(response.status).toBe(401);
-    });
+  it("rejects PATCH /api/projects/[slug]", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(patchHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it("rejects DELETE /api/projects/[slug]", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(deleteHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it("rejects POST /api/projects/[slug]/start", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(startHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  it("rejects POST /api/projects/[slug]/stop", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(stopHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
   });
 });

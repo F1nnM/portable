@@ -1,26 +1,28 @@
-import { fetch, setup, url } from "@nuxt/test-utils/e2e";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockEvent, setupH3Stubs } from "../helpers/h3";
 
-describe("credential settings API", async () => {
-  await setup({
-    server: true,
+// Stub Nitro auto-imports
+setupH3Stubs();
+
+// Mock DB and crypto (not needed for 401 tests, but required at import time)
+vi.mock("../../server/utils/db", () => ({ useDb: vi.fn() }));
+vi.mock("../../server/utils/crypto", () => ({ encrypt: vi.fn() }));
+
+const getHandler = (await import("../../server/api/settings/credential.get")).default;
+const putHandler = (await import("../../server/api/settings/credential.put")).default;
+
+describe("credential settings API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  describe("get /api/settings/credential", () => {
-    it("returns 401 when not authenticated", async () => {
-      const response = await fetch(url("/api/settings/credential"));
-      expect(response.status).toBe(401);
-    });
+  it("rejects unauthenticated GET", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(getHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  describe("put /api/settings/credential", () => {
-    it("returns 401 when not authenticated", async () => {
-      const response = await fetch(url("/api/settings/credential"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: "sk-ant-test-key" }),
-      });
-      expect(response.status).toBe(401);
-    });
+  it("rejects unauthenticated PUT", async () => {
+    const event = createMockEvent({ user: null });
+    await expect(putHandler(event as any)).rejects.toMatchObject({ statusCode: 401 });
   });
 });

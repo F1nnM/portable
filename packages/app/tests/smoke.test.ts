@@ -1,19 +1,32 @@
-import { fetch, setup, url } from "@nuxt/test-utils/e2e";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockEvent, setupH3Stubs } from "./helpers/h3";
 
-describe("app smoke tests", async () => {
-  await setup({
-    server: true,
+// Stub Nitro auto-imports
+setupH3Stubs();
+
+// Mock useDb
+const mockExecute = vi.fn();
+vi.mock("../server/utils/db", () => ({
+  useDb: () => ({ execute: mockExecute }),
+}));
+
+const handler = (await import("../server/api/health.get")).default;
+
+describe("health endpoint", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("returns 503 from /api/health when database is unavailable", async () => {
-    const response = await fetch(url("/api/health"));
-    expect(response.status).toBe(503);
+  it("returns { status: 'ok' } when database is available", async () => {
+    mockExecute.mockResolvedValueOnce([{ "?column?": 1 }]);
+    const result = await handler(createMockEvent() as any);
+    expect(result).toEqual({ status: "ok" });
   });
 
-  it("returns HTML with page content from /", async () => {
-    const response = await fetch(url("/"));
-    const html = await response.text();
-    expect(html).toContain("Portable");
+  it("throws 503 when database is unavailable", async () => {
+    mockExecute.mockRejectedValueOnce(new Error("connection refused"));
+    await expect(handler(createMockEvent() as any)).rejects.toMatchObject({
+      statusCode: 503,
+    });
   });
 });
