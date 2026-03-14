@@ -69,15 +69,19 @@ bun run build     # Build for production
 bun run preview   # Preview production build locally
 ```
 
-## Preview & Rebuild
+## Building & Deployment
 
-The preview pane serves a **production build** (not a dev server). Code changes are not automatically reflected in the preview.
+The app serves a **production build**. A rebuild triggers automatically on every git commit (debounced 3s). Commits also auto-push to the remote.
 
-To update the preview after making changes:
-- Use the rebuild button in the preview header, or
-- Run `bun run build` manually, then call `POST /api/rebuild`
+### Commit Guidelines
 
-The rebuild endpoint (`POST /api/rebuild`) rebuilds the app and restarts the preview server.
+Commit frequently with clear, descriptive messages. Each commit triggers a rebuild and push automatically.
+
+### Manual Rebuild
+
+Use the Rebuild button in the App tab, or run:
+- `curl -X POST http://localhost:3000/api/rebuild`
+- `bun run build` (then the dev server restarts automatically)
 
 ## Deployment
 

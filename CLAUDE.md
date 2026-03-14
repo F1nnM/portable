@@ -27,13 +27,16 @@ portable/
       tokens.css      Light/dark mode color tokens, typography, spacing, layout
     pod-server/       Hono server that runs inside each project pod
       src/
-        routes/       API routes (files, sessions, active-sessions, git, health, ws)
+        routes/       API routes (files, sessions, active-sessions, git, health, rebuild, ws)
         session-manager.ts  Background query persistence and multi-client broadcasting
         app.ts        Hono app factory (createApp)
         index.ts      Entrypoint (server + async setup + dev server supervisor)
         dev-server.ts DevServerSupervisor class
-        setup.ts      Workspace setup (async git clone, dependency install)
-        setup-state.ts Setup phase tracking (initializing -> cloning -> installing -> starting_server -> ready)
+        setup.ts      Workspace setup (async git clone, dependency install, post-commit hook)
+        setup-state.ts Setup phase tracking (initializing -> cloning -> installing -> building -> starting_server -> ready)
+        build-state.ts Build state tracking (lastBuiltCommit, isBuilding, lastBuildError)
+        record-initial-commit.ts Records HEAD commit as initial built commit after setup
+        spawn-async.ts Shared async spawn utility
       scripts/
         entrypoint.sh    Pod startup script (exec's server directly)
         entrypoint-dev.sh Dev startup script (used by Tilt live_update)
@@ -286,6 +289,19 @@ The SDK is invoked via `query()` from `@anthropic-ai/claude-agent-sdk` with `per
 - `GET /api/git` -- Returns the current git status of the workspace. Response includes `branch` (current branch name), `commits` (last 50 commits with `hash`, `shortHash`, `message`, `author`, `date`), `staged` (files staged in the index with `path` and `status`), and `unstaged` (modified/untracked files with `path` and `status`). Status labels are human-readable: `modified`, `added`, `deleted`, `renamed`, `copied`, `untracked`. Returns 500 if the workspace is not a git repository.
 - `GET /api/git/diff/:path` -- Returns the git diff for a specific file. Accepts a `?staged=true` query parameter to show staged changes instead of unstaged. For untracked files, generates a diff against `/dev/null`. Returns 404 if no changes exist for the file.
 
+### Rebuild API
+
+`src/routes/rebuild.ts` provides build management with debounce support:
+
+- `POST /api/rebuild` -- Triggers a workspace build (`bun run build`). On success, records the HEAD commit via `setLastBuiltCommit()`, clears errors, and restarts the dev server supervisor. On failure, stores the error message. Returns `200 { status: "ok" }` on success, `500 { status: "error", message }` on failure. Accepts optional `?debounce=<ms>` query parameter: with debounce, resets a server-side timer and returns `202 { status: "scheduled" }`. If a build is already in progress, queues a pending rebuild and returns `202 { status: "queued" }`.
+- `GET /api/rebuild/status` -- Returns build state: `{ lastBuiltCommit, currentHead, isDirty, isBuilding, lastBuildError, unbuiltCommitCount }`. Uses `git rev-parse HEAD`, `git status --porcelain`, and `git rev-list --count` to compute values.
+
+Build state is tracked in `src/build-state.ts` (module-level state, same pattern as `setup-state.ts`).
+
+### Git Post-Commit Hook
+
+`src/setup.ts` exports `installPostCommitHook()`, called during workspace setup after `.gitignore` setup. Installs `.git/hooks/post-commit` that triggers a debounced rebuild (`curl -s -X POST http://localhost:3000/api/rebuild?debounce=3000 &`) and auto-pushes (`git push &`). Idempotent: skips if hook already contains `/api/rebuild`.
+
 ### Dev Server Supervisor
 
 `src/dev-server.ts` exports the `DevServerSupervisor` class, which manages the project's dev server (e.g., Nuxt, Vite) as a child process.
@@ -299,14 +315,18 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 
 ### Setup Phase Tracking
 
-`src/setup-state.ts` maintains the current setup phase as module-level state. The `getPhase()` and `setPhase()` functions track progress through five phases: `initializing`, `cloning`, `installing`, `starting_server`, and `ready`. The health endpoint reads the current phase to report setup progress.
+`src/setup-state.ts` maintains the current setup phase as module-level state. The `getPhase()` and `setPhase()` functions track progress through six phases: `initializing`, `cloning`, `installing`, `building`, `starting_server`, and `ready`. The health endpoint reads the current phase to report setup progress.
 
 ### Workspace Setup
 
-`src/setup.ts` exports `setupWorkspace()`, which is an async function that runs two steps using spawned child processes (not synchronous exec):
+`src/setup.ts` exports `setupWorkspace()`, which is an async function that runs these steps using spawned child processes (not synchronous exec):
 
 1. **Git clone** -- If the workspace directory is empty (ignoring `lost+found`) and `GITHUB_REPO_URL` is set, calls `setPhase("cloning")` and clones the repo. If `GITHUB_TOKEN` is available, it is injected into the clone URL for authentication.
-2. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")` and runs `bun install`. Bun natively reads all lockfile formats (package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lock).
+2. **Gitignore + post-commit hook** -- Ensures `.claude/` is in `.gitignore`, then installs the git post-commit hook for auto-rebuild and push.
+3. **Dependency install** -- If `node_modules` is missing, calls `setPhase("installing")` and runs `bun install`. Bun natively reads all lockfile formats (package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lock).
+4. **Build** -- Runs the configured build command (default: `bun run build`), sets phase to `building`.
+
+After setup, `recordInitialBuiltCommit()` runs `git rev-parse HEAD` and stores the result as the initial built commit in build state.
 
 ### Entrypoint
 
@@ -327,11 +347,11 @@ The supervisor is started in `src/index.ts` after the Hono server begins listeni
 
 ## Editor UI (Integrated in Main App)
 
-The editor UI is integrated into the main Nuxt app as pages and composables under `packages/app`. When a project is running, the `/projects/[slug]` page renders a project layout with a bottom tab bar for navigating between Chat, Files, Git, and Preview views. All pod communication goes through the path-based pod proxy (`/api/projects/:slug/pod/*`). The app uses a warm orange-on-stone design with CSS custom properties from `packages/design-tokens/tokens.css`.
+The editor UI is integrated into the main Nuxt app as pages and composables under `packages/app`. When a project is running, the `/projects/[slug]` page renders a project layout with a bottom tab bar for navigating between Chat, Files, Git, and App views. All pod communication goes through the path-based pod proxy (`/api/projects/:slug/pod/*`). The app uses a warm orange-on-stone design with CSS custom properties from `packages/design-tokens/tokens.css`.
 
 ### Project Layout
 
-The `layouts/project.vue` layout provides the project chrome: a top bar with project name, status pill, and back button, plus a bottom tab bar with four tabs (Chat, Files, Git, Preview). The layout is used by the `pages/projects/[slug].vue` parent page, which handles project lifecycle states (loading, stopped, creating, starting, error) and renders child pages via `<NuxtPage />` when the project is running.
+The `layouts/project.vue` layout provides the project chrome: a top bar with project name and back button, plus a bottom tab bar with four tabs (Chat, Files, Git, App). The App tab (globe icon) shows the app URL, an Open button, build status indicators (polling every 5s), and a Rebuild button. The layout is used by the `pages/projects/[slug].vue` parent page, which handles project lifecycle states (loading, stopped, creating, starting, error) and renders child pages via `<NuxtPage />` when the project is running.
 
 ### Composables
 
