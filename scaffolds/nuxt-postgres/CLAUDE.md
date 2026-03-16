@@ -71,6 +71,27 @@ drizzle.config.ts   Drizzle Kit configuration
 - **Tailwind CSS v4** -- Styling uses Tailwind utility classes. Global CSS is in `assets/css/main.css`. No `tailwind.config` file; Tailwind v4 uses CSS-based configuration.
 - **Neutral palette** -- The scaffold uses a plain neutral color scheme as a starting point. Choose your own colors for the real design.
 
+## PWA
+
+The app is configured as a Progressive Web App via `@vite-pwa/nuxt`. The install prompt is intercepted by the module (`client.installPrompt: true` in `nuxt.config.ts`), which exposes it via `$pwa`:
+
+```vue
+<script setup>
+const { $pwa } = useNuxtApp();
+</script>
+
+<template>
+  <button v-if="$pwa?.showInstallPrompt" @click="$pwa.installPrompt()">
+    Install App
+  </button>
+</template>
+```
+
+- `$pwa?.showInstallPrompt` -- reactive boolean, true when the browser supports installation and the app isn't installed yet
+- `$pwa?.installPrompt()` -- triggers the native install dialog
+- Manifest, icons, and service worker are configured in the `pwa` section of `nuxt.config.ts`
+- Icons live in `public/icons/` (192x192 and 512x512 PNGs)
+
 ## Build
 
 ```bash

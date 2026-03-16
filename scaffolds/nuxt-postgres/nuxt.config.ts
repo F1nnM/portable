@@ -27,6 +27,9 @@ export default defineNuxtConfig({
   },
   pwa: {
     registerType: "autoUpdate",
+    client: {
+      installPrompt: true,
+    },
     manifest: {
       name: "My App",
       short_name: "MyApp",
