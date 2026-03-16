@@ -247,7 +247,7 @@ export async function pushScaffoldToRepo(
 
   // Add .portable.yaml with scaffold version metadata
   const config = useRuntimeConfig();
-  if (config.scaffoldVersion && config.scaffoldRepoUrl) {
+  if (config.scaffoldVersion) {
     files.push({
       path: ".portable.yaml",
       content: generatePortableYaml({

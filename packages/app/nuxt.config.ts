@@ -348,7 +348,7 @@ export default defineNuxtConfig({
     podStorageSize: "5Gi",
     allowedUsers: "",
     scaffoldVersion: "",
-    scaffoldRepoUrl: "",
+    scaffoldRepoUrl: "https://github.com/F1nnM/portable",
   },
   vite: {
     plugins: [suppressWsHangupErrors(), devSubdomainProxy()],

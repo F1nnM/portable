@@ -230,8 +230,7 @@ scaffold:
   # Baked in by CI. In dev, computed from the local repo.
   version: ""
   # -- Public URL of the portable repo containing scaffolds.
-  # Example: https://github.com/myorg/portable
-  repoUrl: ""
+  repoUrl: "https://github.com/F1nnM/portable"
 
 # -- Pod server container image.
 # The Hono server that runs inside each project pod, serving the editor SPA,
