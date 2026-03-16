@@ -49,7 +49,7 @@ Setup phases change from `initializing -> cloning -> installing -> building -> s
 
 #### Config Reading
 
-New module reads and parses `.portable.yaml` from the workspace directory after clone. Exposes typed config: `{ prepare?: string, serve?: string, frontendPort?: number }`.
+New module reads and parses `.portable.yaml` from the workspace directory after clone using the `yaml` npm package. Exposes typed config: `{ prepare?: string, serve?: string, frontendPort?: number }`. The same `yaml` package replaces the hand-rolled parser in the main app's `scaffold-version.ts`.
 
 #### Serve Supervisor
 

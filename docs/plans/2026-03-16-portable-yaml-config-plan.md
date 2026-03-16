@@ -6,24 +6,33 @@
 
 **Architecture:** The pod server reads `.portable.yaml` from the workspace after clone. It uses `prepare` for one-time setup, `serve` for the long-running supervisor command, and `frontendPort` for the PORT env var. The main app learns `frontendPort` via the pod health endpoint and caches it in memory for preview proxy routing.
 
-**Tech Stack:** TypeScript, Hono, Vitest, Nuxt 3, YAML parsing (hand-rolled, no library)
+**Tech Stack:** TypeScript, Hono, Vitest, Nuxt 3, `yaml` npm package for YAML parsing
 
 ---
 
 ## Phase 1: Pod Server Config and State
 
-### Task 1: Portable config reader module
+### Task 1: Install `yaml` package and create portable config reader module
 
 **Files:**
 
+- Modify: `packages/pod-server/package.json` (add `yaml` dependency)
+- Modify: `packages/app/package.json` (add `yaml` dependency)
 - Create: `packages/pod-server/src/portable-config.ts`
 - Create: `packages/pod-server/tests/portable-config.test.ts`
 
-**Step 1: Write the failing tests**
+**Step 1: Install the `yaml` package in both packages**
+
+```bash
+cd packages/pod-server && bun add yaml
+cd ../app && bun add yaml
+```
+
+**Step 2: Write the failing tests**
 
 ```typescript
 // packages/pod-server/tests/portable-config.test.ts
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -82,7 +91,7 @@ describe("readPortableConfig", () => {
     });
   });
 
-  it("handles frontendPort as string that parses to number", async () => {
+  it("handles frontendPort as number from YAML", async () => {
     tempDir = await mkdtemp(path.join(tmpdir(), "portable-config-"));
     writeFileSync(path.join(tempDir, ".portable.yaml"), "frontendPort: 3001\n");
 
@@ -92,17 +101,18 @@ describe("readPortableConfig", () => {
 });
 ```
 
-**Step 2: Run tests to verify they fail**
+**Step 3: Run tests to verify they fail**
 
 Run: `cd packages/pod-server && npx vitest run tests/portable-config.test.ts`
 Expected: FAIL -- module `../src/portable-config.js` not found
 
-**Step 3: Write minimal implementation**
+**Step 4: Write minimal implementation**
 
 ```typescript
 // packages/pod-server/src/portable-config.ts
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parse } from "yaml";
 
 export interface PortableConfig {
   prepare?: string;
@@ -113,6 +123,7 @@ export interface PortableConfig {
 /**
  * Reads and parses .portable.yaml from the workspace directory.
  * Returns an empty object if the file is missing or unparseable.
+ * Only extracts known operational fields (prepare, serve, frontendPort).
  */
 export function readPortableConfig(workspaceDir: string): PortableConfig {
   const filePath = join(workspaceDir, ".portable.yaml");
@@ -120,46 +131,30 @@ export function readPortableConfig(workspaceDir: string): PortableConfig {
 
   try {
     const content = readFileSync(filePath, "utf-8");
-    return parsePortableConfig(content);
+    const parsed = parse(content);
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const config: PortableConfig = {};
+    if (typeof parsed.prepare === "string") config.prepare = parsed.prepare;
+    if (typeof parsed.serve === "string") config.serve = parsed.serve;
+    if (typeof parsed.frontendPort === "number") config.frontendPort = parsed.frontendPort;
+    return config;
   } catch {
     return {};
   }
 }
-
-function parsePortableConfig(content: string): PortableConfig {
-  const config: PortableConfig = {};
-  const lines = content.split("\n");
-
-  for (const line of lines) {
-    // Only match top-level keys (no leading whitespace)
-    const match = line.match(/^(prepare|serve|frontendPort): (.+)$/);
-    if (match) {
-      const [, key, value] = match;
-      if (key === "frontendPort") {
-        const port = Number.parseInt(value.trim(), 10);
-        if (!Number.isNaN(port)) config.frontendPort = port;
-      } else if (key === "prepare") {
-        config.prepare = value.trim();
-      } else if (key === "serve") {
-        config.serve = value.trim();
-      }
-    }
-  }
-
-  return config;
-}
 ```
 
-**Step 4: Run tests to verify they pass**
+**Step 5: Run tests to verify they pass**
 
 Run: `cd packages/pod-server && npx vitest run tests/portable-config.test.ts`
 Expected: PASS
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
-git add packages/pod-server/src/portable-config.ts packages/pod-server/tests/portable-config.test.ts
-git commit -m "Add portable config reader for .portable.yaml"
+git add packages/pod-server/src/portable-config.ts packages/pod-server/tests/portable-config.test.ts packages/pod-server/package.json packages/app/package.json bun.lock
+git commit -m "Add portable config reader using yaml package"
 ```
 
 ---
@@ -1280,7 +1275,7 @@ git commit -m "Add operational config to nuxt-postgres scaffold"
 
 ---
 
-### Task 9: Update generatePortableYaml to merge with existing config
+### Task 9: Rewrite scaffold-version.ts to use `yaml` package and merge config
 
 **Files:**
 
@@ -1288,14 +1283,30 @@ git commit -m "Add operational config to nuxt-postgres scaffold"
 - Modify: `packages/app/tests/scaffold-version.test.ts`
 - Modify: `packages/app/server/utils/github.ts` (update pushScaffoldToRepo)
 
-The `generatePortableYaml` function currently generates a standalone file. It needs to merge the `scaffold:` section into existing `.portable.yaml` content from the scaffold.
+The `yaml` dependency was already added to `packages/app` in Task 1. Now rewrite `scaffold-version.ts` to use `yaml.parse()` and `yaml.stringify()` instead of the hand-rolled regex parser. The `generatePortableYaml` function must merge the `scaffold:` section into existing `.portable.yaml` content from the scaffold.
 
-**Step 1: Write tests for the merge behavior**
+**Step 1: Write tests for the new behavior**
 
 ```typescript
-// Add to packages/app/tests/scaffold-version.test.ts
-describe("generatePortableYaml (merge)", () => {
-  it("merges scaffold section into existing config", () => {
+// packages/app/tests/scaffold-version.test.ts
+import { describe, expect, it } from "vitest";
+import { generatePortableYaml, parsePortableYaml } from "~/server/utils/scaffold-version";
+
+describe("generatePortableYaml", () => {
+  it("generates YAML with only scaffold section when no existing content", () => {
+    const result = generatePortableYaml({
+      repoUrl: "https://github.com/user/portable",
+      scaffoldPath: "scaffolds/nuxt-postgres",
+      version: "abc123",
+    });
+
+    expect(result).toContain("scaffold:");
+    expect(result).toContain("repo: https://github.com/user/portable");
+    expect(result).toContain("path: scaffolds/nuxt-postgres");
+    expect(result).toContain("version: abc123");
+  });
+
+  it("merges scaffold section into existing config content", () => {
     const existing = "prepare: bun install\nserve: bun run preview\nfrontendPort: 3000\n";
     const result = generatePortableYaml(
       {
@@ -1306,15 +1317,17 @@ describe("generatePortableYaml (merge)", () => {
       existing,
     );
 
-    expect(result).toContain("prepare: bun install");
-    expect(result).toContain("serve: bun run preview");
-    expect(result).toContain("frontendPort: 3000");
-    expect(result).toContain("scaffold:");
-    expect(result).toContain("  repo: https://github.com/user/portable");
-    expect(result).toContain("  version: abc123");
+    // Parse the result to verify structure
+    const { parse } = require("yaml");
+    const parsed = parse(result);
+    expect(parsed.prepare).toBe("bun install");
+    expect(parsed.serve).toBe("bun run preview");
+    expect(parsed.frontendPort).toBe(3000);
+    expect(parsed.scaffold.repo).toBe("https://github.com/user/portable");
+    expect(parsed.scaffold.version).toBe("abc123");
   });
 
-  it("replaces existing scaffold section", () => {
+  it("replaces existing scaffold section in content", () => {
     const existing = "prepare: bun install\nscaffold:\n  repo: old\n  path: old\n  version: old\n";
     const result = generatePortableYaml(
       {
@@ -1325,31 +1338,134 @@ describe("generatePortableYaml (merge)", () => {
       existing,
     );
 
-    expect(result).toContain("prepare: bun install");
-    expect(result).toContain("  version: new123");
-    expect(result).not.toContain("version: old");
+    const { parse } = require("yaml");
+    const parsed = parse(result);
+    expect(parsed.prepare).toBe("bun install");
+    expect(parsed.scaffold.version).toBe("new123");
   });
+});
 
-  it("generates standalone when no existing content", () => {
-    const result = generatePortableYaml({
-      repoUrl: "https://github.com/user/portable",
-      scaffoldPath: "scaffolds/nuxt-postgres",
+describe("parsePortableYaml", () => {
+  it("parses valid .portable.yaml content", () => {
+    const yaml =
+      "scaffold:\n  repo: https://github.com/user/portable\n  path: scaffolds/nuxt-postgres\n  version: abc123\n";
+    const result = parsePortableYaml(yaml);
+    expect(result).toEqual({
+      repo: "https://github.com/user/portable",
+      path: "scaffolds/nuxt-postgres",
       version: "abc123",
     });
+  });
 
-    expect(result).toContain("scaffold:");
-    expect(result).toContain("  repo: https://github.com/user/portable");
+  it("returns null for invalid YAML", () => {
+    expect(parsePortableYaml("not yaml at all {{{")).toBeNull();
+  });
+
+  it("returns null for YAML missing scaffold key", () => {
+    expect(parsePortableYaml("other: data\n")).toBeNull();
+  });
+
+  it("roundtrips with generatePortableYaml", () => {
+    const config = {
+      repoUrl: "https://github.com/user/portable",
+      scaffoldPath: "scaffolds/nuxt-postgres",
+      version: "abc123def456",
+    };
+    const yaml = generatePortableYaml(config);
+    const parsed = parsePortableYaml(yaml);
+    expect(parsed).toEqual({
+      repo: config.repoUrl,
+      path: config.scaffoldPath,
+      version: config.version,
+    });
   });
 });
 ```
 
-**Step 2: Update generatePortableYaml**
+**Step 2: Rewrite scaffold-version.ts using `yaml` package**
 
-Add optional `existingContent` parameter. If provided, strip any existing `scaffold:` section (and its indented children), then append the new scaffold section.
+```typescript
+// packages/app/server/utils/scaffold-version.ts
+import { parse, stringify } from "yaml";
+
+export interface PortableYamlConfig {
+  repoUrl: string;
+  scaffoldPath: string;
+  version: string;
+}
+
+export interface PortableYamlData {
+  repo: string;
+  path: string;
+  version: string;
+}
+
+/**
+ * Generates .portable.yaml content with a scaffold section.
+ * If existingContent is provided, parses it and merges the scaffold section
+ * into it, preserving all other fields (prepare, serve, frontendPort, etc.).
+ */
+export function generatePortableYaml(config: PortableYamlConfig, existingContent?: string): string {
+  const scaffoldSection = {
+    repo: config.repoUrl,
+    path: config.scaffoldPath,
+    version: config.version,
+  };
+
+  let data: Record<string, unknown> = {};
+  if (existingContent) {
+    try {
+      const parsed = parse(existingContent);
+      if (parsed && typeof parsed === "object") {
+        data = parsed;
+      }
+    } catch {
+      // If existing content is unparseable, start fresh
+    }
+  }
+
+  data.scaffold = scaffoldSection;
+  return stringify(data);
+}
+
+export function parsePortableYaml(content: string): PortableYamlData | null {
+  try {
+    const parsed = parse(content);
+    if (!parsed?.scaffold) return null;
+    const { repo, path, version } = parsed.scaffold;
+    if (typeof repo === "string" && typeof path === "string" && typeof version === "string") {
+      return { repo, path, version };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+```
 
 **Step 3: Update pushScaffoldToRepo in github.ts**
 
-Instead of pushing a generated `.portable.yaml`, read the scaffold's `.portable.yaml` file and merge the scaffold section into it.
+Instead of generating a standalone `.portable.yaml`, read the scaffold's existing `.portable.yaml` file (if it exists) and pass its content to `generatePortableYaml` as `existingContent`:
+
+```typescript
+// In pushScaffoldToRepo, replace the .portable.yaml generation block:
+if (config.scaffoldVersion) {
+  const existingYaml = files.find((f) => f.path === ".portable.yaml");
+  const merged = generatePortableYaml(
+    {
+      repoUrl: config.scaffoldRepoUrl,
+      scaffoldPath: `scaffolds/${scaffoldId}`,
+      version: config.scaffoldVersion,
+    },
+    existingYaml?.content,
+  );
+  if (existingYaml) {
+    existingYaml.content = merged;
+  } else {
+    files.push({ path: ".portable.yaml", content: merged });
+  }
+}
+```
 
 **Step 4: Run tests**
 
@@ -1360,7 +1476,7 @@ Expected: PASS
 
 ```bash
 git add packages/app/server/utils/scaffold-version.ts packages/app/tests/scaffold-version.test.ts packages/app/server/utils/github.ts
-git commit -m "Merge scaffold section into existing .portable.yaml on push"
+git commit -m "Rewrite scaffold-version to use yaml package with merge support"
 ```
 
 ---
