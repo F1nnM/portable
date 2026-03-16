@@ -6,6 +6,16 @@ export default defineNuxtConfig({
   devtools: false,
   modules: ["@vite-pwa/nuxt"],
   css: ["~/assets/css/main.css"],
+  app: {
+    head: {
+      meta: [
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { name: "theme-color", content: "#e8734a" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+      ],
+      link: [{ rel: "apple-touch-icon", href: "/icons/icon-192x192.png" }],
+    },
+  },
   devServer: {
     host: "0.0.0.0",
   },
