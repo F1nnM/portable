@@ -1,5 +1,5 @@
 # ---- Stage 1: Install dependencies ----
-FROM node:22-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
@@ -17,7 +17,7 @@ COPY packages/design-tokens/package.json packages/design-tokens/package.json
 RUN bun install --frozen-lockfile
 
 # ---- Stage 2: Build Nuxt ----
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
@@ -40,7 +40,7 @@ COPY packages/app/ packages/app/
 RUN bun run --filter @portable/app build
 
 # ---- Stage 3: Production runtime ----
-FROM node:22-alpine AS runtime
+FROM node:22.23.4-alpine AS runtime
 
 WORKDIR /app
 

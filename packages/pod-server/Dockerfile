@@ -4,7 +4,7 @@
 # Example: docker build -f packages/pod-server/Dockerfile .
 
 # ---- Stage 1: Install dependencies ----
-FROM node:22-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
@@ -22,7 +22,7 @@ COPY packages/design-tokens/package.json packages/design-tokens/package.json
 RUN bun install --frozen-lockfile
 
 # ---- Stage 2: Build pod-server ----
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 
@@ -42,7 +42,7 @@ COPY packages/pod-server/ packages/pod-server/
 RUN bun run --filter @portable/pod-server build
 
 # ---- Stage 3: Production runtime ----
-FROM node:22-alpine AS runtime
+FROM node:22.23.4-alpine AS runtime
 
 # Install runtime dependencies needed inside project pods:
 #   git       - clone repos into the PVC
